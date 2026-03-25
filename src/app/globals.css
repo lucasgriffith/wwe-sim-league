@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -100,11 +100,16 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   }
   html {
-    @apply font-sans;
     scroll-behavior: smooth;
   }
+}
+
+/* Force sans-serif font on all elements — must be outside @layer to win specificity */
+html, body, h1, h2, h3, h4, h5, h6, p, span, a, button, input, select, textarea, label, div {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
 /* ─── Animations ─────────────────────────────────────────────────────── */

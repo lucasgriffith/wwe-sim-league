@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { getStatusLabel, getStatusColor } from "@/lib/season/state-machine";
 
@@ -243,11 +244,13 @@ export default async function DashboardPage() {
       {/* Empty state when no matches */}
       {recentMatches.length === 0 && !season && (
         <div className="rounded-xl border border-dashed border-border/40 bg-card/30 px-6 py-16 text-center animate-fade-in">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gold">
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-            </svg>
-          </div>
+          <img
+            src="/logo.png"
+            alt="WWE 2K26 Sim League"
+            width={48}
+            height={48}
+            className="mx-auto mb-4 rounded-xl opacity-60"
+          />
           <h3 className="text-lg font-semibold">Ready to Begin</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Add wrestlers to the roster and set up your first season to get started.

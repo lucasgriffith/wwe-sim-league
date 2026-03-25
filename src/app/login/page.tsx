@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+/* eslint-disable @next/next/no-img-element */
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -39,11 +40,13 @@ export default function LoginPage() {
     <div className="flex min-h-[80vh] items-center justify-center px-4 animate-fade-in">
       <Card className="w-full max-w-sm border-border/40 shadow-2xl shadow-black/20">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gold/10 ring-1 ring-gold/20">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gold">
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" />
-            </svg>
-          </div>
+          <img
+            src="/logo.png"
+            alt="WWE 2K26 Sim League"
+            width={48}
+            height={48}
+            className="mx-auto mb-3 rounded-xl"
+          />
           <h1 className="text-xl font-bold gradient-text-gold">Admin Login</h1>
           <p className="text-xs text-muted-foreground mt-1">
             Sign in to manage the simulation league

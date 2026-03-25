@@ -30,11 +30,14 @@ export function SiteHeader() {
       <div className="container flex h-14 max-w-screen-2xl items-center px-4">
         {/* Logo */}
         <Link href="/" className="mr-8 flex items-center gap-2.5 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/10 ring-1 ring-gold/20 transition-all group-hover:bg-gold/20 group-hover:ring-gold/40">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-gold">
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" />
-            </svg>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="WWE 2K26 Sim League"
+            width={32}
+            height={32}
+            className="rounded-lg opacity-90 transition-opacity group-hover:opacity-100"
+          />
           <div className="flex flex-col">
             <span className="text-sm font-bold leading-none gradient-text-gold">WWE 2K26</span>
             <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground leading-none mt-0.5">
@@ -99,11 +102,14 @@ export function SiteHeader() {
             <SheetContent side="right" className="w-72 border-border/30 bg-background/95 backdrop-blur-xl">
               <div className="mt-8 flex flex-col gap-1">
                 <div className="mb-4 flex items-center gap-2.5 px-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold/10 ring-1 ring-gold/20">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-gold">
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" />
-                    </svg>
-                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/logo.png"
+                    alt="WWE 2K26 Sim League"
+                    width={32}
+                    height={32}
+                    className="rounded-lg"
+                  />
                   <span className="text-sm font-bold gradient-text-gold">WWE 2K26</span>
                 </div>
                 <nav className="flex flex-col gap-0.5">
