@@ -41,7 +41,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm border-border/40 shadow-2xl shadow-black/20">
         <CardHeader className="text-center pb-2">
           <img
-            src="/logo.png"
+            src="/logo.svg"
             alt="WWE 2K26 Sim League"
             width={48}
             height={48}

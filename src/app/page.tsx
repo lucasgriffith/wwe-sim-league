@@ -245,7 +245,7 @@ export default async function DashboardPage() {
       {recentMatches.length === 0 && !season && (
         <div className="rounded-xl border border-dashed border-border/40 bg-card/30 px-6 py-16 text-center animate-fade-in">
           <img
-            src="/logo.png"
+            src="/logo.svg"
             alt="WWE 2K26 Sim League"
             width={48}
             height={48}

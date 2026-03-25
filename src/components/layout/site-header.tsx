@@ -14,6 +14,7 @@ const navLinks = [
   { href: "/tag-teams", label: "Tag Teams" },
   { href: "/dynasty", label: "Dynasty" },
   { href: "/history", label: "History" },
+  { href: "/wiki", label: "Wiki" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -32,7 +33,7 @@ export function SiteHeader() {
         <Link href="/" className="mr-8 flex items-center gap-2.5 group">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo.png"
+            src="/logo.svg"
             alt="WWE 2K26 Sim League"
             width={32}
             height={32}
@@ -104,7 +105,7 @@ export function SiteHeader() {
                 <div className="mb-4 flex items-center gap-2.5 px-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src="/logo.png"
+                    src="/logo.svg"
                     alt="WWE 2K26 Sim League"
                     width={32}
                     height={32}
