@@ -4,10 +4,10 @@ import { WrestlerTable } from "@/components/roster/wrestler-table";
 export default async function RosterPage() {
   const supabase = await createClient();
 
-  const { data: wrestlers } = await supabase
-    .from("wrestlers")
-    .select("*")
-    .order("name");
+  const [{ data: wrestlers }, { data: { user } }] = await Promise.all([
+    supabase.from("wrestlers").select("*").order("name"),
+    supabase.auth.getUser(),
+  ]);
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
@@ -19,7 +19,7 @@ export default async function RosterPage() {
           </p>
         </div>
       </div>
-      <WrestlerTable wrestlers={wrestlers ?? []} />
+      <WrestlerTable wrestlers={wrestlers ?? []} isAdmin={!!user} />
     </div>
   );
 }
