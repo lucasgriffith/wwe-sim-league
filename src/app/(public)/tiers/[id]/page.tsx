@@ -34,7 +34,6 @@ export default async function TierDetailPage({
 
   if (!tier) notFound();
 
-  // Get active season
   const { data: activeSeason } = await supabase
     .from("seasons")
     .select("*")
@@ -43,7 +42,6 @@ export default async function TierDetailPage({
     .limit(1)
     .maybeSingle();
 
-  // Get assignments for this tier in the active season
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let assignments: any[] = [];
 
@@ -58,7 +56,6 @@ export default async function TierDetailPage({
     assignments = data ?? [];
   }
 
-  // Get matches for this tier in the active season
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let matches: any[] = [];
 
@@ -75,19 +72,6 @@ export default async function TierDetailPage({
 
   const division = tier.divisions as { name: string; gender: string; division_type: string };
 
-  // Compute standings from matches
-  const wrestlerMap = new Map(
-    assignments
-      .filter((a) => a.wrestlers)
-      .map((a) => [a.wrestler_id!, a.wrestlers!.name])
-  );
-  const tagTeamMap = new Map(
-    assignments
-      .filter((a) => a.tag_teams)
-      .map((a) => [a.tag_team_id!, a.tag_teams!.name])
-  );
-
-  // Build standings per pool
   const pools = tier.has_pools ? ["A", "B"] : [null];
   const standingsByPool = pools.map((pool) => {
     const poolAssignments = assignments.filter((a) =>
@@ -136,30 +120,40 @@ export default async function TierDetailPage({
   const playedMatches = matches.filter(
     (m) => m.match_phase === "pool_play" && m.played_at
   ).length;
+  const progressPct = totalMatches > 0 ? (playedMatches / totalMatches) * 100 : 0;
 
   return (
-    <div className="container max-w-screen-2xl px-4 py-8">
+    <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
       <Link
         href="/tiers"
-        className="text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        &larr; Back to Tiers
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        Back to Tiers
       </Link>
 
-      <div className="mt-4 mb-8">
-        <div className="flex items-center gap-3">
+      {/* Hero */}
+      <div className="mt-6 mb-8 rounded-xl border border-border/40 bg-gradient-to-r p-6"
+        style={{
+          backgroundImage: `linear-gradient(135deg, ${tier.color}08 0%, transparent 60%)`,
+        }}
+      >
+        <div className="flex items-center gap-3 mb-2">
           <Badge
             variant="outline"
-            style={{ color: tier.color ?? undefined, borderColor: tier.color ?? undefined }}
+            className="text-[10px] font-semibold uppercase tracking-wider"
+            style={{ color: tier.color ?? undefined, borderColor: tier.color ? `${tier.color}40` : undefined }}
           >
             Tier {tier.tier_number}
           </Badge>
-          <Badge variant="secondary">{division.name}</Badge>
+          <Badge variant="secondary" className="text-[10px]">{division.name}</Badge>
         </div>
-        <h1 className="mt-2 text-3xl font-bold">{tier.name}</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">{tier.name}</h1>
         {tier.fixed_stipulation && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            All matches: {tier.fixed_stipulation}
+          <p className="mt-2 text-sm text-muted-foreground">
+            All matches: <span className="text-wwe-red font-medium">{tier.fixed_stipulation}</span>
           </p>
         )}
       </div>
@@ -167,44 +161,61 @@ export default async function TierDetailPage({
       {activeSeason ? (
         <>
           <div className="mb-6 flex items-center gap-4">
-            <Badge variant="outline">Season {activeSeason.season_number}</Badge>
-            <span className="text-sm text-muted-foreground">
-              {playedMatches}/{totalMatches} matches played
-            </span>
+            <Badge variant="outline" className="text-xs">Season {activeSeason.season_number}</Badge>
+            <div className="flex items-center gap-2 flex-1">
+              <div className="h-1.5 flex-1 max-w-48 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gold transition-all duration-500"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {playedMatches}/{totalMatches}
+              </span>
+            </div>
           </div>
 
           {standingsByPool.map(({ pool, stats }) => (
             <div key={pool ?? "all"} className="mb-8">
-              <h2 className="mb-3 text-lg font-semibold">
-                {pool ? `Pool ${pool}` : "Standings"}
+              <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
+                {pool ? (
+                  <>
+                    Pool {pool}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {stats.length} participants
+                    </span>
+                  </>
+                ) : (
+                  "Standings"
+                )}
               </h2>
-              <div className="rounded-md border">
+              <div className="rounded-lg border border-border/40 overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">#</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead className="text-center">W</TableHead>
-                      <TableHead className="text-center">L</TableHead>
-                      <TableHead className="text-center">Win%</TableHead>
-                      <TableHead className="text-center">Time</TableHead>
+                    <TableRow className="hover:bg-transparent border-border/40">
+                      <TableHead className="w-10 text-[11px] uppercase tracking-wider">#</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-wider">Name</TableHead>
+                      <TableHead className="text-center text-[11px] uppercase tracking-wider">W</TableHead>
+                      <TableHead className="text-center text-[11px] uppercase tracking-wider">L</TableHead>
+                      <TableHead className="text-center text-[11px] uppercase tracking-wider">Win%</TableHead>
+                      <TableHead className="text-center text-[11px] uppercase tracking-wider">Time</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {stats.map((s, i) => (
-                      <TableRow key={s.id}>
-                        <TableCell className="text-muted-foreground">
+                      <TableRow key={s.id} className="table-row-hover border-border/30">
+                        <TableCell className={`tabular-nums font-semibold ${i === 0 ? "rank-1" : i === 1 ? "rank-2" : i === 2 ? "rank-3" : "text-muted-foreground"}`}>
                           {i + 1}
                         </TableCell>
                         <TableCell className="font-medium">{s.name}</TableCell>
-                        <TableCell className="text-center">{s.wins}</TableCell>
-                        <TableCell className="text-center">{s.losses}</TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center tabular-nums">{s.wins}</TableCell>
+                        <TableCell className="text-center tabular-nums">{s.losses}</TableCell>
+                        <TableCell className="text-center tabular-nums">
                           {s.matchesPlayed > 0
                             ? (s.winPct * 100).toFixed(0) + "%"
                             : "-"}
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center tabular-nums text-muted-foreground">
                           {s.totalTime > 0 ? formatTime(s.totalTime) : "-"}
                         </TableCell>
                       </TableRow>
@@ -213,7 +224,7 @@ export default async function TierDetailPage({
                       <TableRow>
                         <TableCell
                           colSpan={6}
-                          className="text-center text-muted-foreground"
+                          className="text-center text-muted-foreground py-8"
                         >
                           No participants assigned yet
                         </TableCell>
@@ -226,18 +237,12 @@ export default async function TierDetailPage({
           ))}
         </>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">
-              No Active Season
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Create a new season to start assigning wrestlers to this tier.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-dashed border-border/40 bg-card/30 px-6 py-12 text-center">
+          <h3 className="text-base font-semibold">No Active Season</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Create a new season to start assigning wrestlers to this tier.
+          </p>
+        </div>
       )}
     </div>
   );
