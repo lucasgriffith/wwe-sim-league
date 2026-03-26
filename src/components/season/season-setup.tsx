@@ -19,11 +19,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   createSeason,
   advanceSeasonStatus,
   assignWrestlerToTier,
   removeFromTier,
   bulkCreateMatches,
+  bulkAssignToTier,
+  resetSeasonAssignments,
+  resetSeasonComplete,
 } from "@/app/actions";
 import { generateRoundRobin } from "@/lib/scheduling/round-robin";
 import {
@@ -101,6 +112,7 @@ export function SeasonSetup({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedTier, setSelectedTier] = useState<string>("");
+  const [showFullResetDialog, setShowFullResetDialog] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState("");
   const [selectedPool, setSelectedPool] = useState<PoolLabel | "">("");
 
@@ -201,6 +213,28 @@ export function SeasonSetup({
     const next = getNextStatus(season.status);
     if (!next) return;
 
+    // Validate: all tiers with assignments need at least 2 participants
+    if (next === "pool_play") {
+      const underFilled = tiers.filter((t) => {
+        const count = assignments.filter((a) => a.tier_id === t.id).length;
+        return count > 0 && count < 2;
+      });
+      if (underFilled.length > 0) {
+        toast.error(
+          `These tiers need at least 2 participants: ${underFilled.map((t) => t.short_name || t.name).join(", ")}`
+        );
+        return;
+      }
+      // Check that at least some tiers have assignments
+      const tiersWithAssignments = tiers.filter(
+        (t) => assignments.filter((a) => a.tier_id === t.id).length >= 2
+      );
+      if (tiersWithAssignments.length === 0) {
+        toast.error("Assign wrestlers to at least one tier before advancing");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       if (next === "pool_play") {
@@ -212,6 +246,128 @@ export function SeasonSetup({
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to advance"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResetAssignments() {
+    if (!season) return;
+    setLoading(true);
+    try {
+      await resetSeasonAssignments(season.id);
+      toast.success("Assignments and matches cleared");
+      router.refresh();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to reset"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleFullReset() {
+    if (!season) return;
+    setLoading(true);
+    try {
+      await resetSeasonComplete(season.id);
+      toast.success("Season deleted — start fresh");
+      setShowFullResetDialog(false);
+      router.refresh();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to reset"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRandomizeTagTeams() {
+    if (!season) return;
+    setLoading(true);
+    try {
+      // Get tag tiers grouped by gender
+      const tagTiers = tiers
+        .filter((t) => t.divisions?.division_type === "tag")
+        .sort((a, b) => a.tier_number - b.tier_number);
+
+      // Group by gender
+      const maleTagTiers = tagTiers.filter(
+        (t) => t.divisions?.gender === "male"
+      );
+      const femaleTagTiers = tagTiers.filter(
+        (t) => t.divisions?.gender === "female"
+      );
+
+      // Get already-assigned tag team IDs
+      const assignedTagIds = new Set(
+        assignments
+          .filter((a) => a.tag_team_id)
+          .map((a) => a.tag_team_id)
+      );
+
+      // Categorize unassigned tag teams by gender
+      const maleTeams = tagTeams.filter(
+        (t) => t.wrestler_a?.gender === "male" && !assignedTagIds.has(t.id)
+      );
+      const femaleTeams = tagTeams.filter(
+        (t) => t.wrestler_a?.gender === "female" && !assignedTagIds.has(t.id)
+      );
+
+      // Shuffle
+      const shuffledMale = [...maleTeams].sort(() => Math.random() - 0.5);
+      const shuffledFemale = [...femaleTeams].sort(() => Math.random() - 0.5);
+
+      const newAssignments: {
+        season_id: string;
+        tier_id: string;
+        tag_team_id: string;
+        pool: PoolLabel | null;
+      }[] = [];
+
+      // Distribute male teams across male tag tiers
+      let mIdx = 0;
+      for (const tier of maleTagTiers) {
+        for (let i = 0; i < tier.pool_size && mIdx < shuffledMale.length; i++) {
+          newAssignments.push({
+            season_id: season.id,
+            tier_id: tier.id,
+            tag_team_id: shuffledMale[mIdx].id,
+            pool: null,
+          });
+          mIdx++;
+        }
+      }
+
+      // Distribute female teams across female tag tiers
+      let fIdx = 0;
+      for (const tier of femaleTagTiers) {
+        for (let i = 0; i < tier.pool_size && fIdx < shuffledFemale.length; i++) {
+          newAssignments.push({
+            season_id: season.id,
+            tier_id: tier.id,
+            tag_team_id: shuffledFemale[fIdx].id,
+            pool: null,
+          });
+          fIdx++;
+        }
+      }
+
+      if (newAssignments.length > 0) {
+        await bulkAssignToTier(newAssignments);
+        toast.success(
+          `Randomly assigned ${newAssignments.length} tag teams across ${tagTiers.length} tiers`
+        );
+        router.refresh();
+      } else {
+        toast.error("No unassigned tag teams to distribute");
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to randomize"
       );
     } finally {
       setLoading(false);
@@ -351,6 +507,37 @@ export function SeasonSetup({
 
           {season.status === "setup" && (
             <>
+              {/* Quick Actions */}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRandomizeTagTeams}
+                  disabled={loading}
+                  className="text-xs"
+                >
+                  🎲 Randomize Tag Teams
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleResetAssignments}
+                  disabled={loading}
+                  className="text-xs text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                >
+                  Reset Assignments
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowFullResetDialog(true)}
+                  disabled={loading}
+                  className="text-xs text-red-400 border-red-500/30 hover:bg-red-500/10"
+                >
+                  Full Reset
+                </Button>
+              </div>
+
               {/* Tier Assignment Card */}
               <Card>
                 <CardHeader>
@@ -572,6 +759,40 @@ export function SeasonSetup({
             </>
           )}
         </>
+      )}
+
+      {/* Full Reset Confirmation Dialog */}
+      {showFullResetDialog && (
+        <Dialog open onOpenChange={(open) => !open && setShowFullResetDialog(false)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Full Season Reset</DialogTitle>
+              <DialogDescription>
+                This will permanently delete the season and ALL associated data
+                — tier assignments, match results, and relegation events.{" "}
+                <span className="font-semibold text-foreground">
+                  This cannot be undone.
+                </span>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setShowFullResetDialog(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleFullReset}
+                disabled={loading}
+              >
+                {loading ? "Deleting..." : "Delete Everything"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

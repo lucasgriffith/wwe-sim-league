@@ -239,13 +239,17 @@ export function PlayoffsManager({
   return (
     <div className="space-y-6">
       <Select value={selectedTier} onValueChange={(v) => setSelectedTier(v ?? "")}>
-        <SelectTrigger className="max-w-md">
-          <SelectValue placeholder="Select tier..." />
+        <SelectTrigger className="max-w-lg">
+          <SelectValue placeholder="Select tier...">
+            {tier
+              ? `${tier.divisions?.name} — T${tier.tier_number}: ${tier.short_name || tier.name}`
+              : undefined}
+          </SelectValue>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-h-80">
           {tiers.map((t) => (
             <SelectItem key={t.id} value={t.id}>
-              {t.divisions?.name} - T{t.tier_number}: {t.short_name || t.name}
+              {t.divisions?.name} — T{t.tier_number}: {t.short_name || t.name}
             </SelectItem>
           ))}
         </SelectContent>

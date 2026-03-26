@@ -10,6 +10,7 @@ export default async function DynastyPage() {
     { data: allMatches },
     { data: tierAssignments },
     { data: tiers },
+    { data: seasons },
   ] = await Promise.all([
     supabase
       .from("wrestlers")
@@ -36,6 +37,10 @@ export default async function DynastyPage() {
       .from("tiers")
       .select("id, name, short_name, tier_number, division_id, divisions(name, gender, division_type)")
       .order("tier_number"),
+    supabase
+      .from("seasons")
+      .select("id, season_number, status")
+      .order("season_number", { ascending: false }),
   ]);
 
   const tierMap = Object.fromEntries(
@@ -50,6 +55,16 @@ export default async function DynastyPage() {
       },
     ])
   );
+
+  // Season lookup
+  const seasonMap = Object.fromEntries(
+    (seasons ?? []).map((s) => [s.id, s.season_number])
+  );
+  const latestCompletedSeason = (seasons ?? []).find(
+    (s) => s.status === "completed"
+  );
+  const latestSeasonId = latestCompletedSeason?.id ?? null;
+  const latestSeasonNumber = latestCompletedSeason?.season_number ?? null;
 
   // ── Wrestler stats ─────────────────────────────────────────────────
   const wrestlerStats = (wrestlers ?? []).map((w) => {
@@ -97,7 +112,11 @@ export default async function DynastyPage() {
       .filter(
         (m) => m.match_phase === "final" && m.winner_wrestler_id === w.id
       )
-      .map((m) => tierMap[m.tier_id]?.shortName || tierMap[m.tier_id]?.name || "Unknown");
+      .map((m) => ({
+        name: tierMap[m.tier_id]?.shortName || tierMap[m.tier_id]?.name || "Unknown",
+        season: seasonMap[m.season_id] ?? 0,
+        isCurrent: m.season_id === latestSeasonId,
+      }));
 
     return {
       id: w.id,
@@ -181,7 +200,11 @@ export default async function DynastyPage() {
       .filter(
         (m) => m.match_phase === "final" && m.winner_tag_team_id === t.id
       )
-      .map((m) => tierMap[m.tier_id]?.shortName || tierMap[m.tier_id]?.name || "Unknown");
+      .map((m) => ({
+        name: tierMap[m.tier_id]?.shortName || tierMap[m.tier_id]?.name || "Unknown",
+        season: seasonMap[m.season_id] ?? 0,
+        isCurrent: m.season_id === latestSeasonId,
+      }));
 
     return {
       id: t.id,
@@ -212,6 +235,46 @@ export default async function DynastyPage() {
       b.winPct - a.winPct
   );
 
+  // Build current champions list from latest completed season finals
+  const currentChampions: Array<{
+    tierName: string;
+    tierNumber: number;
+    division: string;
+    holderName: string;
+    holderId: string;
+    isTag: boolean;
+  }> = [];
+
+  if (latestSeasonId) {
+    const finals = (allMatches ?? []).filter(
+      (m) => m.match_phase === "final" && m.season_id === latestSeasonId
+    );
+    for (const f of finals) {
+      const tier = tierMap[f.tier_id];
+      if (!tier) continue;
+      const winnerId = f.winner_wrestler_id || f.winner_tag_team_id;
+      if (!winnerId) continue;
+      const isTag = !!f.winner_tag_team_id;
+      const holderName = isTag
+        ? (tagTeams ?? []).find((t) => t.id === winnerId)
+            ? ((tagTeams ?? []).find((t) => t.id === winnerId)!.wrestler_a as unknown as { name: string } | null)?.name
+              ? (tagTeams ?? []).find((t) => t.id === winnerId)!.name
+              : "Unknown"
+            : "Unknown"
+        : (wrestlers ?? []).find((w) => w.id === winnerId)?.name ?? "Unknown";
+
+      currentChampions.push({
+        tierName: tier.shortName || tier.name,
+        tierNumber: tier.tierNumber,
+        division: tier.divisionName,
+        holderName,
+        holderId: winnerId,
+        isTag,
+      });
+    }
+    currentChampions.sort((a, b) => a.tierNumber - b.tierNumber);
+  }
+
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
       <div className="mb-8">
@@ -224,6 +287,8 @@ export default async function DynastyPage() {
       </div>
       <DynastyTabs
         wrestlerStats={wrestlerStats}
+        currentChampions={currentChampions}
+        latestSeasonNumber={latestSeasonNumber}
         tagTeamStats={tagTeamStats}
       />
     </div>

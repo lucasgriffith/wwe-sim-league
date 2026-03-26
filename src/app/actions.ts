@@ -256,6 +256,80 @@ export async function bulkCreateRelegationEvents(
   revalidatePath("/season/relegation");
 }
 
+// ─── Season Reset actions ───────────────────────────────────────────────────
+
+export async function resetSeasonAssignments(seasonId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  // Delete matches for this season
+  const { error: matchErr } = await admin
+    .from("matches")
+    .delete()
+    .eq("season_id", seasonId);
+  if (matchErr) throw new Error(matchErr.message);
+
+  // Delete tier assignments for this season
+  const { error: assignErr } = await admin
+    .from("tier_assignments")
+    .delete()
+    .eq("season_id", seasonId);
+  if (assignErr) throw new Error(assignErr.message);
+
+  // Delete relegation events for this season
+  const { error: relErr } = await admin
+    .from("relegation_events")
+    .delete()
+    .eq("season_id", seasonId);
+  if (relErr) throw new Error(relErr.message);
+
+  // Reset season status to setup
+  const { error: statusErr } = await admin
+    .from("seasons")
+    .update({ status: "setup" as SeasonStatus, started_at: null, completed_at: null })
+    .eq("id", seasonId);
+  if (statusErr) throw new Error(statusErr.message);
+
+  revalidatePath("/season");
+  revalidatePath("/season/setup");
+  revalidatePath("/tiers");
+}
+
+export async function resetSeasonComplete(seasonId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  // Delete in order: matches → relegation_events → tier_assignments → season
+  const { error: matchErr } = await admin
+    .from("matches")
+    .delete()
+    .eq("season_id", seasonId);
+  if (matchErr) throw new Error(matchErr.message);
+
+  const { error: relErr } = await admin
+    .from("relegation_events")
+    .delete()
+    .eq("season_id", seasonId);
+  if (relErr) throw new Error(relErr.message);
+
+  const { error: assignErr } = await admin
+    .from("tier_assignments")
+    .delete()
+    .eq("season_id", seasonId);
+  if (assignErr) throw new Error(assignErr.message);
+
+  const { error: seasonErr } = await admin
+    .from("seasons")
+    .delete()
+    .eq("id", seasonId);
+  if (seasonErr) throw new Error(seasonErr.message);
+
+  revalidatePath("/season");
+  revalidatePath("/season/setup");
+  revalidatePath("/tiers");
+  revalidatePath("/dynasty");
+}
+
 // ─── Logout ─────────────────────────────────────────────────────────────────
 
 export async function signOut() {

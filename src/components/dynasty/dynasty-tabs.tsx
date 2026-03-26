@@ -14,6 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+interface TitleDetail {
+  name: string;
+  season: number;
+  isCurrent: boolean;
+}
+
 interface BaseStat {
   id: string;
   name: string;
@@ -22,7 +28,7 @@ interface BaseStat {
   losses: number;
   winPct: number;
   championships: number;
-  titles: string[];
+  titles: TitleDetail[];
   highestTier: number | null;
   totalMatches: number;
   playoffMatches: number;
@@ -30,6 +36,15 @@ interface BaseStat {
   fastestWin: number | null;
   avgMatchTime: number | null;
   seasons: number;
+}
+
+interface CurrentChampion {
+  tierName: string;
+  tierNumber: number;
+  division: string;
+  holderName: string;
+  holderId: string;
+  isTag: boolean;
 }
 
 interface WrestlerStat extends BaseStat {
@@ -51,9 +66,13 @@ function formatTime(seconds: number): string {
 export function DynastyTabs({
   wrestlerStats,
   tagTeamStats,
+  currentChampions = [],
+  latestSeasonNumber,
 }: {
   wrestlerStats: WrestlerStat[];
   tagTeamStats: TagTeamStat[];
+  currentChampions?: CurrentChampion[];
+  latestSeasonNumber?: number | null;
 }) {
   const [tab, setTab] = useState<"wrestlers" | "tag-teams">("wrestlers");
   const [search, setSearch] = useState("");
@@ -78,6 +97,36 @@ export function DynastyTabs({
 
   return (
     <div className="space-y-4">
+      {/* Current Champions */}
+      {currentChampions.length > 0 && (
+        <div className="rounded-lg border border-gold/20 bg-gold/5 p-4 mb-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gold mb-3">
+            Current Champions{latestSeasonNumber ? ` — Season ${latestSeasonNumber}` : ""}
+          </h2>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {currentChampions.map((c) => (
+              <div
+                key={c.holderId + c.tierName}
+                className="flex items-center gap-2 rounded-md border border-gold/10 bg-background/50 px-3 py-2"
+              >
+                <span className="text-sm">🏆</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-gold truncate">
+                    {c.holderName}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {c.tierName}
+                  </p>
+                </div>
+                <span className="text-[10px] text-muted-foreground/50 font-mono">
+                  T{c.tierNumber}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Tab Toggle + Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex gap-1.5">
@@ -178,13 +227,24 @@ export function DynastyTabs({
                         {s.gender === "male" ? "M" : "F"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-center">
-                      {s.championships > 0 ? (
-                        <Badge className="bg-gold/15 text-gold border-gold/20 text-xs font-bold">
-                          {s.championships}
-                        </Badge>
+                    <TableCell>
+                      {s.titles.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {s.titles.map((t, ti) => (
+                            <Badge
+                              key={ti}
+                              className={`text-[10px] ${
+                                t.isCurrent
+                                  ? "bg-gold/15 text-gold border-gold/20 font-bold"
+                                  : "bg-muted/30 text-muted-foreground/60 border-border/20"
+                              }`}
+                            >
+                              {t.isCurrent ? "🏆 " : ""}{t.name} (S{t.season})
+                            </Badge>
+                          ))}
+                        </div>
                       ) : (
-                        <span className="text-muted-foreground/40">0</span>
+                        <span className="text-muted-foreground/40">—</span>
                       )}
                     </TableCell>
                     <TableCell className="text-center tabular-nums text-emerald-400">{s.wins}</TableCell>
@@ -263,13 +323,24 @@ export function DynastyTabs({
                       <TableCell className="text-sm text-muted-foreground hidden sm:table-cell">
                         {s.memberA} & {s.memberB}
                       </TableCell>
-                      <TableCell className="text-center">
-                        {s.championships > 0 ? (
-                          <Badge className="bg-gold/15 text-gold border-gold/20 text-xs font-bold">
-                            {s.championships}
-                          </Badge>
+                      <TableCell>
+                        {s.titles.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {s.titles.map((t, ti) => (
+                              <Badge
+                                key={ti}
+                                className={`text-[10px] ${
+                                  t.isCurrent
+                                    ? "bg-gold/15 text-gold border-gold/20 font-bold"
+                                    : "bg-muted/30 text-muted-foreground/60 border-border/20"
+                                }`}
+                              >
+                                {t.isCurrent ? "🏆 " : ""}{t.name} (S{t.season})
+                              </Badge>
+                            ))}
+                          </div>
                         ) : (
-                          <span className="text-muted-foreground/40">0</span>
+                          <span className="text-muted-foreground/40">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-center tabular-nums text-emerald-400">{s.wins}</TableCell>
