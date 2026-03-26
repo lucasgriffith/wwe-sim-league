@@ -78,22 +78,81 @@ export function DynastyTabs({
   const [search, setSearch] = useState("");
   const [genderFilter, setGenderFilter] = useState<string>("all");
 
-  const filteredWrestlers = wrestlerStats.filter((s) => {
-    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase());
-    const matchesGender =
-      genderFilter === "all" || s.gender === genderFilter;
-    return matchesSearch && matchesGender;
-  });
+  type SortKey = "rank" | "name" | "titles" | "wins" | "losses" | "winPct" | "playoffs" | "avgMatchTime" | "highestTier";
+  const [sortKey, setSortKey] = useState<SortKey>("rank");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  const filteredTagTeams = tagTeamStats.filter((s) => {
-    const matchesSearch =
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.memberA.toLowerCase().includes(search.toLowerCase()) ||
-      s.memberB.toLowerCase().includes(search.toLowerCase());
-    const matchesGender =
-      genderFilter === "all" || s.gender === genderFilter;
-    return matchesSearch && matchesGender;
-  });
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      // Default direction per column
+      setSortDir(
+        key === "name" ? "asc" :
+        key === "highestTier" || key === "rank" ? "asc" :
+        "desc"
+      );
+    }
+  }
+
+  function sortFn<T extends BaseStat>(a: T, b: T): number {
+    let cmp = 0;
+    switch (sortKey) {
+      case "rank":
+        // Default: tier (lower = better), then win%
+        cmp = (a.highestTier ?? 999) - (b.highestTier ?? 999);
+        if (cmp === 0) cmp = b.winPct - a.winPct;
+        break;
+      case "name":
+        cmp = a.name.localeCompare(b.name);
+        break;
+      case "titles":
+        cmp = a.championships - b.championships;
+        break;
+      case "wins":
+        cmp = a.wins - b.wins;
+        break;
+      case "losses":
+        cmp = a.losses - b.losses;
+        break;
+      case "winPct":
+        cmp = a.winPct - b.winPct;
+        break;
+      case "playoffs":
+        cmp = a.playoffMatches - b.playoffMatches;
+        break;
+      case "avgMatchTime":
+        cmp = (a.avgMatchTime ?? 0) - (b.avgMatchTime ?? 0);
+        break;
+      case "highestTier":
+        // Lower tier number = better, so ascending = best first
+        cmp = (a.highestTier ?? 999) - (b.highestTier ?? 999);
+        break;
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  }
+
+  const filteredWrestlers = wrestlerStats
+    .filter((s) => {
+      const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase());
+      const matchesGender =
+        genderFilter === "all" || s.gender === genderFilter;
+      return matchesSearch && matchesGender;
+    })
+    .sort(sortFn);
+
+  const filteredTagTeams = tagTeamStats
+    .filter((s) => {
+      const matchesSearch =
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.memberA.toLowerCase().includes(search.toLowerCase()) ||
+        s.memberB.toLowerCase().includes(search.toLowerCase());
+      const matchesGender =
+        genderFilter === "all" || s.gender === genderFilter;
+      return matchesSearch && matchesGender;
+    })
+    .sort(sortFn);
 
   return (
     <div className="space-y-4">
@@ -133,7 +192,7 @@ export function DynastyTabs({
           <Button
             variant={tab === "wrestlers" ? "default" : "outline"}
             size="sm"
-            onClick={() => { setTab("wrestlers"); setSearch(""); setGenderFilter("all"); }}
+            onClick={() => { setTab("wrestlers"); setSearch(""); setGenderFilter("all"); setSortKey("rank"); setSortDir("asc"); }}
             className={`text-xs ${tab !== "wrestlers" ? "border-border/40 text-muted-foreground hover:text-foreground" : ""}`}
           >
             Singles ({wrestlerStats.length})
@@ -141,7 +200,7 @@ export function DynastyTabs({
           <Button
             variant={tab === "tag-teams" ? "default" : "outline"}
             size="sm"
-            onClick={() => { setTab("tag-teams"); setSearch(""); setGenderFilter("all"); }}
+            onClick={() => { setTab("tag-teams"); setSearch(""); setGenderFilter("all"); setSortKey("rank"); setSortDir("asc"); }}
             className={`text-xs ${tab !== "tag-teams" ? "border-border/40 text-muted-foreground hover:text-foreground" : ""}`}
           >
             Tag Teams ({tagTeamStats.length})
@@ -196,15 +255,15 @@ export function DynastyTabs({
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border/40">
-                  <TableHead className="w-10 text-[11px] uppercase tracking-wider">#</TableHead>
-                  <TableHead className="text-[11px] uppercase tracking-wider">Name</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider">Titles</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider">W</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider">L</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider">Win%</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider hidden sm:table-cell">Playoffs</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider hidden md:table-cell">Avg Time</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider">Best Tier</TableHead>
+                  <SortableHead sortKey="rank" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-12">Rank</SortableHead>
+                  <SortableHead sortKey="name" currentKey={sortKey} dir={sortDir} onSort={handleSort}>Name</SortableHead>
+                  <SortableHead sortKey="titles" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">Titles</SortableHead>
+                  <SortableHead sortKey="wins" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">W</SortableHead>
+                  <SortableHead sortKey="losses" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">L</SortableHead>
+                  <SortableHead sortKey="winPct" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">Win%</SortableHead>
+                  <SortableHead sortKey="playoffs" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center hidden sm:table-cell">Playoffs</SortableHead>
+                  <SortableHead sortKey="avgMatchTime" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center hidden md:table-cell">Avg Time</SortableHead>
+                  <SortableHead sortKey="highestTier" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">Best Tier</SortableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -284,15 +343,15 @@ export function DynastyTabs({
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border/40">
-                  <TableHead className="w-10 text-[11px] uppercase tracking-wider">#</TableHead>
-                  <TableHead className="text-[11px] uppercase tracking-wider">Team</TableHead>
+                  <SortableHead sortKey="rank" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-12">Rank</SortableHead>
+                  <SortableHead sortKey="name" currentKey={sortKey} dir={sortDir} onSort={handleSort}>Team</SortableHead>
                   <TableHead className="text-[11px] uppercase tracking-wider hidden sm:table-cell">Members</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider">Titles</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider">W</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider">L</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider">Win%</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider hidden md:table-cell">Avg Time</TableHead>
-                  <TableHead className="text-center text-[11px] uppercase tracking-wider">Best Tier</TableHead>
+                  <SortableHead sortKey="titles" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">Titles</SortableHead>
+                  <SortableHead sortKey="wins" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">W</SortableHead>
+                  <SortableHead sortKey="losses" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">L</SortableHead>
+                  <SortableHead sortKey="winPct" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">Win%</SortableHead>
+                  <SortableHead sortKey="avgMatchTime" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center hidden md:table-cell">Avg Time</SortableHead>
+                  <SortableHead sortKey="highestTier" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">Best Tier</SortableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -389,5 +448,46 @@ function EmptyState({ label }: { label: string }) {
         Complete a season to see {label} dynasty rankings.
       </p>
     </div>
+  );
+}
+
+function SortableHead({
+  sortKey,
+  currentKey,
+  dir,
+  onSort,
+  className = "",
+  children,
+}: {
+  sortKey: string;
+  currentKey: string;
+  dir: "asc" | "desc";
+  onSort: (key: any) => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const isActive = currentKey === sortKey;
+  return (
+    <TableHead
+      className={`text-[11px] uppercase tracking-wider cursor-pointer select-none hover:text-foreground transition-colors ${className} ${isActive ? "text-foreground" : ""}`}
+      onClick={() => onSort(sortKey)}
+    >
+      <span className="inline-flex items-center gap-0.5">
+        {children}
+        {isActive && (
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            className={`shrink-0 transition-transform ${dir === "desc" ? "rotate-180" : ""}`}
+          >
+            <path d="M12 5v14M5 12l7-7 7 7" />
+          </svg>
+        )}
+      </span>
+    </TableHead>
   );
 }
