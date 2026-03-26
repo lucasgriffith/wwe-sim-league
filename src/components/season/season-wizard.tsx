@@ -113,7 +113,9 @@ export function SeasonWizard({
   previousAssignments,
 }: Props) {
   const router = useRouter();
-  const isSeason1 = nextSeasonNumber === 1 && !initialSeason;
+  const isSeason1 =
+    (nextSeasonNumber === 1 && !initialSeason) ||
+    (initialSeason?.season_number === 1);
   const steps = isSeason1 ? STEPS_S1 : STEPS_SN;
 
   const [step, setStep] = useState(initialSeason ? 1 : 0);
@@ -469,8 +471,16 @@ export function SeasonWizard({
 
   const assignmentSummary = tiers
     .map((t) => {
-      const count = initialAssignments.filter((a) => a.tier_id === t.id).length;
-      return { tier: t, count };
+      const tierAssigns = initialAssignments.filter((a) => a.tier_id === t.id);
+      const participants = tierAssigns.map((a) => {
+        if (a.wrestler_id) {
+          const w = wrestlers.find((w) => w.id === a.wrestler_id);
+          return { name: w?.name ?? "?", pool: a.pool, isTag: false };
+        }
+        const tt = tagTeams.find((tt) => tt.id === a.tag_team_id);
+        return { name: tt?.name ?? "?", pool: a.pool, isTag: true };
+      });
+      return { tier: t, count: tierAssigns.length, participants };
     })
     .filter((s) => s.count > 0);
 
@@ -747,11 +757,11 @@ export function SeasonWizard({
           </CardHeader>
           <CardContent className="space-y-4">
             {assignmentSummary.length > 0 ? (
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {assignmentSummary.map(({ tier, count }) => (
+              <div className="space-y-3">
+                {assignmentSummary.map(({ tier, count, participants }) => (
                   <div
                     key={tier.id}
-                    className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm ${
+                    className={`rounded-lg border p-3 ${
                       count >= tier.pool_size
                         ? "border-emerald-500/20 bg-emerald-500/5"
                         : count < 2
@@ -759,23 +769,43 @@ export function SeasonWizard({
                           : "border-border/30"
                     }`}
                   >
-                    <span className="truncate">
-                      <span className="text-muted-foreground font-mono text-xs mr-1.5">
-                        T{tier.tier_number}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm">
+                        <span className="text-muted-foreground font-mono text-xs mr-1.5">
+                          T{tier.tier_number}
+                        </span>
+                        <span className="font-medium">
+                          {tier.short_name || tier.name}
+                        </span>
                       </span>
-                      {tier.short_name || tier.name}
-                    </span>
-                    <span
-                      className={`ml-2 text-xs font-mono ${
-                        count >= tier.pool_size
-                          ? "text-emerald-400"
-                          : count < 2
-                            ? "text-red-400"
-                            : "text-muted-foreground"
-                      }`}
-                    >
-                      {count}/{tier.pool_size}
-                    </span>
+                      <span
+                        className={`text-xs font-mono ${
+                          count >= tier.pool_size
+                            ? "text-emerald-400"
+                            : count < 2
+                              ? "text-red-400"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        {count}/{tier.pool_size}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {participants.map((p, i) => (
+                        <Badge
+                          key={i}
+                          variant="secondary"
+                          className="text-[10px]"
+                        >
+                          {p.name}
+                          {p.pool && (
+                            <span className="text-muted-foreground ml-0.5">
+                              ({p.pool})
+                            </span>
+                          )}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
