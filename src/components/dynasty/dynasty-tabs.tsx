@@ -33,9 +33,11 @@ interface BaseStat {
   totalMatches: number;
   playoffMatches: number;
   finalsAppearances: number;
+  playoffWins: number;
   fastestWin: number | null;
   avgMatchTime: number | null;
   seasons: number;
+  powerScore: number;
 }
 
 interface CurrentChampion {
@@ -78,9 +80,9 @@ export function DynastyTabs({
   const [search, setSearch] = useState("");
   const [genderFilter, setGenderFilter] = useState<string>("all");
 
-  type SortKey = "rank" | "name" | "titles" | "wins" | "losses" | "winPct" | "playoffs" | "avgMatchTime" | "highestTier";
-  const [sortKey, setSortKey] = useState<SortKey>("rank");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  type SortKey = "rank" | "name" | "titles" | "wins" | "losses" | "winPct" | "playoffs" | "avgMatchTime" | "highestTier" | "powerScore";
+  const [sortKey, setSortKey] = useState<SortKey>("powerScore");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -91,7 +93,7 @@ export function DynastyTabs({
       setSortDir(
         key === "name" ? "asc" :
         key === "highestTier" || key === "rank" ? "asc" :
-        "desc"
+        "desc" // powerScore, titles, wins, winPct etc. default descending
       );
     }
   }
@@ -128,6 +130,9 @@ export function DynastyTabs({
       case "highestTier":
         // Lower tier number = better, so ascending = best first
         cmp = (a.highestTier ?? 999) - (b.highestTier ?? 999);
+        break;
+      case "powerScore":
+        cmp = a.powerScore - b.powerScore;
         break;
     }
     return sortDir === "asc" ? cmp : -cmp;
@@ -192,7 +197,7 @@ export function DynastyTabs({
           <Button
             variant={tab === "wrestlers" ? "default" : "outline"}
             size="sm"
-            onClick={() => { setTab("wrestlers"); setSearch(""); setGenderFilter("all"); setSortKey("rank"); setSortDir("asc"); }}
+            onClick={() => { setTab("wrestlers"); setSearch(""); setGenderFilter("all"); setSortKey("powerScore"); setSortDir("desc"); }}
             className={`text-xs ${tab !== "wrestlers" ? "border-border/40 text-muted-foreground hover:text-foreground" : ""}`}
           >
             Singles ({wrestlerStats.length})
@@ -200,7 +205,7 @@ export function DynastyTabs({
           <Button
             variant={tab === "tag-teams" ? "default" : "outline"}
             size="sm"
-            onClick={() => { setTab("tag-teams"); setSearch(""); setGenderFilter("all"); setSortKey("rank"); setSortDir("asc"); }}
+            onClick={() => { setTab("tag-teams"); setSearch(""); setGenderFilter("all"); setSortKey("powerScore"); setSortDir("desc"); }}
             className={`text-xs ${tab !== "tag-teams" ? "border-border/40 text-muted-foreground hover:text-foreground" : ""}`}
           >
             Tag Teams ({tagTeamStats.length})
@@ -255,7 +260,8 @@ export function DynastyTabs({
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border/40">
-                  <SortableHead sortKey="rank" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-12">Rank</SortableHead>
+                  <SortableHead sortKey="powerScore" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-16 text-center">PWR</SortableHead>
+                  <SortableHead sortKey="rank" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-10 text-center">Rank</SortableHead>
                   <SortableHead sortKey="name" currentKey={sortKey} dir={sortDir} onSort={handleSort}>Name</SortableHead>
                   <SortableHead sortKey="titles" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">Titles</SortableHead>
                   <SortableHead sortKey="wins" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">W</SortableHead>
@@ -269,7 +275,12 @@ export function DynastyTabs({
               <TableBody>
                 {filteredWrestlers.map((s, i) => (
                   <TableRow key={s.id} className="table-row-hover border-border/30">
-                    <TableCell className={`tabular-nums font-semibold ${i === 0 ? "rank-1" : i === 1 ? "rank-2" : i === 2 ? "rank-3" : "text-muted-foreground"}`}>
+                    <TableCell className="text-center">
+                      <span className="text-sm font-bold tabular-nums text-gold">
+                        {s.powerScore}
+                      </span>
+                    </TableCell>
+                    <TableCell className={`text-center tabular-nums font-semibold ${i === 0 ? "rank-1" : i === 1 ? "rank-2" : i === 2 ? "rank-3" : "text-muted-foreground"}`}>
                       {i + 1}
                     </TableCell>
                     <TableCell>
@@ -343,7 +354,8 @@ export function DynastyTabs({
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border/40">
-                  <SortableHead sortKey="rank" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-12">Rank</SortableHead>
+                  <SortableHead sortKey="powerScore" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-16 text-center">PWR</SortableHead>
+                  <SortableHead sortKey="rank" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-10 text-center">Rank</SortableHead>
                   <SortableHead sortKey="name" currentKey={sortKey} dir={sortDir} onSort={handleSort}>Team</SortableHead>
                   <TableHead className="text-[11px] uppercase tracking-wider hidden sm:table-cell">Members</TableHead>
                   <SortableHead sortKey="titles" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="text-center">Titles</SortableHead>
@@ -367,7 +379,12 @@ export function DynastyTabs({
 
                   return (
                     <TableRow key={s.id} className="table-row-hover border-border/30">
-                      <TableCell className={`tabular-nums font-semibold ${i === 0 ? "rank-1" : i === 1 ? "rank-2" : i === 2 ? "rank-3" : "text-muted-foreground"}`}>
+                      <TableCell className="text-center">
+                        <span className="text-sm font-bold tabular-nums text-gold">
+                          {s.powerScore}
+                        </span>
+                      </TableCell>
+                      <TableCell className={`text-center tabular-nums font-semibold ${i === 0 ? "rank-1" : i === 1 ? "rank-2" : i === 2 ? "rank-3" : "text-muted-foreground"}`}>
                         {i + 1}
                       </TableCell>
                       <TableCell>

@@ -66,6 +66,33 @@ export default async function DynastyPage() {
   const latestSeasonId = latestCompletedSeason?.id ?? null;
   const latestSeasonNumber = latestCompletedSeason?.season_number ?? null;
 
+  // Compute max tier number per division type+gender for tier point scaling
+  const maxTierByGroup: Record<string, number> = {};
+  for (const t of tiers ?? []) {
+    const tier = tierMap[t.id];
+    if (!tier) continue;
+    const key = `${tier.divisionType}_${tier.divisionName}`;
+    maxTierByGroup[key] = Math.max(maxTierByGroup[key] ?? 0, tier.tierNumber);
+  }
+
+  function computePowerScore(p: {
+    highestTier: number | null;
+    championships: number;
+    winPct: number;
+    playoffWins: number;
+    finalsAppearances: number;
+    divisionKey: string;
+  }): number {
+    const maxTier = maxTierByGroup[p.divisionKey] ?? 16;
+    const tierPoints = p.highestTier
+      ? (maxTier - p.highestTier + 1) * 3
+      : 0;
+    const titlePoints = p.championships * 10 * 5;
+    const winPctPoints = p.winPct * 100 * 2;
+    const playoffPoints = p.playoffWins * 5 + p.finalsAppearances * 3;
+    return Math.round(tierPoints + titlePoints + winPctPoints + playoffPoints);
+  }
+
   // ── Wrestler stats ─────────────────────────────────────────────────
   const wrestlerStats = (wrestlers ?? []).map((w) => {
     const matches = (allMatches ?? []).filter(
@@ -76,8 +103,12 @@ export default async function DynastyPage() {
     const championships = matches.filter(
       (m) => m.match_phase === "final" && m.winner_wrestler_id === w.id
     ).length;
-    const playoffMatches = matches.filter((m) =>
+    const playoffMatchList = matches.filter((m) =>
       ["quarterfinal", "semifinal", "final"].includes(m.match_phase)
+    );
+    const playoffMatches = playoffMatchList.length;
+    const playoffWins = playoffMatchList.filter(
+      (m) => m.winner_wrestler_id === w.id
     ).length;
     const finalsAppearances = matches.filter(
       (m) => m.match_phase === "final"
@@ -118,6 +149,24 @@ export default async function DynastyPage() {
         isCurrent: m.season_id === latestSeasonId,
       }));
 
+    // Find division key from best tier assignment
+    const bestAssignment = (tierAssignments ?? [])
+      .filter((a) => a.wrestler_id === w.id)
+      .sort((a, b) => (tierMap[a.tier_id]?.tierNumber ?? 999) - (tierMap[b.tier_id]?.tierNumber ?? 999))[0];
+    const divKey = bestAssignment
+      ? `${tierMap[bestAssignment.tier_id]?.divisionType}_${tierMap[bestAssignment.tier_id]?.divisionName}`
+      : "singles_Unknown";
+
+    const winPct = matches.length > 0 ? wins / matches.length : 0;
+    const powerScore = computePowerScore({
+      highestTier,
+      championships,
+      winPct,
+      playoffWins,
+      finalsAppearances,
+      divisionKey: divKey,
+    });
+
     return {
       id: w.id,
       name: w.name,
@@ -125,25 +174,22 @@ export default async function DynastyPage() {
       overallRating: w.overall_rating,
       wins,
       losses,
-      winPct: matches.length > 0 ? wins / matches.length : 0,
+      winPct,
       championships,
       titles,
       highestTier,
       totalMatches: matches.length,
       playoffMatches,
+      playoffWins,
       finalsAppearances,
       fastestWin,
       avgMatchTime,
       seasons: seasonIds.size,
+      powerScore,
     };
   });
 
-  wrestlerStats.sort(
-    (a, b) =>
-      b.championships - a.championships ||
-      b.wins - a.wins ||
-      b.winPct - a.winPct
-  );
+  wrestlerStats.sort((a, b) => b.powerScore - a.powerScore || b.winPct - a.winPct || b.wins - a.wins);
 
   // ── Tag team stats ─────────────────────────────────────────────────
   const tagTeamStats = (tagTeams ?? []).map((t) => {
@@ -164,8 +210,12 @@ export default async function DynastyPage() {
     const championships = matches.filter(
       (m) => m.match_phase === "final" && m.winner_tag_team_id === t.id
     ).length;
-    const playoffMatches = matches.filter((m) =>
+    const playoffMatchList = matches.filter((m) =>
       ["quarterfinal", "semifinal", "final"].includes(m.match_phase)
+    );
+    const playoffMatches = playoffMatchList.length;
+    const playoffWins = playoffMatchList.filter(
+      (m) => m.winner_tag_team_id === t.id
     ).length;
     const finalsAppearances = matches.filter(
       (m) => m.match_phase === "final"
@@ -206,6 +256,23 @@ export default async function DynastyPage() {
         isCurrent: m.season_id === latestSeasonId,
       }));
 
+    const bestTagAssignment = (tierAssignments ?? [])
+      .filter((a) => a.tag_team_id === t.id)
+      .sort((a, b) => (tierMap[a.tier_id]?.tierNumber ?? 999) - (tierMap[b.tier_id]?.tierNumber ?? 999))[0];
+    const tagDivKey = bestTagAssignment
+      ? `${tierMap[bestTagAssignment.tier_id]?.divisionType}_${tierMap[bestTagAssignment.tier_id]?.divisionName}`
+      : "tag_Unknown";
+
+    const winPct = matches.length > 0 ? wins / matches.length : 0;
+    const powerScore = computePowerScore({
+      highestTier,
+      championships,
+      winPct,
+      playoffWins,
+      finalsAppearances,
+      divisionKey: tagDivKey,
+    });
+
     return {
       id: t.id,
       name: t.name,
@@ -215,25 +282,22 @@ export default async function DynastyPage() {
       isActive: t.is_active,
       wins,
       losses,
-      winPct: matches.length > 0 ? wins / matches.length : 0,
+      winPct,
       championships,
       titles,
       highestTier,
       totalMatches: matches.length,
       playoffMatches,
+      playoffWins,
       finalsAppearances,
       fastestWin,
       avgMatchTime,
       seasons: seasonIds.size,
+      powerScore,
     };
   });
 
-  tagTeamStats.sort(
-    (a, b) =>
-      b.championships - a.championships ||
-      b.wins - a.wins ||
-      b.winPct - a.winPct
-  );
+  tagTeamStats.sort((a, b) => b.powerScore - a.powerScore || b.winPct - a.winPct || b.wins - a.wins);
 
   // Build current champions list from latest completed season finals
   const currentChampions: Array<{
