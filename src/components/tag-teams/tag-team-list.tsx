@@ -87,13 +87,15 @@ export function TagTeamList({
                   required
                 />
               </div>
-              <div className="w-48 space-y-1">
+              <div className="flex-1 min-w-0 space-y-1">
                 <Label>Member 1</Label>
                 <Select value={memberA} onValueChange={(v) => setMemberA(v ?? "")}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select..." />
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select wrestler...">
+                      {wrestlers.find((w) => w.id === memberA)?.name}
+                    </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-72">
                     {wrestlers.map((w) => (
                       <SelectItem key={w.id} value={w.id}>
                         {w.name}
@@ -102,13 +104,15 @@ export function TagTeamList({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="w-48 space-y-1">
+              <div className="flex-1 min-w-0 space-y-1">
                 <Label>Member 2</Label>
                 <Select value={memberB} onValueChange={(v) => setMemberB(v ?? "")}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select..." />
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select wrestler...">
+                      {wrestlers.find((w) => w.id === memberB)?.name}
+                    </SelectValue>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-72">
                     {wrestlers
                       .filter((w) => w.id !== memberA)
                       .map((w) => (
