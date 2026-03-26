@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -139,6 +139,54 @@ export function SeasonWizard({
 
   // Tag team state
   const [tagAssigned, setTagAssigned] = useState(false);
+
+  // ── Restore saved progress on mount ────────────────────────────────
+  const STORAGE_KEY = `wizard-s${initialSeason?.season_number ?? nextSeasonNumber}`;
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      const s = JSON.parse(saved);
+      if (s.step != null) setStep(s.step);
+      if (s.maleRumbleGroup) setMaleRumbleGroup(s.maleRumbleGroup);
+      if (s.malePositions) setMalePositions(s.malePositions);
+      if (s.maleAssigned) setMaleAssigned(s.maleAssigned);
+      if (s.femaleRumbleGroup) setFemaleRumbleGroup(s.femaleRumbleGroup);
+      if (s.femalePositions) setFemalePositions(s.femalePositions);
+      if (s.femaleAssigned) setFemaleAssigned(s.femaleAssigned);
+      if (s.carryAccepted) setCarryAccepted(s.carryAccepted);
+      if (s.tagAssigned) setTagAssigned(s.tagAssigned);
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Auto-save progress on state changes ────────────────────────────
+  const saveProgress = useCallback(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          step,
+          maleRumbleGroup,
+          malePositions,
+          maleAssigned,
+          femaleRumbleGroup,
+          femalePositions,
+          femaleAssigned,
+          carryAccepted,
+          tagAssigned,
+        })
+      );
+    } catch {}
+  }, [
+    STORAGE_KEY, step, maleRumbleGroup, malePositions, maleAssigned,
+    femaleRumbleGroup, femalePositions, femaleAssigned, carryAccepted, tagAssigned,
+  ]);
+
+  useEffect(() => {
+    saveProgress();
+  }, [saveProgress]);
 
   const tierMap = useMemo(
     () => Object.fromEntries(tiers.map((t) => [t.id, t])),
@@ -967,44 +1015,46 @@ function RumbleStep({
 
           {/* Position Entry */}
           {rumbleGroup.length > 0 && !assigned && (
-            <div className="space-y-1.5 max-h-80 overflow-y-auto">
-              {rumbleGroup.map((w) => {
-                const pos = positions[w.id] ?? "";
-                const posNum = parseInt(pos);
-                const isDup =
-                  pos !== "" &&
-                  !isNaN(posNum) &&
-                  pv.entries.filter((p) => p.pos === posNum).length > 1;
-                const isOOR =
-                  pos !== "" &&
-                  !isNaN(posNum) &&
-                  (posNum < 1 || posNum > rumbleGroup.length);
-                return (
-                  <div
-                    key={w.id}
-                    className={`flex items-center gap-3 rounded-md border px-3 py-2 ${
-                      isDup || isOOR
-                        ? "border-red-500/40 bg-red-500/5"
-                        : pos !== ""
-                          ? "border-emerald-500/20 bg-emerald-500/5"
-                          : "border-border/30"
-                    }`}
-                  >
-                    <Input
-                      type="number"
-                      min={1}
-                      max={rumbleGroup.length}
-                      value={pos}
-                      onChange={(e) =>
-                        setPositions({ ...positions, [w.id]: e.target.value })
-                      }
-                      placeholder="#"
-                      className="w-16 h-8 text-center text-sm font-mono tabular-nums bg-background/50"
-                    />
-                    <span className="text-sm font-medium flex-1">{w.name}</span>
-                  </div>
-                );
-              })}
+            <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-[60vh] overflow-y-auto">
+                {rumbleGroup.map((w) => {
+                  const pos = positions[w.id] ?? "";
+                  const posNum = parseInt(pos);
+                  const isDup =
+                    pos !== "" &&
+                    !isNaN(posNum) &&
+                    pv.entries.filter((p) => p.pos === posNum).length > 1;
+                  const isOOR =
+                    pos !== "" &&
+                    !isNaN(posNum) &&
+                    (posNum < 1 || posNum > rumbleGroup.length);
+                  return (
+                    <div
+                      key={w.id}
+                      className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${
+                        isDup || isOOR
+                          ? "border-red-500/40 bg-red-500/5"
+                          : pos !== ""
+                            ? "border-emerald-500/20 bg-emerald-500/5"
+                            : "border-border/30"
+                      }`}
+                    >
+                      <Input
+                        type="number"
+                        min={1}
+                        max={rumbleGroup.length}
+                        value={pos}
+                        onChange={(e) =>
+                          setPositions({ ...positions, [w.id]: e.target.value })
+                        }
+                        placeholder="#"
+                        className="w-14 h-7 text-center text-xs font-mono tabular-nums bg-background/50"
+                      />
+                      <span className="text-xs font-medium truncate flex-1">{w.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
               <div className="text-xs text-muted-foreground mt-2">
                 {pv.entries.length}/{rumbleGroup.length} filled
                 {pv.isValid && " ✓"}
