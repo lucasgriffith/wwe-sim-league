@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createTagTeam } from "@/app/actions";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { createTagTeam, updateTagTeam, deleteTagTeam } from "@/app/actions";
 import { toast } from "sonner";
 
 interface TagTeam {
@@ -33,15 +42,26 @@ interface Wrestler {
 export function TagTeamList({
   tagTeams,
   wrestlers,
+  isAdmin = false,
 }: {
   tagTeams: TagTeam[];
   wrestlers: Wrestler[];
+  isAdmin?: boolean;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [memberA, setMemberA] = useState("");
   const [memberB, setMemberB] = useState("");
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [editingTeam, setEditingTeam] = useState<TagTeam | null>(null);
+  const [deletingTeam, setDeletingTeam] = useState<TagTeam | null>(null);
+
+  const filtered = tagTeams.filter((t) =>
+    t.name.toLowerCase().includes(search.toLowerCase()) ||
+    t.wrestler_a?.name.toLowerCase().includes(search.toLowerCase()) ||
+    t.wrestler_b?.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -62,7 +82,9 @@ export function TagTeamList({
       setMemberB("");
       setShowForm(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create team");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create team"
+      );
     } finally {
       setLoading(false);
     }
@@ -70,14 +92,68 @@ export function TagTeamList({
 
   return (
     <div className="space-y-4">
-      <Button size="sm" onClick={() => setShowForm(!showForm)}>
-        {showForm ? "Cancel" : "Create Tag Team"}
-      </Button>
+      {/* Search + Create */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative max-w-xs flex-1">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <Input
+            placeholder="Search teams..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-background/50"
+          />
+        </div>
+        {isAdmin && (
+          <Button
+            size="sm"
+            className="ml-auto bg-gold text-black hover:bg-gold-dark font-semibold text-xs gap-1.5"
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? (
+              "Cancel"
+            ) : (
+              <>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Create Tag Team
+              </>
+            )}
+          </Button>
+        )}
+      </div>
 
+      {/* Create Form */}
       {showForm && (
-        <Card>
+        <Card className="animate-slide-down">
           <CardContent className="pt-6">
-            <form onSubmit={handleCreate} className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <form
+              onSubmit={handleCreate}
+              className="flex flex-col gap-4 sm:flex-row sm:items-end"
+            >
               <div className="flex-1 space-y-1">
                 <Label>Team Name</Label>
                 <Input
@@ -89,7 +165,10 @@ export function TagTeamList({
               </div>
               <div className="flex-1 min-w-0 space-y-1">
                 <Label>Member 1</Label>
-                <Select value={memberA} onValueChange={(v) => setMemberA(v ?? "")}>
+                <Select
+                  value={memberA}
+                  onValueChange={(v) => setMemberA(v ?? "")}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select wrestler...">
                       {wrestlers.find((w) => w.id === memberA)?.name}
@@ -106,7 +185,10 @@ export function TagTeamList({
               </div>
               <div className="flex-1 min-w-0 space-y-1">
                 <Label>Member 2</Label>
-                <Select value={memberB} onValueChange={(v) => setMemberB(v ?? "")}>
+                <Select
+                  value={memberB}
+                  onValueChange={(v) => setMemberB(v ?? "")}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select wrestler...">
                       {wrestlers.find((w) => w.id === memberB)?.name}
@@ -123,7 +205,11 @@ export function TagTeamList({
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" disabled={loading}>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="bg-gold text-black hover:bg-gold-dark font-semibold"
+              >
                 {loading ? "Creating..." : "Create"}
               </Button>
             </form>
@@ -131,30 +217,299 @@ export function TagTeamList({
         </Card>
       )}
 
+      {/* Tag Team Grid */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {tagTeams.map((team) => (
-          <Card key={team.id}>
+        {filtered.map((team) => (
+          <Card
+            key={team.id}
+            className="group transition-colors hover:border-border/60"
+          >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">{team.name}</CardTitle>
-                <Badge variant={team.is_active ? "default" : "secondary"}>
-                  {team.is_active ? "Active" : "Inactive"}
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] ${
+                      team.is_active
+                        ? "border-emerald-500/20 text-emerald-400"
+                        : "border-muted-foreground/20 text-muted-foreground"
+                    }`}
+                  >
+                    {team.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                  {isAdmin && (
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => setEditingTeam(team)}
+                        title="Edit"
+                      >
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                          <path d="m15 5 4 4" />
+                        </svg>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400"
+                        onClick={() => setDeletingTeam(team)}
+                        title="Delete"
+                      >
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                {team.wrestler_a?.name} & {team.wrestler_b?.name}
+                {team.wrestler_a?.name ?? "?"} &{" "}
+                {team.wrestler_b?.name ?? "?"}
               </p>
             </CardContent>
           </Card>
         ))}
-        {tagTeams.length === 0 && (
-          <p className="col-span-full text-center text-muted-foreground">
-            No tag teams created yet
+        {filtered.length === 0 && (
+          <p className="col-span-full text-center text-muted-foreground py-8">
+            {tagTeams.length === 0
+              ? "No tag teams created yet"
+              : "No teams match your search"}
           </p>
         )}
       </div>
+
+      <p className="text-xs text-muted-foreground/60">
+        Showing {filtered.length} of {tagTeams.length}
+      </p>
+
+      {/* Edit Dialog */}
+      {editingTeam && (
+        <EditTagTeamDialog
+          team={editingTeam}
+          wrestlers={wrestlers}
+          onClose={() => setEditingTeam(null)}
+        />
+      )}
+
+      {/* Delete Dialog */}
+      {deletingTeam && (
+        <DeleteTagTeamDialog
+          team={deletingTeam}
+          onClose={() => setDeletingTeam(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/* ─── Edit Dialog ─────────────────────────────────────────────────── */
+
+function EditTagTeamDialog({
+  team,
+  wrestlers,
+  onClose,
+}: {
+  team: TagTeam;
+  wrestlers: Wrestler[];
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [name, setName] = useState(team.name);
+  const [memberA, setMemberA] = useState(team.wrestler_a?.id ?? "");
+  const [memberB, setMemberB] = useState(team.wrestler_b?.id ?? "");
+  const [isActive, setIsActive] = useState(team.is_active);
+
+  function handleSave() {
+    if (!memberA || !memberB || memberA === memberB) {
+      toast.error("Select two different wrestlers");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await updateTagTeam(team.id, {
+          name,
+          wrestler_a_id: memberA,
+          wrestler_b_id: memberB,
+          is_active: isActive,
+        });
+        toast.success(`${name} updated`);
+        onClose();
+        router.refresh();
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to update team"
+        );
+      }
+    });
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Tag Team</DialogTitle>
+          <DialogDescription>Update {team.name}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-team-name">Team Name</Label>
+            <Input
+              id="edit-team-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Member 1</Label>
+            <Select value={memberA} onValueChange={(v) => setMemberA(v ?? "")}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select wrestler...">
+                  {wrestlers.find((w) => w.id === memberA)?.name}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {wrestlers.map((w) => (
+                  <SelectItem key={w.id} value={w.id}>
+                    {w.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Member 2</Label>
+            <Select value={memberB} onValueChange={(v) => setMemberB(v ?? "")}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select wrestler...">
+                  {wrestlers.find((w) => w.id === memberB)?.name}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {wrestlers
+                  .filter((w) => w.id !== memberA)
+                  .map((w) => (
+                    <SelectItem key={w.id} value={w.id}>
+                      {w.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Status</Label>
+            <Select
+              value={isActive ? "active" : "inactive"}
+              onValueChange={(v) => setIsActive(v === "active")}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={isPending || !name.trim()}
+            className="bg-gold text-black hover:bg-gold-dark font-semibold"
+          >
+            {isPending ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── Delete Dialog ───────────────────────────────────────────────── */
+
+function DeleteTagTeamDialog({
+  team,
+  onClose,
+}: {
+  team: TagTeam;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  function handleDelete() {
+    startTransition(async () => {
+      try {
+        await deleteTagTeam(team.id);
+        toast.success(`${team.name} deleted`);
+        onClose();
+        router.refresh();
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to delete team"
+        );
+      }
+    });
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Delete Tag Team</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete{" "}
+            <span className="font-semibold text-foreground">{team.name}</span>?
+            This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={onClose} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={isPending}
+          >
+            {isPending ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
