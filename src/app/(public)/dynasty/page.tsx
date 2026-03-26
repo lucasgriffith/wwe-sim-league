@@ -1,68 +1,211 @@
 import { createClient } from "@/lib/supabase/server";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
+import { DynastyTabs } from "@/components/dynasty/dynasty-tabs";
 
 export default async function DynastyPage() {
   const supabase = await createClient();
 
-  const { data: wrestlers } = await supabase
-    .from("wrestlers")
-    .select("id, name, gender")
-    .eq("is_active", true)
-    .order("name");
+  const [
+    { data: wrestlers },
+    { data: tagTeams },
+    { data: allMatches },
+    { data: tierAssignments },
+    { data: tiers },
+  ] = await Promise.all([
+    supabase
+      .from("wrestlers")
+      .select("id, name, gender, overall_rating")
+      .eq("is_active", true)
+      .order("name"),
+    supabase
+      .from("tag_teams")
+      .select(
+        "id, name, is_active, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(id, name, gender), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(id, name, gender)"
+      )
+      .order("name"),
+    supabase
+      .from("matches")
+      .select(
+        "id, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, match_phase, tier_id, season_id, match_time_seconds"
+      )
+      .not("played_at", "is", null),
+    supabase
+      .from("tier_assignments")
+      .select("wrestler_id, tag_team_id, tier_id, season_id")
+      .order("created_at"),
+    supabase
+      .from("tiers")
+      .select("id, name, short_name, tier_number, division_id, divisions(name, gender, division_type)")
+      .order("tier_number"),
+  ]);
 
-  const { data: allMatches } = await supabase
-    .from("matches")
-    .select("id, wrestler_a_id, wrestler_b_id, winner_wrestler_id, match_phase")
-    .not("played_at", "is", null);
+  const tierMap = Object.fromEntries(
+    (tiers ?? []).map((t) => [
+      t.id,
+      {
+        name: t.name,
+        shortName: t.short_name,
+        tierNumber: t.tier_number,
+        divisionName: (t.divisions as unknown as { name: string } | null)?.name ?? "",
+        divisionType: (t.divisions as unknown as { division_type: string } | null)?.division_type ?? "singles",
+      },
+    ])
+  );
 
-  const { data: finals } = await supabase
-    .from("matches")
-    .select("id, winner_wrestler_id, tier_id, season_id, tiers(name, tier_number)")
-    .eq("match_phase", "final")
-    .not("played_at", "is", null);
-
-  const { data: tierAssignments } = await supabase
-    .from("tier_assignments")
-    .select("wrestler_id, tiers(tier_number)")
-    .not("wrestler_id", "is", null);
-
-  const stats = (wrestlers ?? []).map((w) => {
+  // ── Wrestler stats ─────────────────────────────────────────────────
+  const wrestlerStats = (wrestlers ?? []).map((w) => {
     const matches = (allMatches ?? []).filter(
       (m) => m.wrestler_a_id === w.id || m.wrestler_b_id === w.id
     );
     const wins = matches.filter((m) => m.winner_wrestler_id === w.id).length;
     const losses = matches.length - wins;
-    const championships = (finals ?? []).filter(
-      (f) => f.winner_wrestler_id === w.id
+    const championships = matches.filter(
+      (m) => m.match_phase === "final" && m.winner_wrestler_id === w.id
     ).length;
-    const highestTier = Math.min(
-      ...(tierAssignments ?? [])
+    const playoffMatches = matches.filter((m) =>
+      ["quarterfinal", "semifinal", "final"].includes(m.match_phase)
+    ).length;
+    const finalsAppearances = matches.filter(
+      (m) => m.match_phase === "final"
+    ).length;
+
+    const winTimes = matches
+      .filter((m) => m.winner_wrestler_id === w.id && m.match_time_seconds)
+      .map((m) => m.match_time_seconds!);
+    const fastestWin = winTimes.length > 0 ? Math.min(...winTimes) : null;
+
+    const allTimes = matches
+      .filter((m) => m.match_time_seconds)
+      .map((m) => m.match_time_seconds!);
+    const avgMatchTime =
+      allTimes.length > 0
+        ? Math.round(allTimes.reduce((a, b) => a + b, 0) / allTimes.length)
+        : null;
+
+    const wrestlerTiers = (tierAssignments ?? [])
+      .filter((a) => a.wrestler_id === w.id)
+      .map((a) => tierMap[a.tier_id]?.tierNumber ?? 999);
+    const highestTier =
+      wrestlerTiers.length > 0 ? Math.min(...wrestlerTiers) : null;
+
+    const seasonIds = new Set(
+      (tierAssignments ?? [])
         .filter((a) => a.wrestler_id === w.id)
-        .map((a) => (a.tiers as unknown as { tier_number: number })?.tier_number ?? 999),
-      999
+        .map((a) => a.season_id)
     );
 
+    const titles = matches
+      .filter(
+        (m) => m.match_phase === "final" && m.winner_wrestler_id === w.id
+      )
+      .map((m) => tierMap[m.tier_id]?.shortName || tierMap[m.tier_id]?.name || "Unknown");
+
     return {
-      ...w,
+      id: w.id,
+      name: w.name,
+      gender: w.gender as string,
+      overallRating: w.overall_rating,
       wins,
       losses,
       winPct: matches.length > 0 ? wins / matches.length : 0,
       championships,
-      highestTier: highestTier === 999 ? null : highestTier,
+      titles,
+      highestTier,
       totalMatches: matches.length,
+      playoffMatches,
+      finalsAppearances,
+      fastestWin,
+      avgMatchTime,
+      seasons: seasonIds.size,
     };
   });
 
-  stats.sort(
+  wrestlerStats.sort(
+    (a, b) =>
+      b.championships - a.championships ||
+      b.wins - a.wins ||
+      b.winPct - a.winPct
+  );
+
+  // ── Tag team stats ─────────────────────────────────────────────────
+  const tagTeamStats = (tagTeams ?? []).map((t) => {
+    const wa = t.wrestler_a as unknown as { id: string; name: string; gender: string } | null;
+    const wb = t.wrestler_b as unknown as { id: string; name: string; gender: string } | null;
+    const teamGender =
+      wa?.gender === wb?.gender
+        ? wa?.gender === "male"
+          ? "male"
+          : "female"
+        : "mixed";
+
+    const matches = (allMatches ?? []).filter(
+      (m) => m.tag_team_a_id === t.id || m.tag_team_b_id === t.id
+    );
+    const wins = matches.filter((m) => m.winner_tag_team_id === t.id).length;
+    const losses = matches.length - wins;
+    const championships = matches.filter(
+      (m) => m.match_phase === "final" && m.winner_tag_team_id === t.id
+    ).length;
+    const playoffMatches = matches.filter((m) =>
+      ["quarterfinal", "semifinal", "final"].includes(m.match_phase)
+    ).length;
+    const finalsAppearances = matches.filter(
+      (m) => m.match_phase === "final"
+    ).length;
+
+    const winTimes = matches
+      .filter((m) => m.winner_tag_team_id === t.id && m.match_time_seconds)
+      .map((m) => m.match_time_seconds!);
+    const fastestWin = winTimes.length > 0 ? Math.min(...winTimes) : null;
+
+    const allTimes = matches
+      .filter((m) => m.match_time_seconds)
+      .map((m) => m.match_time_seconds!);
+    const avgMatchTime =
+      allTimes.length > 0
+        ? Math.round(allTimes.reduce((a, b) => a + b, 0) / allTimes.length)
+        : null;
+
+    const teamTiers = (tierAssignments ?? [])
+      .filter((a) => a.tag_team_id === t.id)
+      .map((a) => tierMap[a.tier_id]?.tierNumber ?? 999);
+    const highestTier =
+      teamTiers.length > 0 ? Math.min(...teamTiers) : null;
+
+    const seasonIds = new Set(
+      (tierAssignments ?? [])
+        .filter((a) => a.tag_team_id === t.id)
+        .map((a) => a.season_id)
+    );
+
+    const titles = matches
+      .filter(
+        (m) => m.match_phase === "final" && m.winner_tag_team_id === t.id
+      )
+      .map((m) => tierMap[m.tier_id]?.shortName || tierMap[m.tier_id]?.name || "Unknown");
+
+    return {
+      id: t.id,
+      name: t.name,
+      memberA: wa?.name ?? "?",
+      memberB: wb?.name ?? "?",
+      gender: teamGender,
+      isActive: t.is_active,
+      wins,
+      losses,
+      winPct: matches.length > 0 ? wins / matches.length : 0,
+      championships,
+      titles,
+      highestTier,
+      totalMatches: matches.length,
+      playoffMatches,
+      finalsAppearances,
+      fastestWin,
+      avgMatchTime,
+      seasons: seasonIds.size,
+    };
+  });
+
+  tagTeamStats.sort(
     (a, b) =>
       b.championships - a.championships ||
       b.wins - a.wins ||
@@ -72,76 +215,17 @@ export default async function DynastyPage() {
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Dynasty Leaderboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Dynasty Leaderboard
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           All-time rankings across all seasons
         </p>
       </div>
-
-      {stats.length > 0 ? (
-        <div className="rounded-lg border border-border/40 overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-border/40">
-                <TableHead className="w-10 text-[11px] uppercase tracking-wider">#</TableHead>
-                <TableHead className="text-[11px] uppercase tracking-wider">Name</TableHead>
-                <TableHead className="text-center text-[11px] uppercase tracking-wider">Titles</TableHead>
-                <TableHead className="text-center text-[11px] uppercase tracking-wider">W</TableHead>
-                <TableHead className="text-center text-[11px] uppercase tracking-wider">L</TableHead>
-                <TableHead className="text-center text-[11px] uppercase tracking-wider">Win%</TableHead>
-                <TableHead className="text-center text-[11px] uppercase tracking-wider">Best Tier</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {stats.map((s, i) => (
-                <TableRow key={s.id} className="table-row-hover border-border/30">
-                  <TableCell className={`tabular-nums font-semibold ${i === 0 ? "rank-1" : i === 1 ? "rank-2" : i === 2 ? "rank-3" : "text-muted-foreground"}`}>
-                    {i + 1}
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/roster/${s.id}`}
-                      className="font-medium hover:text-gold transition-colors"
-                    >
-                      {s.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {s.championships > 0 ? (
-                      <Badge className="bg-gold/15 text-gold border-gold/20 text-xs font-bold">
-                        {s.championships}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground/40">0</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums">{s.wins}</TableCell>
-                  <TableCell className="text-center tabular-nums">{s.losses}</TableCell>
-                  <TableCell className="text-center tabular-nums">
-                    {s.totalMatches > 0
-                      ? (s.winPct * 100).toFixed(0) + "%"
-                      : <span className="text-muted-foreground/40">—</span>}
-                  </TableCell>
-                  <TableCell className="text-center tabular-nums">
-                    {s.highestTier ? (
-                      <span className="text-xs font-medium">T{s.highestTier}</span>
-                    ) : (
-                      <span className="text-muted-foreground/40">—</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-border/40 bg-card/30 px-6 py-16 text-center">
-          <h3 className="text-lg font-semibold">No Data Yet</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Complete a season to see dynasty rankings.
-          </p>
-        </div>
-      )}
+      <DynastyTabs
+        wrestlerStats={wrestlerStats}
+        tagTeamStats={tagTeamStats}
+      />
     </div>
   );
 }
