@@ -1014,55 +1014,77 @@ function RumbleStep({
           )}
 
           {/* Position Entry */}
-          {rumbleGroup.length > 0 && !assigned && (
-            <div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-[60vh] overflow-y-auto">
-                {rumbleGroup.map((w) => {
-                  const pos = positions[w.id] ?? "";
-                  const posNum = parseInt(pos);
-                  const isDup =
-                    pos !== "" &&
-                    !isNaN(posNum) &&
-                    pv.entries.filter((p) => p.pos === posNum).length > 1;
-                  const isOOR =
-                    pos !== "" &&
-                    !isNaN(posNum) &&
-                    (posNum < 1 || posNum > rumbleGroup.length);
-                  return (
-                    <div
-                      key={w.id}
-                      className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${
-                        isDup || isOOR
-                          ? "border-red-500/40 bg-red-500/5"
-                          : pos !== ""
-                            ? "border-emerald-500/20 bg-emerald-500/5"
-                            : "border-border/30"
-                      }`}
-                    >
-                      <Input
-                        type="number"
-                        min={1}
-                        max={rumbleGroup.length}
-                        value={pos}
-                        onChange={(e) =>
-                          setPositions({ ...positions, [w.id]: e.target.value })
-                        }
-                        placeholder="#"
-                        className="w-14 h-7 text-center text-xs font-mono tabular-nums bg-background/50"
-                      />
-                      <span className="text-xs font-medium truncate flex-1">{w.name}</span>
+          {rumbleGroup.length > 0 && !assigned && (() => {
+            // Split into chunks of 30
+            const chunks: Wrestler[][] = [];
+            for (let i = 0; i < rumbleGroup.length; i += 30) {
+              chunks.push(rumbleGroup.slice(i, i + 30));
+            }
+            return (
+              <div className="space-y-4">
+                {chunks.map((chunk, ci) => (
+                  <div key={ci}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {chunks.length > 1
+                          ? `Rumble ${ci + 1} — ${chunk.length} Wrestlers`
+                          : `${chunk.length} Wrestlers`}
+                      </h4>
+                      <div className="flex-1 h-px bg-border/20" />
+                      <span className="text-[10px] text-muted-foreground/50">
+                        #{ci * 30 + 1}–{ci * 30 + chunk.length}
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                      {chunk.map((w) => {
+                        const pos = positions[w.id] ?? "";
+                        const posNum = parseInt(pos);
+                        const isDup =
+                          pos !== "" &&
+                          !isNaN(posNum) &&
+                          pv.entries.filter((p) => p.pos === posNum).length > 1;
+                        const isOOR =
+                          pos !== "" &&
+                          !isNaN(posNum) &&
+                          (posNum < 1 || posNum > rumbleGroup.length);
+                        return (
+                          <div
+                            key={w.id}
+                            className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${
+                              isDup || isOOR
+                                ? "border-red-500/40 bg-red-500/5"
+                                : pos !== ""
+                                  ? "border-emerald-500/20 bg-emerald-500/5"
+                                  : "border-border/30"
+                            }`}
+                          >
+                            <Input
+                              type="number"
+                              min={1}
+                              max={rumbleGroup.length}
+                              value={pos}
+                              onChange={(e) =>
+                                setPositions({ ...positions, [w.id]: e.target.value })
+                              }
+                              placeholder="#"
+                              className="w-14 h-7 text-center text-xs font-mono tabular-nums bg-background/50"
+                            />
+                            <span className="text-xs font-medium truncate flex-1">{w.name}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <div className="text-xs text-muted-foreground">
+                  {pv.entries.length}/{rumbleGroup.length} filled
+                  {pv.isValid && " ✓"}
+                  {pv.hasDuplicates && " · ⚠ Duplicates"}
+                  {pv.hasInvalid && ` · ⚠ Must be 1–${rumbleGroup.length}`}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground mt-2">
-                {pv.entries.length}/{rumbleGroup.length} filled
-                {pv.isValid && " ✓"}
-                {pv.hasDuplicates && " · ⚠ Duplicates"}
-                {pv.hasInvalid && ` · ⚠ Must be 1–${rumbleGroup.length}`}
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Preview */}
           {preview.length > 0 && !assigned && (
