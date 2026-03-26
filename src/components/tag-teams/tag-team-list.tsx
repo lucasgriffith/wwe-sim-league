@@ -291,10 +291,13 @@ export function TagTeamList({
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {team.wrestler_a?.name ?? "?"} &{" "}
-                {team.wrestler_b?.name ?? "?"}
-              </p>
+              <div className="flex items-center gap-2">
+                <TeamGenderBadge team={team} />
+                <p className="text-sm text-muted-foreground">
+                  {team.wrestler_a?.name ?? "?"} &{" "}
+                  {team.wrestler_b?.name ?? "?"}
+                </p>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -328,6 +331,35 @@ export function TagTeamList({
         />
       )}
     </div>
+  );
+}
+
+/* ─── Gender Badge ────────────────────────────────────────────────── */
+
+function TeamGenderBadge({ team }: { team: TagTeam }) {
+  const genderA = team.wrestler_a?.gender;
+  const genderB = team.wrestler_b?.gender;
+
+  // Determine team gender: both male = male, both female = female, mixed = mixed
+  const teamGender =
+    genderA === genderB
+      ? genderA === "male"
+        ? "male"
+        : "female"
+      : "mixed";
+
+  const config = {
+    male: { label: "Male", className: "border-blue-500/20 text-blue-400" },
+    female: { label: "Female", className: "border-purple-500/20 text-purple-400" },
+    mixed: { label: "Mixed", className: "border-amber-500/20 text-amber-400" },
+  };
+
+  const { label, className } = config[teamGender];
+
+  return (
+    <Badge variant="outline" className={`text-[10px] ${className}`}>
+      {label}
+    </Badge>
   );
 }
 
