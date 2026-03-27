@@ -66,11 +66,20 @@ export default async function TiersPage() {
             {division.tiers.map((tier) => (
               <Link key={tier.id} href={`/tiers/${tier.id}`}>
                 <Card
-                  className={`card-hover cursor-pointer bg-gradient-to-br border-border/40 transition-all ${
+                  className={`card-hover cursor-pointer bg-gradient-to-br border-border/40 transition-all relative overflow-hidden ${
                     divisionBgColors[division.name] ?? ""
                   }`}
                 >
-                  <CardHeader className="pb-2">
+                  {/* Belt watermark */}
+                  {tier.belt_image_url && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={tier.belt_image_url}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-contain opacity-[0.08] pointer-events-none scale-110 blur-[0.5px]"
+                    />
+                  )}
+                  <CardHeader className="pb-2 relative">
                     <div className="flex items-center justify-between">
                       <Badge
                         variant="outline"
@@ -89,7 +98,7 @@ export default async function TiersPage() {
                       {tier.name}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-0">
+                  <CardContent className="pt-0 relative">
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <span>{tier.has_pools ? "2 Pools + Playoff" : "Round Robin + Final"}</span>
                       <span className="text-muted-foreground/30">&middot;</span>
