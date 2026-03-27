@@ -71,7 +71,9 @@ export function CompareView({
           onValueChange={(v) => navigate(v ?? "", selectedB)}
         >
           <SelectTrigger className="h-12">
-            <SelectValue placeholder="Select wrestler..." />
+            <SelectValue placeholder="Select wrestler...">
+              {wrestlerA?.name ?? wrestlers.find((w) => w.id === selectedA)?.name}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent className="max-h-60">
             {wrestlers
@@ -88,7 +90,9 @@ export function CompareView({
           onValueChange={(v) => navigate(selectedA, v ?? "")}
         >
           <SelectTrigger className="h-12">
-            <SelectValue placeholder="Select wrestler..." />
+            <SelectValue placeholder="Select wrestler...">
+              {wrestlerB?.name ?? wrestlers.find((w) => w.id === selectedB)?.name}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent className="max-h-60">
             {wrestlers
