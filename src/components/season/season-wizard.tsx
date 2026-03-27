@@ -983,8 +983,37 @@ function RumbleStep({
   allWrestlers: Wrestler[];
 }) {
   const totalSlots = tiers.reduce((sum, t) => sum + t.pool_size, 0);
-  const pv = rumblePositionValues(positions, rumbleGroup.length);
-  const preview = pv.isValid ? computeTierPreview(pv.sorted) : [];
+
+  // Split into chunks of 30 for independent Rumble groups
+  const chunks: Wrestler[][] = useMemo(() => {
+    const c: Wrestler[][] = [];
+    for (let i = 0; i < rumbleGroup.length; i += 30) {
+      c.push(rumbleGroup.slice(i, i + 30));
+    }
+    return c;
+  }, [rumbleGroup]);
+
+  // Validate each chunk independently
+  const chunkValidations = useMemo(() => {
+    return chunks.map((chunk) => {
+      const chunkIds = new Set(chunk.map((w) => w.id));
+      return rumblePositionValues(
+        Object.fromEntries(
+          Object.entries(positions).filter(([id]) => chunkIds.has(id))
+        ),
+        chunk.length
+      );
+    });
+  }, [chunks, positions, rumblePositionValues]);
+
+  // All chunks valid = overall valid. Combine sorted results in order.
+  const allChunksValid = chunks.length > 0 && chunkValidations.every((cv) => cv.isValid);
+  const allSorted = allChunksValid
+    ? chunkValidations.flatMap((cv) => cv.sorted)
+    : [];
+  const totalFilled = chunkValidations.reduce((sum, cv) => sum + cv.entries.length, 0);
+
+  const preview = allChunksValid ? computeTierPreview(allSorted) : [];
 
   return (
     <div className="space-y-4">
@@ -994,6 +1023,11 @@ function RumbleStep({
           <CardDescription>
             {wrestlers.length} {label.toLowerCase()} wrestlers available · {tiers.length} tiers · {totalSlots} total slots.
             Randomize the group, run the Rumble in-game, then enter finishing positions.
+            {chunks.length > 1 && (
+              <span className="block mt-1 text-gold/70">
+                Positions are validated within each Rumble group independently (1–{chunks[0]?.length ?? 30} for Rumble 1, etc.)
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1038,72 +1072,78 @@ function RumbleStep({
 
           {/* Position Entry */}
           {rumbleGroup.length > 0 && !assigned && (() => {
-            // Split into chunks of 30
-            const chunks: Wrestler[][] = [];
-            for (let i = 0; i < rumbleGroup.length; i += 30) {
-              chunks.push(rumbleGroup.slice(i, i + 30));
-            }
             return (
-              <div className="space-y-4">
-                {chunks.map((chunk, ci) => (
-                  <div key={ci}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        {chunks.length > 1
-                          ? `Rumble ${ci + 1} — ${chunk.length} Wrestlers`
-                          : `${chunk.length} Wrestlers`}
-                      </h4>
-                      <div className="flex-1 h-px bg-border/20" />
-                      <span className="text-[10px] text-muted-foreground/50">
-                        #{ci * 30 + 1}–{ci * 30 + chunk.length}
-                      </span>
+              <div className="space-y-6">
+                {chunks.map((chunk, ci) => {
+                  const cv = chunkValidations[ci];
+                  return (
+                    <div key={ci}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          {chunks.length > 1
+                            ? `Rumble ${ci + 1} — ${chunk.length} Wrestlers`
+                            : `${chunk.length} Wrestlers`}
+                        </h4>
+                        <div className="flex-1 h-px bg-border/20" />
+                        <span className={`text-[10px] font-medium ${
+                          cv.isValid
+                            ? "text-emerald-400"
+                            : cv.entries.length > 0
+                              ? "text-muted-foreground"
+                              : "text-muted-foreground/50"
+                        }`}>
+                          {cv.entries.length}/{chunk.length} filled
+                          {cv.isValid && " ✓"}
+                          {cv.hasDuplicates && " · ⚠ Dups"}
+                          {cv.hasInvalid && ` · ⚠ 1–${chunk.length}`}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+                        {chunk.map((w) => {
+                          const pos = positions[w.id] ?? "";
+                          const posNum = parseInt(pos);
+                          // Validate within THIS chunk only
+                          const isDup =
+                            pos !== "" &&
+                            !isNaN(posNum) &&
+                            cv.entries.filter((p) => p.pos === posNum).length > 1;
+                          const isOOR =
+                            pos !== "" &&
+                            !isNaN(posNum) &&
+                            (posNum < 1 || posNum > chunk.length);
+                          return (
+                            <div
+                              key={w.id}
+                              className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${
+                                isDup || isOOR
+                                  ? "border-red-500/40 bg-red-500/5"
+                                  : pos !== ""
+                                    ? "border-emerald-500/20 bg-emerald-500/5"
+                                    : "border-border/30"
+                              }`}
+                            >
+                              <Input
+                                type="number"
+                                min={1}
+                                max={chunk.length}
+                                value={pos}
+                                onChange={(e) =>
+                                  setPositions({ ...positions, [w.id]: e.target.value })
+                                }
+                                placeholder="#"
+                                className="w-14 h-7 text-center text-xs font-mono tabular-nums bg-background/50"
+                              />
+                              <span className="text-xs font-medium truncate flex-1">{w.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
-                      {chunk.map((w) => {
-                        const pos = positions[w.id] ?? "";
-                        const posNum = parseInt(pos);
-                        const isDup =
-                          pos !== "" &&
-                          !isNaN(posNum) &&
-                          pv.entries.filter((p) => p.pos === posNum).length > 1;
-                        const isOOR =
-                          pos !== "" &&
-                          !isNaN(posNum) &&
-                          (posNum < 1 || posNum > rumbleGroup.length);
-                        return (
-                          <div
-                            key={w.id}
-                            className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${
-                              isDup || isOOR
-                                ? "border-red-500/40 bg-red-500/5"
-                                : pos !== ""
-                                  ? "border-emerald-500/20 bg-emerald-500/5"
-                                  : "border-border/30"
-                            }`}
-                          >
-                            <Input
-                              type="number"
-                              min={1}
-                              max={rumbleGroup.length}
-                              value={pos}
-                              onChange={(e) =>
-                                setPositions({ ...positions, [w.id]: e.target.value })
-                              }
-                              placeholder="#"
-                              className="w-14 h-7 text-center text-xs font-mono tabular-nums bg-background/50"
-                            />
-                            <span className="text-xs font-medium truncate flex-1">{w.name}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div className="text-xs text-muted-foreground">
-                  {pv.entries.length}/{rumbleGroup.length} filled
-                  {pv.isValid && " ✓"}
-                  {pv.hasDuplicates && " · ⚠ Duplicates"}
-                  {pv.hasInvalid && ` · ⚠ Must be 1–${rumbleGroup.length}`}
+                  {totalFilled}/{rumbleGroup.length} total filled
+                  {allChunksValid && " · All Rumbles ✓"}
                 </div>
               </div>
             );
@@ -1134,11 +1174,11 @@ function RumbleStep({
                 ))}
               </div>
               <Button
-                onClick={() => onAssign(pv.sorted)}
+                onClick={() => onAssign(allSorted)}
                 disabled={loading}
                 className="bg-gold text-black hover:bg-gold-dark font-semibold"
               >
-                {loading ? "Assigning..." : `Assign ${pv.sorted.length} Wrestlers`}
+                {loading ? "Assigning..." : `Assign ${allSorted.length} Wrestlers`}
               </Button>
             </div>
           )}
