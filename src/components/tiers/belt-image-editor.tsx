@@ -37,10 +37,10 @@ export function BeltImageEditor({
   if (!editing) {
     return (
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
         onClick={() => setEditing(true)}
-        className="text-[10px] text-muted-foreground/50 hover:text-foreground h-6 px-2"
+        className="text-xs gap-1.5 mt-1 border-border/40 text-muted-foreground hover:text-foreground hover:border-gold/30"
       >
         {currentUrl ? "Edit Belt Image" : "Add Belt Image"}
       </Button>
