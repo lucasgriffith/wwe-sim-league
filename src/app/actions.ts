@@ -235,6 +235,24 @@ export async function recordMatchResult(
   revalidatePath("/tiers");
 }
 
+export async function undoMatchResult(matchId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("matches")
+    .update({
+      winner_wrestler_id: null,
+      winner_tag_team_id: null,
+      match_time_seconds: null,
+      played_at: null,
+      notes: null,
+    })
+    .eq("id", matchId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/season");
+  revalidatePath("/tiers");
+}
+
 // ─── Relegation actions ─────────────────────────────────────────────────────
 
 export async function bulkCreateRelegationEvents(
