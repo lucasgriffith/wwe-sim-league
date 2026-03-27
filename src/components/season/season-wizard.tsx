@@ -771,7 +771,10 @@ export function SeasonWizard({
             </div>
             <div className="flex gap-2">
               <Button
-                onClick={handleRandomizeTags}
+                onClick={() => {
+                  if (!window.confirm("This will randomly assign all tag teams to tiers. Are you sure?")) return;
+                  handleRandomizeTags();
+                }}
                 disabled={loading || tagAssigned}
                 className="bg-gold text-black hover:bg-gold-dark font-semibold"
               >
@@ -997,16 +1000,36 @@ function RumbleStep({
           {/* Randomize */}
           {!assigned && (
             <div className="flex gap-2">
-              <Button onClick={onRandomize30} className="bg-gold text-black hover:bg-gold-dark font-semibold">
+              <Button
+                onClick={() => {
+                  const hasProgress = rumbleGroup.length > 0 && Object.values(positions).some((v) => v !== "");
+                  if (hasProgress && !window.confirm("This will reset your current Rumble group and all entered positions. Are you sure?")) return;
+                  onRandomize30();
+                }}
+                className="bg-gold text-black hover:bg-gold-dark font-semibold"
+              >
                 Randomize 30
               </Button>
               {wrestlers.length > 30 && (
-                <Button variant="outline" onClick={onRandomizeAll}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const hasProgress = rumbleGroup.length > 0 && Object.values(positions).some((v) => v !== "");
+                    if (hasProgress && !window.confirm("This will reset your current Rumble group and all entered positions. Are you sure?")) return;
+                    onRandomizeAll();
+                  }}
+                >
                   Randomize All ({wrestlers.length})
                 </Button>
               )}
               {rumbleGroup.length > 0 && (
-                <Button variant="ghost" onClick={() => { setRumbleGroup([]); setPositions({}); }}>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    if (!window.confirm("Clear the entire Rumble group and all positions?")) return;
+                    setRumbleGroup([]); setPositions({});
+                  }}
+                >
                   Clear
                 </Button>
               )}
