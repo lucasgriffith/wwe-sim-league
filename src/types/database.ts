@@ -98,6 +98,7 @@ export interface Database {
           pool_size: number;
           has_pools: boolean;
           fixed_stipulation: string | null;
+          belt_image_url: string | null;
           created_at: string;
         };
         Insert: {
@@ -110,6 +111,7 @@ export interface Database {
           pool_size?: number;
           has_pools?: boolean;
           fixed_stipulation?: string | null;
+          belt_image_url?: string | null;
           created_at?: string;
         };
         Update: {
@@ -121,6 +123,7 @@ export interface Database {
           pool_size?: number;
           has_pools?: boolean;
           fixed_stipulation?: string | null;
+          belt_image_url?: string | null;
         };
       };
       seasons: {

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
+import { BeltImageEditor } from "@/components/tiers/belt-image-editor";
 import {
   Table,
   TableBody,
@@ -34,6 +35,8 @@ export default async function TierDetailPage({
     .single();
 
   if (!tier) notFound();
+
+  const { data: { user } } = await supabase.auth.getUser();
 
   const { data: activeSeason } = await supabase
     .from("seasons")
@@ -240,15 +243,30 @@ export default async function TierDetailPage({
             {division.name}
           </Badge>
         </div>
-        <h1 className="text-2xl font-bold sm:text-3xl">{tier.name}</h1>
-        {tier.fixed_stipulation && (
-          <p className="mt-2 text-sm text-muted-foreground">
-            All matches:{" "}
-            <span className="text-wwe-red font-medium">
-              {tier.fixed_stipulation}
-            </span>
-          </p>
-        )}
+        <div className="flex items-start gap-4">
+          {tier.belt_image_url && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={tier.belt_image_url}
+              alt={`${tier.name} belt`}
+              className="h-16 w-auto object-contain shrink-0 opacity-80"
+            />
+          )}
+          <div>
+            <h1 className="text-2xl font-bold sm:text-3xl">{tier.name}</h1>
+            {tier.fixed_stipulation && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                All matches:{" "}
+                <span className="text-wwe-red font-medium">
+                  {tier.fixed_stipulation}
+                </span>
+              </p>
+            )}
+            {!!user && (
+              <BeltImageEditor tierId={tier.id} currentUrl={tier.belt_image_url} />
+            )}
+          </div>
+        </div>
       </div>
 
       {activeSeason ? (

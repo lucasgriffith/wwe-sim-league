@@ -496,6 +496,21 @@ export async function generateAllPlayoffBrackets(seasonId: string) {
   return { tiersGenerated: generated, matchesCreated: allInserts.length };
 }
 
+// ─── Tier Actions ───────────────────────────────────────────────────────────
+
+export async function updateTierBeltImage(tierId: string, beltImageUrl: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("tiers")
+    .update({ belt_image_url: beltImageUrl })
+    .eq("id", tierId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/");
+  revalidatePath("/tiers");
+  revalidatePath(`/tiers/${tierId}`);
+}
+
 // ─── Wrestler Image Actions ─────────────────────────────────────────────────
 
 export async function fetchAndSaveWrestlerImage(wrestlerId: string, wrestlerName: string) {
