@@ -10,6 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Link from "next/link";
+import { BracketView } from "@/components/playoffs/bracket-view";
+import { computeClinchStatus, type ClinchStatus } from "@/lib/standings/clinch";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -147,7 +149,20 @@ export default async function TierDetailPage({
 
     stats.sort((a, b) => b.winPct - a.winPct || a.totalTime - b.totalTime);
 
-    return { pool, stats };
+    // Compute clinch status
+    const matchesPerParticipant = stats.length > 1 ? stats.length - 1 : 0;
+    const clinchMap = computeClinchStatus(
+      stats.map((s) => ({
+        participantId: s.id,
+        wins: s.wins,
+        losses: s.losses,
+        winPct: s.winPct,
+      })),
+      matchesPerParticipant,
+      poolMatches.filter((m) => m.played_at).length
+    );
+
+    return { pool, stats, clinchMap };
   });
 
   const poolPlayMatches = matches.filter(
@@ -260,7 +275,7 @@ export default async function TierDetailPage({
           </div>
 
           {/* Standings + Schedule side by side per pool */}
-          {standingsByPool.map(({ pool, stats }) => {
+          {standingsByPool.map(({ pool, stats, clinchMap }) => {
             const schedule = scheduleByRound(pool);
 
             return (
@@ -311,12 +326,33 @@ export default async function TierDetailPage({
                             className="table-row-hover border-border/30"
                           >
                             <TableCell
-                              className={`tabular-nums font-semibold ${i === 0 ? "rank-1" : i === 1 ? "rank-2" : i === 2 ? "rank-3" : "text-muted-foreground"}`}
+                              className={`tabular-nums font-semibold ${
+                                i < 2
+                                  ? "text-gold"
+                                  : i === 2
+                                    ? "text-muted-foreground"
+                                    : "text-muted-foreground/50"
+                              }`}
                             >
                               {i + 1}
+                              {i < 2 && (
+                                <span className="ml-0.5 text-[8px]">★</span>
+                              )}
                             </TableCell>
                             <TableCell className="font-medium">
-                              {s.name}
+                              <span className="flex items-center gap-1.5">
+                                {s.name}
+                                {clinchMap.get(s.id) === "clinched" && (
+                                  <span className="text-[8px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-1 rounded" title="Clinched playoff spot">
+                                    ✓
+                                  </span>
+                                )}
+                                {clinchMap.get(s.id) === "eliminated" && (
+                                  <span className="text-[8px] font-bold uppercase tracking-wider text-red-400/60 bg-red-400/10 px-1 rounded" title="Eliminated from playoffs">
+                                    ✗
+                                  </span>
+                                )}
+                              </span>
                             </TableCell>
                             <TableCell className="text-center tabular-nums">
                               {s.wins}
@@ -433,106 +469,39 @@ export default async function TierDetailPage({
                 <span className="text-gold">🏆</span> Playoffs
               </h2>
               <div className="rounded-lg border border-gold/20 bg-gold/[0.02] p-4 overflow-x-auto">
-                <div className="space-y-2">
-                  {/* Group by phase */}
-                  {(
-                    ["quarterfinal", "semifinal", "final"] as const
-                  ).map((phase) => {
-                    const phaseMatches = playoffMatches.filter(
-                      (m) => m.match_phase === phase
-                    );
-                    if (phaseMatches.length === 0) return null;
-
-                    return (
-                      <div key={phase}>
-                        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 mb-1.5">
-                          {phase === "quarterfinal"
-                            ? "Quarterfinals"
-                            : phase === "semifinal"
-                              ? "Semifinals"
-                              : "Championship Final"}
-                        </h3>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {phaseMatches.map((m) => {
-                            const aId =
-                              m.wrestler_a_id || m.tag_team_a_id;
-                            const bId =
-                              m.wrestler_b_id || m.tag_team_b_id;
-                            const winnerId =
-                              m.winner_wrestler_id ||
-                              m.winner_tag_team_id;
-                            const isPlayed = !!m.played_at;
-                            const isFinal = phase === "final";
-
-                            return (
-                              <div
-                                key={m.id}
-                                className={`rounded-lg border p-3 ${
-                                  isFinal
-                                    ? isPlayed
-                                      ? "border-gold/30 bg-gold/5"
-                                      : "border-gold/15"
-                                    : isPlayed
-                                      ? "border-emerald-500/20 bg-emerald-500/[0.03]"
-                                      : "border-border/30"
-                                }`}
-                              >
-                                {m.stipulation && (
-                                  <div className="text-[9px] font-medium text-wwe-red/70 mb-1">
-                                    {m.stipulation}
-                                  </div>
-                                )}
-                                <div className="flex items-center gap-2 text-sm">
-                                  <span
-                                    className={
-                                      isPlayed && winnerId === aId
-                                        ? isFinal
-                                          ? "font-bold text-gold"
-                                          : "font-bold text-emerald-400"
-                                        : isPlayed
-                                          ? "text-muted-foreground/40 line-through"
-                                          : "font-medium"
-                                    }
-                                  >
-                                    {getName(aId)}
-                                  </span>
-                                  <span className="text-muted-foreground/30 text-xs">
-                                    vs
-                                  </span>
-                                  <span
-                                    className={
-                                      isPlayed && winnerId === bId
-                                        ? isFinal
-                                          ? "font-bold text-gold"
-                                          : "font-bold text-emerald-400"
-                                        : isPlayed
-                                          ? "text-muted-foreground/40 line-through"
-                                          : "font-medium"
-                                    }
-                                  >
-                                    {getName(bId)}
-                                  </span>
-                                  {isPlayed &&
-                                    winnerId === (aId || bId) &&
-                                    isFinal && (
-                                      <span className="ml-auto text-sm">
-                                        🏆
-                                      </span>
-                                    )}
-                                </div>
-                                {isPlayed && m.match_time_seconds && (
-                                  <div className="text-[9px] tabular-nums text-muted-foreground/40 mt-1">
-                                    {formatTime(m.match_time_seconds)}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
+                <BracketView
+                  tierName={tier.short_name || tier.name}
+                  isTagFinal={!tier.has_pools}
+                  matches={playoffMatches.map((m) => {
+                    const aId = m.wrestler_a_id || m.tag_team_a_id;
+                    const bId = m.wrestler_b_id || m.tag_team_b_id;
+                    const winnerId = m.winner_wrestler_id || m.winner_tag_team_id;
+                    const qfMatches = playoffMatches.filter((pm) => pm.match_phase === "quarterfinal");
+                    const sfMatches = playoffMatches.filter((pm) => pm.match_phase === "semifinal");
+                    const idx = m.match_phase === "quarterfinal"
+                      ? qfMatches.indexOf(m)
+                      : m.match_phase === "semifinal"
+                        ? sfMatches.indexOf(m)
+                        : 0;
+                    const matchKey = m.match_phase === "quarterfinal"
+                      ? `QF${idx + 1}`
+                      : m.match_phase === "semifinal"
+                        ? `SF${idx + 1}`
+                        : "Final";
+                    return {
+                      id: m.id,
+                      matchKey,
+                      round: m.match_phase,
+                      participantA: aId ? { id: aId, name: getName(aId), seed: 0 } : null,
+                      participantB: bId ? { id: bId, name: getName(bId), seed: 0 } : null,
+                      winnerId,
+                      stipulation: m.stipulation,
+                      matchTime: m.match_time_seconds,
+                      isPlayed: !!m.played_at,
+                      isBye: false,
+                    };
                   })}
-                </div>
+                />
               </div>
             </div>
           )}

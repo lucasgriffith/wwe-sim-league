@@ -348,6 +348,206 @@ export async function resetSeasonComplete(seasonId: string) {
   revalidatePath("/dynasty");
 }
 
+// ─── Generate All Playoff Brackets ──────────────────────────────────────────
+
+export async function generateAllPlayoffBrackets(seasonId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  // Get all tiers with divisions
+  const { data: tiers } = await admin
+    .from("tiers")
+    .select("*, divisions(name, gender, division_type)")
+    .order("tier_number");
+
+  if (!tiers) throw new Error("Failed to load tiers");
+
+  // Get all assignments for this season
+  const { data: assignments } = await admin
+    .from("tier_assignments")
+    .select("tier_id, wrestler_id, tag_team_id, pool")
+    .eq("season_id", seasonId);
+
+  if (!assignments) throw new Error("Failed to load assignments");
+
+  // Get all matches for this season
+  const { data: matches } = await admin
+    .from("matches")
+    .select("*")
+    .eq("season_id", seasonId);
+
+  if (!matches) throw new Error("Failed to load matches");
+
+  // Check which tiers already have playoff matches
+  const tiersWithPlayoffs = new Set(
+    matches
+      .filter((m) => ["quarterfinal", "semifinal", "final"].includes(m.match_phase))
+      .map((m) => m.tier_id)
+  );
+
+  // Import playoff utilities dynamically
+  const { computeStandings } = await import("@/lib/standings/compute-standings");
+  const { computePlayoffSeeds, computeTagPlayoffSeeds } = await import("@/lib/playoffs/seeding");
+  const { generateBracket } = await import("@/lib/playoffs/bracket");
+  const { assignStipulation } = await import("@/lib/stipulations/randomizer");
+
+  const allInserts: Array<{
+    season_id: string;
+    tier_id: string;
+    match_phase: MatchPhase;
+    pool: null;
+    stipulation: string;
+    wrestler_a_id?: string | null;
+    wrestler_b_id?: string | null;
+    tag_team_a_id?: string | null;
+    tag_team_b_id?: string | null;
+  }> = [];
+
+  let generated = 0;
+
+  for (const tier of tiers) {
+    if (tiersWithPlayoffs.has(tier.id)) continue;
+
+    const tierAssigns = assignments.filter((a) => a.tier_id === tier.id);
+    if (tierAssigns.length < 2) continue;
+
+    const isTag = tier.divisions?.division_type === "tag";
+    const tierMatches = matches.filter(
+      (m) => m.tier_id === tier.id && m.match_phase === "pool_play" && m.played_at
+    );
+
+    // Build match results
+    const matchResults = tierMatches.map((m) => ({
+      id: m.id,
+      wrestlerAId: (m.wrestler_a_id || m.tag_team_a_id)!,
+      wrestlerBId: (m.wrestler_b_id || m.tag_team_b_id)!,
+      winnerId: (m.winner_wrestler_id || m.winner_tag_team_id)!,
+      matchTimeSeconds: m.match_time_seconds ?? 0,
+    }));
+
+    let seeds;
+    if (tier.has_pools) {
+      const poolAAssigns = tierAssigns.filter((a) => a.pool === "A");
+      const poolBAssigns = tierAssigns.filter((a) => a.pool === "B");
+      const poolAMatches = matchResults.filter((m) =>
+        poolAAssigns.some((a) => (a.wrestler_id || a.tag_team_id) === m.wrestlerAId || (a.wrestler_id || a.tag_team_id) === m.wrestlerBId)
+      );
+      const poolBMatches = matchResults.filter((m) =>
+        poolBAssigns.some((a) => (a.wrestler_id || a.tag_team_id) === m.wrestlerAId || (a.wrestler_id || a.tag_team_id) === m.wrestlerBId)
+      );
+
+      const getName = (id: string) => id; // Seeds don't need names for match creation
+      const poolAStandings = computeStandings(
+        poolAAssigns.map((a) => ({ id: (a.wrestler_id || a.tag_team_id)!, name: "" })),
+        poolAMatches
+      );
+      const poolBStandings = computeStandings(
+        poolBAssigns.map((a) => ({ id: (a.wrestler_id || a.tag_team_id)!, name: "" })),
+        poolBMatches
+      );
+      seeds = computePlayoffSeeds(poolAStandings, poolBStandings);
+    } else {
+      const standings = computeStandings(
+        tierAssigns.map((a) => ({ id: (a.wrestler_id || a.tag_team_id)!, name: "" })),
+        matchResults
+      );
+      seeds = computeTagPlayoffSeeds(standings);
+    }
+
+    const bracketMatches = generateBracket(seeds);
+    const usedStipulations: string[] = [];
+
+    for (const bm of bracketMatches) {
+      const stip = assignStipulation(tier.fixed_stipulation, usedStipulations);
+      usedStipulations.push(stip);
+
+      allInserts.push({
+        season_id: seasonId,
+        tier_id: tier.id,
+        match_phase: bm.round as MatchPhase,
+        pool: null,
+        stipulation: stip,
+        ...(isTag
+          ? {
+              tag_team_a_id: bm.seedA?.participantId ?? null,
+              tag_team_b_id: bm.seedB?.participantId ?? null,
+            }
+          : {
+              wrestler_a_id: bm.seedA?.participantId ?? null,
+              wrestler_b_id: bm.seedB?.participantId ?? null,
+            }),
+      });
+    }
+    generated++;
+  }
+
+  if (allInserts.length > 0) {
+    // Insert in batches
+    for (let i = 0; i < allInserts.length; i += 500) {
+      const { error } = await admin.from("matches").insert(allInserts.slice(i, i + 500));
+      if (error) throw new Error(error.message);
+    }
+  }
+
+  revalidatePath("/season");
+  revalidatePath("/season/playoffs");
+  revalidatePath("/tiers");
+
+  return { tiersGenerated: generated, matchesCreated: allInserts.length };
+}
+
+// ─── Wrestler Image Actions ─────────────────────────────────────────────────
+
+export async function fetchAndSaveWrestlerImage(wrestlerId: string, wrestlerName: string) {
+  await requireAdmin();
+  const { fetchWrestlerImage } = await import("@/lib/images/wikidata");
+  const result = await fetchWrestlerImage(wrestlerName);
+
+  if (result.imageUrl) {
+    const admin = createAdminClient();
+    await admin
+      .from("wrestlers")
+      .update({ image_url: result.imageUrl })
+      .eq("id", wrestlerId);
+    revalidatePath("/roster");
+    revalidatePath(`/roster/${wrestlerId}`);
+    return { success: true, imageUrl: result.imageUrl };
+  }
+  return { success: false, imageUrl: null };
+}
+
+export async function fetchAllWrestlerImages() {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  // Get wrestlers without images
+  const { data: wrestlers } = await admin
+    .from("wrestlers")
+    .select("id, name")
+    .is("image_url", null)
+    .eq("is_active", true);
+
+  if (!wrestlers || wrestlers.length === 0) return { updated: 0, total: 0 };
+
+  const { batchFetchWrestlerImages } = await import("@/lib/images/wikidata");
+  const imageMap = await batchFetchWrestlerImages(wrestlers.map((w) => w.name));
+
+  let updated = 0;
+  for (const wrestler of wrestlers) {
+    const imageUrl = imageMap.get(wrestler.name);
+    if (imageUrl) {
+      await admin
+        .from("wrestlers")
+        .update({ image_url: imageUrl })
+        .eq("id", wrestler.id);
+      updated++;
+    }
+  }
+
+  revalidatePath("/roster");
+  return { updated, total: wrestlers.length };
+}
+
 // ─── Logout ─────────────────────────────────────────────────────────────────
 
 export async function signOut() {

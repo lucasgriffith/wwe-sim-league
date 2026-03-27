@@ -35,6 +35,7 @@ import {
   bulkAssignToTier,
   resetSeasonAssignments,
   resetSeasonComplete,
+  generateAllPlayoffBrackets,
 } from "@/app/actions";
 import { generateRoundRobin } from "@/lib/scheduling/round-robin";
 import {
@@ -239,6 +240,13 @@ export function SeasonSetup({
     try {
       if (next === "pool_play") {
         await generateAndInsertSchedules(season.id);
+      }
+      if (next === "playoffs") {
+        // Auto-generate all playoff brackets across all tiers
+        const result = await generateAllPlayoffBrackets(season.id);
+        toast.success(
+          `Generated brackets for ${result.tiersGenerated} tiers (${result.matchesCreated} matches)`
+        );
       }
       await advanceSeasonStatus(season.id, next);
       toast.success(`Advanced to ${getStatusLabel(next)}`);
