@@ -76,7 +76,7 @@ export default async function TiersPage() {
                     <img
                       src={tier.belt_image_url}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-contain opacity-[0.08] pointer-events-none scale-110 blur-[0.5px]"
+                      className="absolute inset-0 w-full h-full object-contain opacity-[0.2] pointer-events-none scale-105"
                     />
                   )}
                   <CardHeader className="pb-2 relative">
