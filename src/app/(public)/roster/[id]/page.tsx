@@ -201,7 +201,22 @@ export default async function WrestlerProfilePage({
       </Link>
 
       {/* Header */}
-      <div className="mt-6 mb-8">
+      <div className="mt-6 mb-8 flex items-start gap-5">
+        {wrestler.image_url ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={wrestler.image_url}
+            alt={wrestler.name}
+            className="h-20 w-20 rounded-xl object-cover border-2 border-border/30 shrink-0 shadow-lg"
+          />
+        ) : (
+          <div className="h-20 w-20 rounded-xl bg-muted/20 border-2 border-border/20 flex items-center justify-center shrink-0">
+            <span className="text-2xl font-bold text-muted-foreground/30">
+              {wrestler.name.charAt(0)}
+            </span>
+          </div>
+        )}
+        <div>
         <h1 className="text-3xl font-bold tracking-tight">{wrestler.name}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Badge
@@ -224,6 +239,7 @@ export default async function WrestlerProfilePage({
               · Tag: {tagTeams.map((t) => t.name).join(", ")}
             </span>
           )}
+        </div>
         </div>
       </div>
 

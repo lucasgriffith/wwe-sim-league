@@ -172,8 +172,22 @@ export function WrestlerTable({
                 <TableCell>
                   <Link
                     href={`/roster/${wrestler.id}`}
-                    className="font-medium hover:text-gold transition-colors"
+                    className="flex items-center gap-2.5 font-medium hover:text-gold transition-colors"
                   >
+                    {wrestler.image_url ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={wrestler.image_url}
+                        alt={wrestler.name}
+                        className="h-7 w-7 rounded-full object-cover border border-border/30 shrink-0"
+                      />
+                    ) : (
+                      <div className="h-7 w-7 rounded-full bg-muted/30 border border-border/20 flex items-center justify-center shrink-0">
+                        <span className="text-[10px] font-bold text-muted-foreground/40">
+                          {wrestler.name.charAt(0)}
+                        </span>
+                      </div>
+                    )}
                     {wrestler.name}
                   </Link>
                 </TableCell>
