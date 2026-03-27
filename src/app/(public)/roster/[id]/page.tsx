@@ -291,9 +291,54 @@ export default async function WrestlerProfilePage({
         <MiniStat label="Avg Match Time" value={avgMatchTime ? formatTime(avgMatchTime) : "—"} />
         <MiniStat label="Longest Match" value={longestMatch ? formatTime(longestMatch) : "—"} />
         <MiniStat label="Unique Opponents" value={opponentIds.size > 0 ? opponentIds.size.toString() : "—"} />
-        <MiniStat label="Top Rival" value={nemesis ? `${nemesis.name} (${nemesis.count}x)` : "—"} />
+        <MiniStat label="Pool Play Record" value={(() => {
+          const pp = allMatches.filter(m => m.match_phase === "pool_play");
+          if (pp.length === 0) return "—";
+          const w = pp.filter(m => m.winner_wrestler_id === id).length;
+          return `${w}-${pp.length - w}`;
+        })()} />
         <MiniStat label="Total Matches" value={allMatches.length > 0 ? allMatches.length.toString() : "—"} />
       </div>
+
+      {/* Head-to-Head Records */}
+      {Object.keys(opponentCounts).length > 0 && (
+        <div className="mt-6">
+          <SectionHeader>Head-to-Head Records</SectionHeader>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {Object.entries(opponentCounts)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 6)
+              .map(([oppId, count]) => {
+                const oppName = wrestlerMap[oppId] ?? "Unknown";
+                const winsVs = allMatches.filter(
+                  (m) =>
+                    (m.wrestler_a_id === oppId || m.wrestler_b_id === oppId) &&
+                    m.winner_wrestler_id === id
+                ).length;
+                const lossesVs = count - winsVs;
+                return (
+                  <Link
+                    key={oppId}
+                    href={`/roster/${oppId}`}
+                    className="flex items-center gap-3 rounded-lg border border-border/30 bg-card/30 px-3 py-2.5 hover:border-border/50 transition-colors"
+                  >
+                    <span className="text-sm font-medium flex-1 truncate">
+                      {oppName}
+                    </span>
+                    <span className="tabular-nums text-xs font-bold">
+                      <span className="text-emerald-400">{winsVs}</span>
+                      <span className="text-muted-foreground/30 mx-0.5">-</span>
+                      <span className="text-red-400">{lossesVs}</span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/40">
+                      ({count}x)
+                    </span>
+                  </Link>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
       {/* Tier History */}
       {assignments && assignments.length > 0 && (

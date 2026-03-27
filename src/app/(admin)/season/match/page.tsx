@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { MatchEntry } from "@/components/season/match-entry";
+import { MatchEntryTabs } from "@/components/season/match-entry-tabs";
 
 export default async function MatchEntryPage() {
   const supabase = await createClient();
@@ -30,15 +31,18 @@ export default async function MatchEntryPage() {
     .select("*, divisions(name, division_type)")
     .order("tier_number");
 
-  // Get unplayed matches for this season
-  const { data: matches } = await supabase
+  // Get ALL matches for this season (both played and unplayed) for progress tracking
+  const { data: allMatches } = await supabase
     .from("matches")
     .select("*")
     .eq("season_id", season.id)
-    .is("played_at", null)
     .order("tier_id")
     .order("round_number")
     .order("pool");
+
+  const unplayedMatches = (allMatches ?? []).filter((m) => !m.played_at);
+  const playedCount = (allMatches ?? []).length - unplayedMatches.length;
+  const totalCount = (allMatches ?? []).length;
 
   // Get wrestler names
   const { data: wrestlers } = await supabase
@@ -60,18 +64,19 @@ export default async function MatchEntryPage() {
   );
 
   return (
-    <div className="container max-w-lg px-4 py-8">
-      <h1 className="mb-2 text-3xl font-bold">Match Entry</h1>
+    <div className="container max-w-lg px-4 py-8 animate-fade-in">
+      <h1 className="mb-2 text-3xl font-bold tracking-tight">Match Entry</h1>
       <p className="mb-6 text-sm text-muted-foreground">
-        Season {season.season_number} &middot; {matches?.length ?? 0} matches
-        remaining
+        Season {season.season_number}
       </p>
-      <MatchEntry
+      <MatchEntryTabs
         seasonId={season.id}
         tiers={(tiers ?? []) as any}
-        matches={(matches ?? []) as any}
+        matches={unplayedMatches as any}
         wrestlerMap={wrestlerMap}
         tagTeamMap={tagTeamMap}
+        playedCount={playedCount}
+        totalCount={totalCount}
       />
     </div>
   );

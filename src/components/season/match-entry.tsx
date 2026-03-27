@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,12 +43,16 @@ export function MatchEntry({
   matches,
   wrestlerMap,
   tagTeamMap,
+  playedCount,
+  totalCount,
 }: {
   seasonId: string;
   tiers: Tier[];
   matches: Match[];
   wrestlerMap: Record<string, string>;
   tagTeamMap: Record<string, string>;
+  playedCount: number;
+  totalCount: number;
 }) {
   const router = useRouter();
   const [selectedTier, setSelectedTier] = useState("");
@@ -56,6 +60,7 @@ export function MatchEntry({
   const [minutes, setMinutes] = useState("");
   const [seconds, setSeconds] = useState("");
   const [notes, setNotes] = useState("");
+  const [justSubmitted, setJustSubmitted] = useState<string | null>(null);
 
   // Group matches by tier
   const matchesByTier = useMemo(() => {
@@ -69,6 +74,16 @@ export function MatchEntry({
 
   // Tiers with remaining matches
   const tiersWithMatches = tiers.filter((t) => matchesByTier.has(t.id));
+
+  // Auto-select first tier with matches
+  useEffect(() => {
+    if (!selectedTier && tiersWithMatches.length > 0) {
+      setSelectedTier(tiersWithMatches[0].id);
+    } else if (selectedTier && !matchesByTier.has(selectedTier) && tiersWithMatches.length > 0) {
+      // Current tier is done, auto-advance to next
+      setSelectedTier(tiersWithMatches[0].id);
+    }
+  }, [selectedTier, tiersWithMatches, matchesByTier]);
 
   // Current match (first unplayed in selected tier)
   const currentMatch = selectedTier
@@ -108,8 +123,9 @@ export function MatchEntry({
         notes: notes || undefined,
       });
 
-      const winnerName =
-        winnerId === idA ? nameA : nameB;
+      const winnerName = winnerId === idA ? nameA : nameB;
+      setJustSubmitted(winnerName);
+      setTimeout(() => setJustSubmitted(null), 1500);
       toast.success(`${winnerName} wins!`);
       setMinutes("");
       setSeconds("");
@@ -124,81 +140,130 @@ export function MatchEntry({
     }
   }
 
-  // Auto-select first tier with matches
-  if (!selectedTier && tiersWithMatches.length > 0) {
-    setSelectedTier(tiersWithMatches[0].id);
-  }
-
   const currentTier = tiers.find((t) => t.id === selectedTier);
   const remainingInTier = matchesByTier.get(selectedTier)?.length ?? 0;
+  const progressPct = totalCount > 0 ? Math.round((playedCount / totalCount) * 100) : 0;
+
+  // Compute match number context
+  const totalInTier = tiers.find((t) => t.id === selectedTier)
+    ? (() => {
+        const allTierMatches = matches.filter((m) => m.tier_id === selectedTier);
+        return playedCount > 0 ? allTierMatches.length + (totalCount - matches.length - (totalCount - playedCount - matches.length)) : allTierMatches.length;
+      })()
+    : 0;
 
   return (
     <div className="space-y-4">
+      {/* Overall progress bar */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">
+            Season Progress
+          </span>
+          <span className="tabular-nums font-medium">
+            {playedCount} / {totalCount}
+            <span className="text-muted-foreground/60 ml-1">({progressPct}%)</span>
+          </span>
+        </div>
+        <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-gold/80 to-gold transition-all duration-500"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      </div>
+
       {/* Tier selector */}
       <Select value={selectedTier} onValueChange={(v) => setSelectedTier(v ?? "")}>
-        <SelectTrigger>
+        <SelectTrigger className="h-12 text-sm">
           <SelectValue placeholder="Select tier..." />
         </SelectTrigger>
         <SelectContent>
-          {tiersWithMatches.map((t) => (
-            <SelectItem key={t.id} value={t.id}>
-              T{t.tier_number}: {t.short_name || t.name} (
-              {matchesByTier.get(t.id)?.length} left)
-            </SelectItem>
-          ))}
+          {tiersWithMatches.map((t) => {
+            const left = matchesByTier.get(t.id)?.length ?? 0;
+            return (
+              <SelectItem key={t.id} value={t.id} className="py-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-muted-foreground">T{t.tier_number}</span>
+                  <span>{t.short_name || t.name}</span>
+                  <Badge variant="secondary" className="text-[10px] ml-auto">
+                    {left} left
+                  </Badge>
+                </div>
+              </SelectItem>
+            );
+          })}
         </SelectContent>
       </Select>
 
+      {/* Win flash overlay */}
+      {justSubmitted && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-fade-in pointer-events-none">
+          <div className="text-center">
+            <div className="text-5xl mb-2">🏆</div>
+            <div className="text-2xl font-bold text-gold">{justSubmitted} wins!</div>
+          </div>
+        </div>
+      )}
+
       {currentMatch ? (
-        <Card>
-          <CardHeader className="pb-3">
+        <Card className="border-border/40 overflow-hidden">
+          <CardHeader className="pb-2 bg-gradient-to-r from-card to-card/80">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">
+              <CardTitle className="text-base font-bold">
                 {currentTier?.short_name || currentTier?.name}
               </CardTitle>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 {currentMatch.pool && (
-                  <Badge variant="outline">Pool {currentMatch.pool}</Badge>
+                  <Badge variant="outline" className="text-[10px] border-border/40">
+                    Pool {currentMatch.pool}
+                  </Badge>
                 )}
-                <Badge variant="outline">
+                <Badge variant="outline" className="text-[10px] border-border/40">
                   Rd {currentMatch.round_number}
-                </Badge>
-                <Badge variant="secondary">
-                  {remainingInTier} left
                 </Badge>
               </div>
             </div>
-            {currentMatch.stipulation && (
-              <Badge className="mt-1 w-fit bg-wwe-red/20 text-wwe-red">
-                {currentMatch.stipulation}
-              </Badge>
-            )}
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-muted-foreground">
+                {remainingInTier} match{remainingInTier !== 1 ? "es" : ""} remaining in tier
+              </span>
+              {currentMatch.stipulation && (
+                <Badge className="bg-wwe-red/20 text-wwe-red text-[10px] border-0">
+                  {currentMatch.stipulation}
+                </Badge>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Winner selection — big tap targets */}
+          <CardContent className="space-y-4 pt-4">
+            {/* VS Header */}
+            <div className="text-center">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+                tap winner
+              </span>
+            </div>
+
+            {/* Winner selection — large tap targets */}
             <div className="grid grid-cols-2 gap-3">
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-20 text-lg font-bold leading-tight"
+              <button
+                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-border/40 bg-gradient-to-b from-card to-muted/10 px-3 py-6 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50 min-h-[100px]"
                 onClick={() => handleWinner(idA)}
                 disabled={loading}
               >
-                {nameA}
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-20 text-lg font-bold leading-tight"
+                <span className="text-lg font-bold leading-tight">{nameA}</span>
+              </button>
+
+              <button
+                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-border/40 bg-gradient-to-b from-card to-muted/10 px-3 py-6 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50 min-h-[100px]"
                 onClick={() => handleWinner(idB)}
                 disabled={loading}
               >
-                {nameB}
-              </Button>
+                <span className="text-lg font-bold leading-tight">{nameB}</span>
+              </button>
             </div>
 
-            {/* Match time */}
-            <div className="flex items-center gap-2">
+            {/* Match time — larger inputs */}
+            <div className="flex items-center justify-center gap-2">
               <Input
                 type="number"
                 placeholder="Min"
@@ -206,9 +271,9 @@ export function MatchEntry({
                 max={99}
                 value={minutes}
                 onChange={(e) => setMinutes(e.target.value)}
-                className="w-20 text-center text-lg"
+                className="w-20 h-12 text-center text-xl font-bold tabular-nums bg-background/50"
               />
-              <span className="text-xl font-bold">:</span>
+              <span className="text-2xl font-bold text-muted-foreground/40">:</span>
               <Input
                 type="number"
                 placeholder="Sec"
@@ -216,11 +281,8 @@ export function MatchEntry({
                 max={59}
                 value={seconds}
                 onChange={(e) => setSeconds(e.target.value)}
-                className="w-20 text-center text-lg"
+                className="w-20 h-12 text-center text-xl font-bold tabular-nums bg-background/50"
               />
-              <span className="text-sm text-muted-foreground ml-2">
-                Match Time
-              </span>
             </div>
 
             {/* Notes */}
@@ -228,15 +290,26 @@ export function MatchEntry({
               placeholder="Notes (optional)"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              className="bg-background/50"
             />
           </CardContent>
         </Card>
       ) : (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            {tiersWithMatches.length === 0
-              ? "All matches have been played!"
-              : "Select a tier to start entering results"}
+          <CardContent className="py-12 text-center">
+            {tiersWithMatches.length === 0 ? (
+              <div>
+                <div className="text-4xl mb-3">🎉</div>
+                <p className="text-lg font-bold">All matches complete!</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {totalCount} matches played this season
+                </p>
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                Select a tier to start entering results
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
