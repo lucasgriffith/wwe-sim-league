@@ -17,6 +17,7 @@ import { computeStandings, type MatchResult } from "@/lib/standings/compute-stan
 import { computePlayoffSeeds, computeTagPlayoffSeeds } from "@/lib/playoffs/seeding";
 import { generateBracket, type BracketMatch } from "@/lib/playoffs/bracket";
 import { assignStipulation } from "@/lib/stipulations/randomizer";
+import { BracketView } from "./bracket-view";
 import { bulkCreateMatches, recordMatchResult } from "@/app/actions";
 import { toast } from "sonner";
 import type { MatchPhase } from "@/types/database";
@@ -285,109 +286,196 @@ export function PlayoffsManager({
 
           {/* Generate or show bracket */}
           {bracket.existingPlayoffMatches.length === 0 ? (
-            <Button onClick={handleGeneratePlayoffMatches} disabled={loading}>
-              Generate Playoff Matches
+            <Button
+              onClick={handleGeneratePlayoffMatches}
+              disabled={loading}
+              className="bg-gold text-black hover:bg-gold-dark font-semibold"
+            >
+              {loading ? "Generating..." : "Generate Playoff Matches"}
             </Button>
           ) : (
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold">Bracket</h3>
-              {bracket.existingPlayoffMatches.map((m) => {
-                const aName = getName(m.wrestler_a_id || m.tag_team_a_id);
-                const bName = getName(m.wrestler_b_id || m.tag_team_b_id);
-                const aId = (m.wrestler_a_id || m.tag_team_a_id) ?? "";
-                const bId = (m.wrestler_b_id || m.tag_team_b_id) ?? "";
-                const isPlayed = !!m.played_at;
-                const winnerId = m.winner_wrestler_id || m.winner_tag_team_id;
+            <div className="space-y-6">
+              {/* Visual Bracket */}
+              <BracketView
+                tierName={tier.short_name || tier.name}
+                isTagFinal={!tier.has_pools}
+                matches={buildBracketViewData(bracket, tier, matches, wrestlerMap, tagTeamMap, isTag)}
+              />
+
+              {/* Match Entry Cards for unplayed matches */}
+              {(() => {
+                const unplayed = bracket.existingPlayoffMatches.filter((m) => !m.played_at);
+                if (unplayed.length === 0) return (
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
+                    <p className="text-sm font-medium text-emerald-400">
+                      All playoff matches complete for this tier!
+                    </p>
+                  </div>
+                );
+
+                // Show next match to play (first unplayed with both participants)
+                const nextMatch = unplayed.find((m) =>
+                  (m.wrestler_a_id || m.tag_team_a_id) && (m.wrestler_b_id || m.tag_team_b_id)
+                );
+                if (!nextMatch) return (
+                  <div className="rounded-lg border border-border/30 bg-card/30 p-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Waiting for earlier round results to determine next matchup.
+                    </p>
+                  </div>
+                );
+
+                const aId = (nextMatch.wrestler_a_id || nextMatch.tag_team_a_id) ?? "";
+                const bId = (nextMatch.wrestler_b_id || nextMatch.tag_team_b_id) ?? "";
+                const aName = getName(aId);
+                const bName = getName(bId);
 
                 return (
-                  <Card key={m.id}>
-                    <CardContent className="py-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className="capitalize">
-                          {m.match_phase.replace("_", " ")}
-                        </Badge>
-                        {m.stipulation && (
-                          <Badge className="bg-wwe-red/20 text-wwe-red">
-                            {m.stipulation}
+                  <Card className="border-gold/20 bg-gold/[0.02]">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm">
+                          Next: {nextMatch.match_phase.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                        </CardTitle>
+                        {nextMatch.stipulation && (
+                          <Badge className="bg-wwe-red/20 text-wwe-red text-[10px]">
+                            {nextMatch.stipulation}
                           </Badge>
                         )}
                       </div>
-                      {isPlayed ? (
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={
-                              winnerId === aId
-                                ? "font-bold text-gold"
-                                : "text-muted-foreground"
-                            }
-                          >
-                            {aName}
-                          </span>
-                          <span className="text-muted-foreground">vs</span>
-                          <span
-                            className={
-                              winnerId === bId
-                                ? "font-bold text-gold"
-                                : "text-muted-foreground"
-                            }
-                          >
-                            {bName}
-                          </span>
-                        </div>
-                      ) : aId && bId ? (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button
-                              variant="outline"
-                              className="h-14 text-sm font-bold"
-                              onClick={() => handleRecordPlayoffResult(m.id, aId)}
-                              disabled={loading}
-                            >
-                              {aName}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="h-14 text-sm font-bold"
-                              onClick={() => handleRecordPlayoffResult(m.id, bId)}
-                              disabled={loading}
-                            >
-                              {bName}
-                            </Button>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              placeholder="Min"
-                              min={0}
-                              value={minutes}
-                              onChange={(e) => setMinutes(e.target.value)}
-                              className="w-16 text-center"
-                            />
-                            <span>:</span>
-                            <Input
-                              type="number"
-                              placeholder="Sec"
-                              min={0}
-                              max={59}
-                              value={seconds}
-                              onChange={(e) => setSeconds(e.target.value)}
-                              className="w-16 text-center"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          {aName} vs {bName}
-                        </p>
-                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="text-center">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">
+                          tap winner
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          className="flex flex-col items-center justify-center rounded-xl border-2 border-border/40 bg-gradient-to-b from-card to-muted/10 px-3 py-5 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50"
+                          onClick={() => handleRecordPlayoffResult(nextMatch.id, aId)}
+                          disabled={loading}
+                        >
+                          <span className="text-base font-bold leading-tight">{aName}</span>
+                        </button>
+                        <button
+                          className="flex flex-col items-center justify-center rounded-xl border-2 border-border/40 bg-gradient-to-b from-card to-muted/10 px-3 py-5 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50"
+                          onClick={() => handleRecordPlayoffResult(nextMatch.id, bId)}
+                          disabled={loading}
+                        >
+                          <span className="text-base font-bold leading-tight">{bName}</span>
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-center gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Min"
+                          min={0}
+                          value={minutes}
+                          onChange={(e) => setMinutes(e.target.value)}
+                          className="w-20 h-10 text-center text-lg font-bold tabular-nums"
+                        />
+                        <span className="text-xl font-bold text-muted-foreground/40">:</span>
+                        <Input
+                          type="number"
+                          placeholder="Sec"
+                          min={0}
+                          max={59}
+                          value={seconds}
+                          onChange={(e) => setSeconds(e.target.value)}
+                          className="w-20 h-10 text-center text-lg font-bold tabular-nums"
+                        />
+                      </div>
                     </CardContent>
                   </Card>
                 );
-              })}
+              })()}
             </div>
           )}
         </div>
       )}
     </div>
   );
+}
+
+/* ─── Build bracket view data ─────────────────────────────────────────────── */
+
+function buildBracketViewData(
+  bracket: {
+    seeds: Array<{ seed: number; participantId: string; name: string; winPct: number }>;
+    bracketMatches: Array<{ matchKey: string; round: string }>;
+    existingPlayoffMatches: Array<{
+      id: string;
+      match_phase: string;
+      wrestler_a_id: string | null;
+      wrestler_b_id: string | null;
+      tag_team_a_id: string | null;
+      tag_team_b_id: string | null;
+      winner_wrestler_id: string | null;
+      winner_tag_team_id: string | null;
+      match_time_seconds: number | null;
+      stipulation: string | null;
+      played_at: string | null;
+      round_number: number | null;
+    }>;
+  },
+  tier: { has_pools: boolean },
+  allMatches: Array<{ id: string; match_phase: string; tier_id: string }>,
+  wrestlerMap: Record<string, string>,
+  tagTeamMap: Record<string, string>,
+  isTag: boolean
+) {
+  const seedMap = Object.fromEntries(
+    bracket.seeds.map((s) => [s.participantId, s])
+  );
+
+  function getParticipant(id: string | null) {
+    if (!id) return null;
+    const seed = seedMap[id];
+    return {
+      id,
+      name: (isTag ? tagTeamMap[id] : wrestlerMap[id]) ?? "Unknown",
+      seed: seed?.seed ?? 0,
+    };
+  }
+
+  // Map match_phase to matchKey
+  const phaseOrder = { quarterfinal: 0, semifinal: 0, final: 0 };
+  const qfMatches = bracket.existingPlayoffMatches.filter((m) => m.match_phase === "quarterfinal");
+  const sfMatches = bracket.existingPlayoffMatches.filter((m) => m.match_phase === "semifinal");
+  const finalMatches = bracket.existingPlayoffMatches.filter((m) => m.match_phase === "final");
+
+  // Assign matchKeys based on bracket structure
+  function assignKey(m: (typeof bracket.existingPlayoffMatches)[0], idx: number, phase: string): string {
+    if (phase === "quarterfinal") return `QF${idx + 1}`;
+    if (phase === "semifinal") return `SF${idx + 1}`;
+    return "Final";
+  }
+
+  return bracket.existingPlayoffMatches.map((m) => {
+    const phase = m.match_phase;
+    const idx =
+      phase === "quarterfinal"
+        ? qfMatches.indexOf(m)
+        : phase === "semifinal"
+          ? sfMatches.indexOf(m)
+          : 0;
+
+    const aId = m.wrestler_a_id || m.tag_team_a_id;
+    const bId = m.wrestler_b_id || m.tag_team_b_id;
+    const winnerId = m.winner_wrestler_id || m.winner_tag_team_id;
+
+    return {
+      id: m.id,
+      matchKey: assignKey(m, idx, phase),
+      round: phase,
+      participantA: getParticipant(aId),
+      participantB: getParticipant(bId),
+      winnerId,
+      stipulation: m.stipulation,
+      matchTime: m.match_time_seconds,
+      isPlayed: !!m.played_at,
+      isBye: false,
+    };
+  });
 }
