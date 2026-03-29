@@ -1006,11 +1006,24 @@ function RumbleStep({
     });
   }, [chunks, positions, rumblePositionValues]);
 
-  // All chunks valid = overall valid. Combine sorted results in order.
+  // All chunks valid = overall valid.
+  // Interleave by finishing position: all 1st-place finishers, then all 2nd-place, etc.
+  // This ensures wrestlers are distributed fairly across tiers regardless of which Rumble they were in.
   const allChunksValid = chunks.length > 0 && chunkValidations.every((cv) => cv.isValid);
-  const allSorted = allChunksValid
-    ? chunkValidations.flatMap((cv) => cv.sorted)
-    : [];
+  const allSorted = useMemo(() => {
+    if (!allChunksValid) return [];
+    const chunksSorted = chunkValidations.map((cv) => cv.sorted);
+    const maxLen = Math.max(...chunksSorted.map((cs) => cs.length));
+    const interleaved: Array<{ id: string; pos: number }> = [];
+    for (let pos = 0; pos < maxLen; pos++) {
+      for (const cs of chunksSorted) {
+        if (pos < cs.length) {
+          interleaved.push(cs[pos]);
+        }
+      }
+    }
+    return interleaved;
+  }, [allChunksValid, chunkValidations]);
   const totalFilled = chunkValidations.reduce((sum, cv) => sum + cv.entries.length, 0);
 
   const preview = allChunksValid ? computeTierPreview(allSorted) : [];
