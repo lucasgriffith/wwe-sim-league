@@ -695,6 +695,176 @@ export async function fetchAllWrestlerImages() {
   return { updated, total: wrestlers.length };
 }
 
+// ─── Mid-Season Expansion ──────────────────────────────────────────────────
+
+/**
+ * Add new wrestlers to existing tiers mid-season and generate catch-up matches.
+ * Each new wrestler gets matches against every existing wrestler in their pool,
+ * plus matches against other new wrestlers in the same pool.
+ */
+export async function addWrestlersToSeasonMidway(
+  seasonId: string,
+  newAssignments: Array<{
+    tier_id: string;
+    wrestler_id: string;
+    pool: PoolLabel | null;
+    seed?: number;
+  }>
+) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  // Get existing assignments for the affected tiers
+  const affectedTierIds = [...new Set(newAssignments.map((a) => a.tier_id))];
+  const { data: existingAssigns } = await admin
+    .from("tier_assignments")
+    .select("tier_id, wrestler_id, tag_team_id, pool")
+    .eq("season_id", seasonId)
+    .in("tier_id", affectedTierIds);
+
+  // Get tier info
+  const { data: tiers } = await admin
+    .from("tiers")
+    .select("id, has_pools, divisions(division_type)")
+    .in("id", affectedTierIds);
+
+  const tierMap = Object.fromEntries((tiers ?? []).map((t) => [t.id, t]));
+
+  // Insert the new tier assignments
+  const assignInserts = newAssignments.map((a) => ({
+    season_id: seasonId,
+    tier_id: a.tier_id,
+    wrestler_id: a.wrestler_id,
+    pool: a.pool,
+    seed: a.seed,
+  }));
+  const { error: assignErr } = await admin.from("tier_assignments").insert(assignInserts);
+  if (assignErr) throw new Error(assignErr.message);
+
+  // Generate catch-up matches for each new wrestler
+  const matchInserts: Array<{
+    season_id: string;
+    tier_id: string;
+    round_number: number;
+    match_phase: MatchPhase;
+    pool: PoolLabel | null;
+    wrestler_a_id: string;
+    wrestler_b_id: string;
+  }> = [];
+
+  // Get max round numbers per tier/pool for numbering new rounds
+  const { data: existingMatches } = await admin
+    .from("matches")
+    .select("tier_id, pool, round_number")
+    .eq("season_id", seasonId)
+    .eq("match_phase", "pool_play")
+    .in("tier_id", affectedTierIds);
+
+  for (const tierId of affectedTierIds) {
+    const tier = tierMap[tierId];
+    if (!tier) continue;
+
+    const tierExisting = (existingAssigns ?? []).filter((a) => a.tier_id === tierId);
+    const tierNew = newAssignments.filter((a) => a.tier_id === tierId);
+
+    if (tier.has_pools) {
+      for (const pool of ["A", "B"] as const) {
+        const existingInPool = tierExisting
+          .filter((a) => a.pool === pool)
+          .map((a) => (a.wrestler_id || a.tag_team_id)!);
+        const newInPool = tierNew.filter((a) => a.pool === pool);
+
+        // Get max round for this tier/pool
+        const poolMatches = (existingMatches ?? []).filter(
+          (m) => m.tier_id === tierId && m.pool === pool
+        );
+        let maxRound = poolMatches.reduce((max, m) => Math.max(max, m.round_number ?? 0), 0);
+
+        // Each new wrestler vs each existing wrestler
+        for (const nw of newInPool) {
+          for (const existId of existingInPool) {
+            maxRound++;
+            matchInserts.push({
+              season_id: seasonId,
+              tier_id: tierId,
+              round_number: maxRound,
+              match_phase: "pool_play",
+              pool,
+              wrestler_a_id: nw.wrestler_id,
+              wrestler_b_id: existId,
+            });
+          }
+        }
+
+        // New wrestlers vs each other
+        for (let i = 0; i < newInPool.length; i++) {
+          for (let j = i + 1; j < newInPool.length; j++) {
+            maxRound++;
+            matchInserts.push({
+              season_id: seasonId,
+              tier_id: tierId,
+              round_number: maxRound,
+              match_phase: "pool_play",
+              pool,
+              wrestler_a_id: newInPool[i].wrestler_id,
+              wrestler_b_id: newInPool[j].wrestler_id,
+            });
+          }
+        }
+      }
+    } else {
+      // No pools (tag tiers or single pool)
+      const existingIds = tierExisting.map((a) => (a.wrestler_id || a.tag_team_id)!);
+      const poolMatches = (existingMatches ?? []).filter((m) => m.tier_id === tierId);
+      let maxRound = poolMatches.reduce((max, m) => Math.max(max, m.round_number ?? 0), 0);
+
+      for (const nw of tierNew) {
+        for (const existId of existingIds) {
+          maxRound++;
+          matchInserts.push({
+            season_id: seasonId,
+            tier_id: tierId,
+            round_number: maxRound,
+            match_phase: "pool_play",
+            pool: null,
+            wrestler_a_id: nw.wrestler_id,
+            wrestler_b_id: existId,
+          });
+        }
+      }
+      for (let i = 0; i < tierNew.length; i++) {
+        for (let j = i + 1; j < tierNew.length; j++) {
+          maxRound++;
+          matchInserts.push({
+            season_id: seasonId,
+            tier_id: tierId,
+            round_number: maxRound,
+            match_phase: "pool_play",
+            pool: null,
+            wrestler_a_id: tierNew[i].wrestler_id,
+            wrestler_b_id: tierNew[j].wrestler_id,
+          });
+        }
+      }
+    }
+  }
+
+  // Insert catch-up matches
+  if (matchInserts.length > 0) {
+    for (let i = 0; i < matchInserts.length; i += 500) {
+      const { error } = await admin.from("matches").insert(matchInserts.slice(i, i + 500));
+      if (error) throw new Error(error.message);
+    }
+  }
+
+  revalidatePath("/season");
+  revalidatePath("/season/setup");
+  revalidatePath("/tiers");
+  revalidatePath("/");
+
+  return { assigned: assignInserts.length, matchesCreated: matchInserts.length };
+}
+
 // ─── Logout ─────────────────────────────────────────────────────────────────
 
 export async function signOut() {
