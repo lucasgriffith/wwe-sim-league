@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { CompareView } from "@/components/compare/compare-view";
+import { sortByName } from "@/lib/utils/sort-name";
 
 export default async function ComparePage({
   searchParams,
@@ -80,7 +81,7 @@ export default async function ComparePage({
         Compare two wrestlers side by side
       </p>
       <CompareView
-        wrestlers={wrestlers ?? []}
+        wrestlers={sortByName(wrestlers ?? [])}
         selectedA={a ?? ""}
         selectedB={b ?? ""}
         wrestlerA={wrestlerA ?? null}

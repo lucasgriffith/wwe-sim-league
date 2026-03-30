@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { WrestlerTable } from "@/components/roster/wrestler-table";
 import { FetchImagesButton } from "@/components/roster/fetch-images-button";
+import { sortByName } from "@/lib/utils/sort-name";
 
 export default async function RosterPage() {
   const supabase = await createClient();
@@ -26,7 +27,7 @@ export default async function RosterPage() {
         </div>
         {!!user && withoutImages > 0 && <FetchImagesButton />}
       </div>
-      <WrestlerTable wrestlers={wrestlers ?? []} isAdmin={!!user} />
+      <WrestlerTable wrestlers={sortByName(wrestlers ?? [])} isAdmin={!!user} />
     </div>
   );
 }
