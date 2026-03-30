@@ -59,7 +59,7 @@ export default async function TierDetailPage({
         "id, pool, seed, wrestler_id, tag_team_id, wrestlers(id, name), tag_teams(id, name)"
       )
       .eq("season_id", activeSeason.id)
-      .eq("tier_id", id)
+      .eq("tier_id", tier.id)
       .order("pool")
       .order("seed");
     assignments = data ?? [];
@@ -73,7 +73,7 @@ export default async function TierDetailPage({
       .from("matches")
       .select("*")
       .eq("season_id", activeSeason.id)
-      .eq("tier_id", id)
+      .eq("tier_id", tier.id)
       .order("round_number")
       .order("pool");
     matches = data ?? [];
