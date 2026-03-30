@@ -15,6 +15,7 @@ import {
 import {
   createSeason,
   bulkAssignToTier,
+  clearTagTierAssignments,
   advanceSeasonStatus,
   bulkCreateMatches,
 } from "@/app/actions";
@@ -387,8 +388,18 @@ export function SeasonWizard({
     if (!seasonId) return;
     setLoading(true);
     try {
-      const maleTagTiers = tagTiers.filter((t) => t.divisions?.gender === "male");
-      const femaleTagTiers = tagTiers.filter((t) => t.divisions?.gender === "female");
+      // Clear any existing tag tier assignments first
+      const allTagTierIds = tagTiers.map((t) => t.id);
+      if (allTagTierIds.length > 0) {
+        await clearTagTierAssignments(seasonId, allTagTierIds);
+      }
+
+      const maleTagTiers = tagTiers
+        .filter((t) => t.divisions?.gender === "male")
+        .sort((a, b) => a.tier_number - b.tier_number);
+      const femaleTagTiers = tagTiers
+        .filter((t) => t.divisions?.gender === "female")
+        .sort((a, b) => a.tier_number - b.tier_number);
 
       const maleTeams = shuffle(tagTeams.filter((t) => t.wrestler_a?.gender === "male"));
       const femaleTeams = shuffle(tagTeams.filter((t) => t.wrestler_a?.gender === "female"));
@@ -400,24 +411,35 @@ export function SeasonWizard({
         pool: PoolLabel | null;
       }> = [];
 
+      // Distribute male teams evenly: each team goes to exactly one tier
+      const usedMaleTeams = new Set<string>();
       let mIdx = 0;
       for (const tier of maleTagTiers) {
         for (let i = 0; i < tier.pool_size && mIdx < maleTeams.length; i++) {
-          bulk.push({ season_id: seasonId, tier_id: tier.id, tag_team_id: maleTeams[mIdx].id, pool: null });
+          if (!usedMaleTeams.has(maleTeams[mIdx].id)) {
+            bulk.push({ season_id: seasonId, tier_id: tier.id, tag_team_id: maleTeams[mIdx].id, pool: null });
+            usedMaleTeams.add(maleTeams[mIdx].id);
+          }
           mIdx++;
         }
       }
+
+      // Distribute female teams evenly: each team goes to exactly one tier
+      const usedFemaleTeams = new Set<string>();
       let fIdx = 0;
       for (const tier of femaleTagTiers) {
         for (let i = 0; i < tier.pool_size && fIdx < femaleTeams.length; i++) {
-          bulk.push({ season_id: seasonId, tier_id: tier.id, tag_team_id: femaleTeams[fIdx].id, pool: null });
+          if (!usedFemaleTeams.has(femaleTeams[fIdx].id)) {
+            bulk.push({ season_id: seasonId, tier_id: tier.id, tag_team_id: femaleTeams[fIdx].id, pool: null });
+            usedFemaleTeams.add(femaleTeams[fIdx].id);
+          }
           fIdx++;
         }
       }
 
       if (bulk.length > 0) {
         await bulkAssignToTier(bulk);
-        toast.success(`Assigned ${bulk.length} tag teams`);
+        toast.success(`Assigned ${bulk.length} tag teams across ${allTagTierIds.length} tiers`);
         setTagAssigned(true);
         router.refresh();
       } else {
@@ -772,14 +794,18 @@ export function SeasonWizard({
             <div className="flex gap-2">
               <Button
                 onClick={() => {
-                  if (!window.confirm("This will randomly assign all tag teams to tiers. Are you sure?")) return;
+                  const msg = tagAssigned
+                    ? "This will clear existing tag assignments and re-randomize. Are you sure?"
+                    : "This will randomly assign all tag teams to tiers. Are you sure?";
+                  if (!window.confirm(msg)) return;
+                  setTagAssigned(false);
                   handleRandomizeTags();
                 }}
-                disabled={loading || tagAssigned}
+                disabled={loading}
                 className="bg-gold text-black hover:bg-gold-dark font-semibold"
               >
                 {tagAssigned
-                  ? "✓ Assigned"
+                  ? "🎲 Re-Randomize"
                   : loading
                     ? "Assigning..."
                     : "🎲 Randomize Tag Teams"}

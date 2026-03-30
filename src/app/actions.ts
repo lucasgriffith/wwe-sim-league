@@ -189,6 +189,21 @@ export async function bulkAssignToTier(
   revalidatePath("/tiers");
 }
 
+export async function clearTagTierAssignments(seasonId: string, tagTierIds: string[]) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  for (const tierId of tagTierIds) {
+    const { error } = await admin
+      .from("tier_assignments")
+      .delete()
+      .eq("season_id", seasonId)
+      .eq("tier_id", tierId);
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath("/season/setup");
+  revalidatePath("/tiers");
+}
+
 export async function removeFromTier(assignmentId: string) {
   await requireAdmin();
   const admin = createAdminClient();
