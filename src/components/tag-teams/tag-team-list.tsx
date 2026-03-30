@@ -57,6 +57,13 @@ export function TagTeamList({
   const [editingTeam, setEditingTeam] = useState<TagTeam | null>(null);
   const [deletingTeam, setDeletingTeam] = useState<TagTeam | null>(null);
 
+  // Build set of wrestler IDs already on a tag team
+  const wrestlersInTeams = new Set(
+    tagTeams.flatMap((t) =>
+      [t.wrestler_a?.id, t.wrestler_b?.id].filter(Boolean) as string[]
+    )
+  );
+
   const filtered = tagTeams.filter((t) =>
     t.name.toLowerCase().includes(search.toLowerCase()) ||
     t.wrestler_a?.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -176,8 +183,15 @@ export function TagTeamList({
                   </SelectTrigger>
                   <SelectContent className="max-h-72">
                     {wrestlers.map((w) => (
-                      <SelectItem key={w.id} value={w.id}>
+                      <SelectItem
+                        key={w.id}
+                        value={w.id}
+                        className={wrestlersInTeams.has(w.id) ? "text-muted-foreground/50" : ""}
+                      >
                         {w.name}
+                        {wrestlersInTeams.has(w.id) && (
+                          <span className="ml-1.5 text-[10px] text-amber-400/70">⚑ in team</span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -198,8 +212,15 @@ export function TagTeamList({
                     {wrestlers
                       .filter((w) => w.id !== memberA)
                       .map((w) => (
-                        <SelectItem key={w.id} value={w.id}>
+                        <SelectItem
+                          key={w.id}
+                          value={w.id}
+                          className={wrestlersInTeams.has(w.id) ? "text-muted-foreground/50" : ""}
+                        >
                           {w.name}
+                          {wrestlersInTeams.has(w.id) && (
+                            <span className="ml-1.5 text-[10px] text-amber-400/70">⚑ in team</span>
+                          )}
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -319,6 +340,7 @@ export function TagTeamList({
         <EditTagTeamDialog
           team={editingTeam}
           wrestlers={wrestlers}
+          wrestlersInTeams={wrestlersInTeams}
           onClose={() => setEditingTeam(null)}
         />
       )}
@@ -368,12 +390,18 @@ function TeamGenderBadge({ team }: { team: TagTeam }) {
 function EditTagTeamDialog({
   team,
   wrestlers,
+  wrestlersInTeams,
   onClose,
 }: {
   team: TagTeam;
   wrestlers: Wrestler[];
+  wrestlersInTeams: Set<string>;
   onClose: () => void;
 }) {
+  // Wrestlers currently in THIS team should not show as "in team"
+  const currentTeamIds = new Set(
+    [team.wrestler_a?.id, team.wrestler_b?.id].filter(Boolean) as string[]
+  );
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState(team.name);
@@ -431,11 +459,21 @@ function EditTagTeamDialog({
                 </SelectValue>
               </SelectTrigger>
               <SelectContent className="max-h-72">
-                {wrestlers.map((w) => (
-                  <SelectItem key={w.id} value={w.id}>
-                    {w.name}
-                  </SelectItem>
-                ))}
+                {wrestlers.map((w) => {
+                  const inOtherTeam = wrestlersInTeams.has(w.id) && !currentTeamIds.has(w.id);
+                  return (
+                    <SelectItem
+                      key={w.id}
+                      value={w.id}
+                      className={inOtherTeam ? "text-muted-foreground/50" : ""}
+                    >
+                      {w.name}
+                      {inOtherTeam && (
+                        <span className="ml-1.5 text-[10px] text-amber-400/70">⚑ in team</span>
+                      )}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -450,11 +488,21 @@ function EditTagTeamDialog({
               <SelectContent className="max-h-72">
                 {wrestlers
                   .filter((w) => w.id !== memberA)
-                  .map((w) => (
-                    <SelectItem key={w.id} value={w.id}>
-                      {w.name}
-                    </SelectItem>
-                  ))}
+                  .map((w) => {
+                    const inOtherTeam = wrestlersInTeams.has(w.id) && !currentTeamIds.has(w.id);
+                    return (
+                      <SelectItem
+                        key={w.id}
+                        value={w.id}
+                        className={inOtherTeam ? "text-muted-foreground/50" : ""}
+                      >
+                        {w.name}
+                        {inOtherTeam && (
+                          <span className="ml-1.5 text-[10px] text-amber-400/70">⚑ in team</span>
+                        )}
+                      </SelectItem>
+                    );
+                  })}
               </SelectContent>
             </Select>
           </div>
