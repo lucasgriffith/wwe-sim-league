@@ -44,8 +44,8 @@ export function generateRoundRobin(participants: string[]): RoundRobinMatch[] {
     // Remaining matches: pair from outside in
     for (let i = 1; i < halfSize; i++) {
       const a = rotating[i];
-      const b = rotating[size - 1 - i - 1]; // -1 for 0-indexed rotating array
-      if (a !== "__BYE__" && b !== "__BYE__") {
+      const b = rotating[rotating.length - i];
+      if (a !== "__BYE__" && b !== "__BYE__" && a !== b) {
         matches.push({
           round: round + 1,
           participantA: a,

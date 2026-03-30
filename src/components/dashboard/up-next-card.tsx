@@ -77,18 +77,32 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
     Math.floor(Math.random() * matches.length)
   );
 
+  // Filter out self-matches for shuffle count
+  const validCount = matches.filter((m) => {
+    const aId = m.wrestler_a_id || m.tag_team_a_id;
+    const bId = m.wrestler_b_id || m.tag_team_b_id;
+    return aId && bId && aId !== bId;
+  }).length;
+
   const randomize = useCallback(() => {
-    if (matches.length <= 1) return;
+    if (validCount <= 1) return;
     let newIdx: number;
     do {
-      newIdx = Math.floor(Math.random() * matches.length);
-    } while (newIdx === currentIdx && matches.length > 1);
+      newIdx = Math.floor(Math.random() * validCount);
+    } while (newIdx === currentIdx && validCount > 1);
     setCurrentIdx(newIdx);
-  }, [matches.length, currentIdx]);
+  }, [validCount, currentIdx]);
 
-  if (matches.length === 0) return null;
+  // Filter out self-matches (same participant on both sides)
+  const validMatches = matches.filter((m) => {
+    const aId = m.wrestler_a_id || m.tag_team_a_id;
+    const bId = m.wrestler_b_id || m.tag_team_b_id;
+    return aId && bId && aId !== bId;
+  });
 
-  const match = matches[currentIdx % matches.length];
+  if (validMatches.length === 0) return null;
+
+  const match = validMatches[currentIdx % validMatches.length];
   const aId = match.wrestler_a_id || match.tag_team_a_id || "";
   const bId = match.wrestler_b_id || match.tag_team_b_id || "";
   const a = participantStats[aId] ?? { name: "?", image: null, wins: 0, losses: 0, overallRating: null, streak: 0 };
