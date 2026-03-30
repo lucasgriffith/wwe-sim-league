@@ -35,6 +35,7 @@ export interface Database {
         Row: {
           id: string;
           name: string;
+          slug: string | null;
           gender: Gender;
           brand: string | null;
           overall_rating: number | null;
@@ -46,6 +47,7 @@ export interface Database {
         Insert: {
           id?: string;
           name: string;
+          slug?: string | null;
           gender: Gender;
           brand?: string | null;
           overall_rating?: number | null;
@@ -57,6 +59,7 @@ export interface Database {
         Update: {
           id?: string;
           name?: string;
+          slug?: string | null;
           gender?: Gender;
           brand?: string | null;
           overall_rating?: number | null;
@@ -93,6 +96,7 @@ export interface Database {
           division_id: string;
           tier_number: number;
           name: string;
+          slug: string | null;
           short_name: string | null;
           color: string | null;
           pool_size: number;
@@ -106,6 +110,7 @@ export interface Database {
           division_id: string;
           tier_number: number;
           name: string;
+          slug?: string | null;
           short_name?: string | null;
           color?: string | null;
           pool_size?: number;
@@ -118,6 +123,7 @@ export interface Database {
           division_id?: string;
           tier_number?: number;
           name?: string;
+          slug?: string | null;
           short_name?: string | null;
           color?: string | null;
           pool_size?: number;

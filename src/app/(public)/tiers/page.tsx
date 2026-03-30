@@ -64,7 +64,7 @@ export default async function TiersPage() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 stagger-children">
             {division.tiers.map((tier) => (
-              <Link key={tier.id} href={`/tiers/${tier.id}`}>
+              <Link key={tier.id} href={`/tiers/${tier.slug}`}>
                 <Card
                   className={`card-hover cursor-pointer bg-gradient-to-br border-border/40 transition-all relative overflow-hidden ${
                     divisionBgColors[division.name] ?? ""

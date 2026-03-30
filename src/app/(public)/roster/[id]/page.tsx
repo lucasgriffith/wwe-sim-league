@@ -26,8 +26,21 @@ export default async function WrestlerProfilePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id: rawId } = await params;
   const supabase = await createClient();
+
+  // Resolve slug to UUID if needed
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
+  let id = rawId;
+  if (!isUuid) {
+    const { data: found } = await supabase
+      .from("wrestlers")
+      .select("id")
+      .eq("slug", rawId)
+      .single();
+    if (!found) notFound();
+    id = found.id;
+  }
 
   // Fetch everything in parallel
   const [
@@ -59,7 +72,7 @@ export default async function WrestlerProfilePage({
       .from("tiers")
       .select("id, name, short_name, tier_number")
       .order("tier_number"),
-    supabase.from("wrestlers").select("id, name").order("name"),
+    supabase.from("wrestlers").select("id, name, slug").order("name"),
     supabase
       .from("tag_teams")
       .select("id, name, wrestler_a_id, wrestler_b_id, is_active")
@@ -70,6 +83,9 @@ export default async function WrestlerProfilePage({
 
   const wrestlerMap = Object.fromEntries(
     (wrestlers ?? []).map((w) => [w.id, w.name])
+  );
+  const wrestlerSlugMap = Object.fromEntries(
+    (wrestlers ?? []).filter((w) => w.slug).map((w) => [w.id, w.slug])
   );
 
   // Combine and sort all matches
@@ -335,7 +351,7 @@ export default async function WrestlerProfilePage({
                 return (
                   <Link
                     key={oppId}
-                    href={`/roster/${oppId}`}
+                    href={`/roster/${wrestlerSlugMap[oppId] ?? oppId}`}
                     className="flex items-center gap-3 rounded-lg border border-border/30 bg-card/30 px-3 py-2.5 hover:border-border/50 transition-colors"
                   >
                     <span className="text-sm font-medium flex-1 truncate">
@@ -450,7 +466,7 @@ export default async function WrestlerProfilePage({
                       <td className="px-4 py-2.5 text-sm">
                         {oppId ? (
                           <Link
-                            href={`/roster/${oppId}`}
+                            href={`/roster/${wrestlerSlugMap[oppId] ?? oppId}`}
                             className="hover:text-gold transition-colors"
                           >
                             {oppName}

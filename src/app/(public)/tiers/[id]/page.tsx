@@ -29,10 +29,12 @@ export default async function TierDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
+  // Try slug first, fall back to UUID for backwards compatibility
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   const { data: tier } = await supabase
     .from("tiers")
     .select("*, divisions(name, gender, division_type)")
-    .eq("id", id)
+    .eq(isUuid ? "id" : "slug", id)
     .single();
 
   if (!tier) notFound();

@@ -61,12 +61,15 @@ export default async function StandingsPage() {
       .eq("season_id", season.id)
       .eq("match_phase", "pool_play")
       .not("played_at", "is", null),
-    supabase.from("wrestlers").select("id, name"),
+    supabase.from("wrestlers").select("id, name, slug"),
     supabase.from("tag_teams").select("id, name"),
   ]);
 
   const wrestlerMap = Object.fromEntries(
     (wrestlers ?? []).map((w) => [w.id, w.name])
+  );
+  const wrestlerSlugMap = Object.fromEntries(
+    (wrestlers ?? []).filter((w) => w.slug).map((w) => [w.id, w.slug])
   );
   const tagTeamMap = Object.fromEntries(
     (tagTeams ?? []).map((t) => [t.id, t.name])
@@ -117,7 +120,7 @@ export default async function StandingsPage() {
           losses,
           winPct,
           totalTime,
-          linkHref: isTag ? null : `/roster/${pid}`,
+          linkHref: isTag ? null : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
         };
       })
       .sort((a, b) => b.winPct - a.winPct || a.totalTime - b.totalTime);
@@ -195,7 +198,7 @@ export default async function StandingsPage() {
                           T{tier.tier_number}
                         </span>
                         <Link
-                          href={`/tiers/${tier.id}`}
+                          href={`/tiers/${tier.slug}`}
                           className="text-sm font-semibold hover:text-gold transition-colors"
                         >
                           {tier.short_name || tier.name}

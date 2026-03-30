@@ -22,6 +22,7 @@ interface TitleDetail {
 
 interface BaseStat {
   id: string;
+  slug: string | null;
   name: string;
   gender: string;
   wins: number;
@@ -285,7 +286,7 @@ export function DynastyTabs({
                     </TableCell>
                     <TableCell>
                       <Link
-                        href={`/roster/${s.id}`}
+                        href={`/roster/${s.slug ?? s.id}`}
                         className="font-medium hover:text-gold transition-colors"
                       >
                         {s.name}

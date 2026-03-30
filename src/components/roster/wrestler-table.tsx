@@ -171,7 +171,7 @@ export function WrestlerTable({
               >
                 <TableCell>
                   <Link
-                    href={`/roster/${wrestler.id}`}
+                    href={`/roster/${wrestler.slug ?? wrestler.id}`}
                     className="flex items-center gap-2.5 font-medium hover:text-gold transition-colors"
                   >
                     {wrestler.image_url ? (

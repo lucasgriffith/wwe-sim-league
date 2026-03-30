@@ -42,7 +42,7 @@ export default async function DashboardPage() {
       .from("seasons")
       .select("id", { count: "exact", head: true })
       .eq("status", "completed"),
-    supabase.from("wrestlers").select("id, name, image_url, overall_rating"),
+    supabase.from("wrestlers").select("id, name, image_url, overall_rating, slug"),
   ]);
 
   const wrestlerMap = Object.fromEntries(
@@ -54,12 +54,16 @@ export default async function DashboardPage() {
   const ratingMap = Object.fromEntries(
     (wrestlers ?? []).map((w) => [w.id, w.overall_rating ?? null])
   );
+  const slugMap = Object.fromEntries(
+    (wrestlers ?? []).filter((w) => w.slug).map((w) => [w.id, w.slug!])
+  );
 
   // ── Season-specific data ──────────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let allMatchData: any[] = [];
   let tierProgress: Array<{
     tierId: string;
+    tierSlug: string | null;
     tierNumber: number;
     tierName: string;
     tierColor: string | null;
@@ -80,7 +84,7 @@ export default async function DashboardPage() {
         .order("played_at", { ascending: false }),
       supabase
         .from("tiers")
-        .select("id, tier_number, name, short_name, color, belt_image_url, divisions(name, gender)")
+        .select("id, tier_number, name, short_name, color, belt_image_url, slug, divisions(name, gender)")
         .order("tier_number"),
       supabase.from("tag_teams").select("id, name"),
     ]);
@@ -108,6 +112,7 @@ export default async function DashboardPage() {
         const { played, total } = matchesByTier.get(t.id)!;
         return {
           tierId: t.id,
+          tierSlug: t.slug ?? null,
           tierNumber: t.tier_number,
           tierName: t.short_name || t.name,
           tierColor: t.color,
@@ -231,6 +236,7 @@ export default async function DashboardPage() {
   const onFire = Array.from(winStreaks.entries())
     .map(([id, streak]) => ({
       id,
+      slug: slugMap[id] ?? null,
       name: wrestlerMap[id] ?? "Unknown",
       image: imageMap[id] ?? null,
       streak,
@@ -296,6 +302,7 @@ export default async function DashboardPage() {
   const powerRankings = Array.from(winCounts.entries())
     .map(([id, wins]) => ({
       id,
+      slug: slugMap[id] ?? null,
       name: wrestlerMap[id] ?? "?",
       image: imageMap[id] ?? null,
       wins,
@@ -498,7 +505,7 @@ export default async function DashboardPage() {
             </h2>
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
               {onFire.map((w) => (
-                <Link key={w.id} href={`/roster/${w.id}`} className="shrink-0">
+                <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="shrink-0">
                   <div className="w-[130px] rounded-xl border border-border/30 bg-gradient-to-b from-card to-muted/5 p-3 hover:border-gold/30 hover:shadow-md hover:shadow-gold/5 transition-all">
                     <div className="flex justify-center mb-2">
                       {w.image ? (
@@ -536,7 +543,7 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent className="space-y-2.5">
                 {powerRankings.map((w, i) => (
-                  <Link key={w.id} href={`/roster/${w.id}`} className="flex items-center gap-3 group">
+                  <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-3 group">
                     <span className={`text-lg font-black tabular-nums w-6 text-right ${i === 0 ? "text-gold" : i === 1 ? "text-foreground/60" : "text-muted-foreground/30"}`}>
                       {i + 1}
                     </span>
@@ -631,7 +638,7 @@ export default async function DashboardPage() {
                 const pct = t.total > 0 ? Math.round((t.played / t.total) * 100) : 0;
                 const bgOpacity = pct === 100 ? "bg-emerald-500/15 border-emerald-500/20" : pct > 0 ? "bg-gold/10 border-gold/15" : "bg-muted/5 border-border/20";
                 return (
-                  <Link key={t.tierId} href={`/tiers/${t.tierId}`}>
+                  <Link key={t.tierId} href={`/tiers/${t.tierSlug ?? t.tierId}`}>
                     <div className={`rounded-lg border p-2 text-center hover:scale-105 transition-all ${bgOpacity}`} title={`${t.tierName}: ${pct}%`}>
                       <span className="text-[9px] font-bold block truncate">{t.tierName}</span>
                       <span className={`text-[8px] font-bold tabular-nums ${pct === 100 ? "text-emerald-400" : pct > 0 ? "text-gold/70" : "text-muted-foreground/30"}`}>

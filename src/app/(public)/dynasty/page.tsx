@@ -14,7 +14,7 @@ export default async function DynastyPage() {
   ] = await Promise.all([
     supabase
       .from("wrestlers")
-      .select("id, name, gender, overall_rating")
+      .select("id, name, slug, gender, overall_rating")
       .eq("is_active", true)
       .order("name"),
     supabase
@@ -169,6 +169,7 @@ export default async function DynastyPage() {
 
     return {
       id: w.id,
+      slug: w.slug ?? null,
       name: w.name,
       gender: w.gender as string,
       overallRating: w.overall_rating,
@@ -275,6 +276,7 @@ export default async function DynastyPage() {
 
     return {
       id: t.id,
+      slug: null,
       name: t.name,
       memberA: wa?.name ?? "?",
       memberB: wb?.name ?? "?",
