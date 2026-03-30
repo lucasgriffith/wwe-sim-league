@@ -203,33 +203,24 @@ export default async function TierDetailPage({
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <Link
-        href="/tiers"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M19 12H5M12 19l-7-7 7-7" />
-        </svg>
-        Back to Tiers
-      </Link>
-
       {/* Hero */}
       <div
-        className="mt-6 mb-8 rounded-xl border border-border/40 bg-gradient-to-r p-6"
+        className="mb-8 rounded-xl border border-border/40 bg-gradient-to-r p-6"
         style={{
           backgroundImage: `linear-gradient(135deg, ${tier.color}08 0%, transparent 60%)`,
         }}
       >
         <div className="flex items-center gap-3 mb-2">
+          <Link
+            href="/tiers"
+            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors mr-1"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Tiers
+          </Link>
+          <span className="text-border/30">·</span>
           <Badge
             variant="outline"
             className="text-[10px] font-semibold uppercase tracking-wider"
