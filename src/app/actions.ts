@@ -106,9 +106,22 @@ export async function updateTagTeam(
 export async function deleteTagTeam(id: string) {
   await requireAdmin();
   const admin = createAdminClient();
+
+  // Remove any tier assignments referencing this tag team first
+  await admin.from("tier_assignments").delete().eq("tag_team_id", id);
+
+  // Remove any matches referencing this tag team
+  await admin.from("matches").delete().eq("tag_team_a_id", id);
+  await admin.from("matches").delete().eq("tag_team_b_id", id);
+
+  // Remove any relegation events
+  await admin.from("relegation_events").delete().eq("tag_team_id", id);
+
   const { error } = await admin.from("tag_teams").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/tag-teams");
+  revalidatePath("/season/setup");
+  revalidatePath("/tiers");
 }
 
 // ─── Season actions ─────────────────────────────────────────────────────────
