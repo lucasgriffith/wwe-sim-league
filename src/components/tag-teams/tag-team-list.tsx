@@ -29,8 +29,8 @@ interface TagTeam {
   id: string;
   name: string;
   is_active: boolean;
-  wrestler_a: { id: string; name: string; gender: string } | null;
-  wrestler_b: { id: string; name: string; gender: string } | null;
+  wrestler_a: { id: string; name: string; gender: string; image_url?: string | null } | null;
+  wrestler_b: { id: string; name: string; gender: string; image_url?: string | null } | null;
 }
 
 interface Wrestler {
@@ -338,12 +338,18 @@ export function TagTeamList({
               </div>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-2">
-                <TeamGenderBadge team={team} />
-                <p className="text-sm text-muted-foreground">
-                  {team.wrestler_a?.name ?? "?"} &{" "}
-                  {team.wrestler_b?.name ?? "?"}
-                </p>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center -space-x-2 shrink-0">
+                  <WrestlerAvatar name={team.wrestler_a?.name} imageUrl={team.wrestler_a?.image_url} />
+                  <WrestlerAvatar name={team.wrestler_b?.name} imageUrl={team.wrestler_b?.image_url} />
+                </div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <TeamGenderBadge team={team} />
+                  <p className="text-sm text-muted-foreground truncate">
+                    {team.wrestler_a?.name ?? "?"} &{" "}
+                    {team.wrestler_b?.name ?? "?"}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -378,6 +384,34 @@ export function TagTeamList({
           onClose={() => setDeletingTeam(null)}
         />
       )}
+    </div>
+  );
+}
+
+/* ─── Wrestler Avatar ─────────────────────────────────────────────── */
+
+function WrestlerAvatar({
+  name,
+  imageUrl,
+}: {
+  name?: string | null;
+  imageUrl?: string | null;
+}) {
+  if (imageUrl) {
+    return (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img
+        src={imageUrl}
+        alt={name ?? ""}
+        className="h-9 w-9 rounded-full object-cover border-2 border-background shrink-0"
+      />
+    );
+  }
+  return (
+    <div className="h-9 w-9 rounded-full bg-muted/30 border-2 border-background flex items-center justify-center shrink-0">
+      <span className="text-[11px] font-bold text-muted-foreground/40">
+        {name?.charAt(0) ?? "?"}
+      </span>
     </div>
   );
 }

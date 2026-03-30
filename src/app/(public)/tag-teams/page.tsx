@@ -10,7 +10,7 @@ export default async function TagTeamsPage() {
       supabase
         .from("tag_teams")
         .select(
-          "*, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(id, name, gender), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(id, name, gender)"
+          "*, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(id, name, gender, image_url), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(id, name, gender, image_url)"
         )
         .order("name"),
       supabase
