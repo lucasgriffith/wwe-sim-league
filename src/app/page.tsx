@@ -219,6 +219,14 @@ export default async function DashboardPage() {
   // ── Featured Match (most recent) ──────────────────────────────────────────
   const featuredMatch = playedMatches[0] ?? null;
 
+  // ── Random Upcoming Match ───────────────────────────────────────────────
+  const unplayedMatches = allMatchData.filter(
+    (m) => !m.played_at && m.match_phase === "pool_play"
+  );
+  const randomUpcoming = unplayedMatches.length > 0
+    ? unplayedMatches[Math.floor(Math.random() * unplayedMatches.length)]
+    : null;
+
   // ── Recent Results ────────────────────────────────────────────────────────
   const recentMatches = playedMatches.slice(0, 8);
 
@@ -337,6 +345,105 @@ export default async function DashboardPage() {
             </Link>
           ))}
         </div>
+
+        {/* ── Upcoming Match (Random Picker) ──────────────────────────── */}
+        {randomUpcoming && (() => {
+          const aId = randomUpcoming.wrestler_a_id || randomUpcoming.tag_team_a_id;
+          const bId = randomUpcoming.wrestler_b_id || randomUpcoming.tag_team_b_id;
+          const aName = wrestlerMap[aId ?? ""] ?? "?";
+          const bName = wrestlerMap[bId ?? ""] ?? "?";
+          const aImg = imageMap[aId ?? ""];
+          const bImg = imageMap[bId ?? ""];
+          const aWins = winCounts.get(aId ?? "") ?? 0;
+          const aLosses = lossCounts.get(aId ?? "") ?? 0;
+          const bWins = winCounts.get(bId ?? "") ?? 0;
+          const bLosses = lossCounts.get(bId ?? "") ?? 0;
+          const tier = tiersData.find((t: { id: string }) => t.id === randomUpcoming.tier_id);
+          const tierLabel = tier?.short_name || tier?.name || "?";
+
+          return (
+            <div className="rounded-2xl border-2 border-gold/20 bg-gradient-to-r from-gold/[0.03] via-card to-gold/[0.03] overflow-hidden relative">
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
+              <div className="relative px-6 py-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gold/60">
+                      Up Next
+                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Badge variant="outline" className="text-[9px] border-border/30 text-muted-foreground">
+                        T{tier?.tier_number} · {tierLabel}
+                      </Badge>
+                      {randomUpcoming.pool && (
+                        <Badge variant="outline" className="text-[9px] border-border/30 text-muted-foreground">
+                          Pool {randomUpcoming.pool}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Link href="/season/match">
+                    <Button size="sm" className="bg-gold text-black hover:bg-gold-dark font-semibold text-xs gap-1">
+                      🎮 Enter Result
+                    </Button>
+                  </Link>
+                </div>
+
+                <div className="flex items-center justify-center gap-4 sm:gap-8">
+                  {/* Wrestler A */}
+                  <div className="flex flex-col items-center gap-2 flex-1 max-w-[180px]">
+                    {aImg ? (
+                      <img src={aImg} alt={aName} className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover border-2 border-gold/20" />
+                    ) : (
+                      <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-muted/20 border-2 border-gold/10 flex items-center justify-center">
+                        <span className="text-lg font-bold text-muted-foreground/30">{aName.charAt(0)}</span>
+                      </div>
+                    )}
+                    <div className="text-center">
+                      <div className="font-bold text-sm sm:text-base leading-tight">{aName}</div>
+                      <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                        {aWins}W - {aLosses}L
+                        {(aWins + aLosses) > 0 && (
+                          <span className="text-muted-foreground/50"> · {((aWins / (aWins + aLosses)) * 100).toFixed(0)}%</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* VS */}
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-2xl font-black text-gold/30">VS</span>
+                  </div>
+
+                  {/* Wrestler B */}
+                  <div className="flex flex-col items-center gap-2 flex-1 max-w-[180px]">
+                    {bImg ? (
+                      <img src={bImg} alt={bName} className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover border-2 border-gold/20" />
+                    ) : (
+                      <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-muted/20 border-2 border-gold/10 flex items-center justify-center">
+                        <span className="text-lg font-bold text-muted-foreground/30">{bName.charAt(0)}</span>
+                      </div>
+                    )}
+                    <div className="text-center">
+                      <div className="font-bold text-sm sm:text-base leading-tight">{bName}</div>
+                      <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                        {bWins}W - {bLosses}L
+                        {(bWins + bLosses) > 0 && (
+                          <span className="text-muted-foreground/50"> · {((bWins / (bWins + bLosses)) * 100).toFixed(0)}%</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 text-center">
+                  <span className="text-[9px] text-muted-foreground/40">
+                    {unplayedMatches.length} matches remaining · Refresh for another random matchup
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Featured Match ─────────────────────────────────────────── */}
         {featuredMatch && (

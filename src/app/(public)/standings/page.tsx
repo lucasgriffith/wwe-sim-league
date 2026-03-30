@@ -143,10 +143,10 @@ export default async function StandingsPage() {
       </div>
 
       {/* Legend */}
-      <div className="mb-8 flex flex-wrap items-center gap-4 rounded-lg border border-border/30 bg-card/30 px-4 py-3">
+      <div className="mb-8 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border/30 bg-card/30 px-4 py-3">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Legend</span>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-gold/20 border border-gold/30" />
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500/15 border border-emerald-500/30" />
           <span className="text-[11px] text-muted-foreground">Playoff Zone (Top 2)</span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -154,16 +154,20 @@ export default async function StandingsPage() {
           <span className="text-[11px] text-muted-foreground">Wild Card Contention (3rd)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500/10 border border-amber-500/20" />
-          <span className="text-[11px] text-muted-foreground">Relegation Playoff Zone</span>
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-orange-500/10 border border-orange-500/30" />
+          <span className="text-[11px] text-muted-foreground">Relegation Playoff ⚔</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500/10 border border-red-500/20" />
-          <span className="text-[11px] text-muted-foreground">Auto-Relegation Zone (Bottom 2)</span>
+          <span className="text-[11px] text-muted-foreground">Auto-Relegation ↓ (Bottom 2)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <Badge variant="outline" className="text-[8px] border-emerald-500/30 text-emerald-400 px-1 py-0">✓</Badge>
-          <span className="text-[11px] text-muted-foreground">Clinched Playoffs</span>
+          <span className="text-[11px] text-muted-foreground">Clinched Playoffs (mathematically guaranteed)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Badge variant="outline" className="text-[8px] border-muted-foreground/20 text-muted-foreground/40 px-1 py-0">✗</Badge>
+          <span className="text-[11px] text-muted-foreground">Eliminated from Playoffs</span>
         </div>
       </div>
 
@@ -228,14 +232,54 @@ export default async function StandingsPage() {
 function StandingsTable({
   standings,
   label,
+  totalPoolMatches,
 }: {
   standings: Standing[];
   label?: string;
+  totalPoolMatches?: number;
 }) {
   const count = standings.length;
-  // Zone boundaries: top 2 = playoff, 3rd = wild card, bottom 2 = auto-relegate, 3rd/4th from bottom = relegation playoff
+  // Zone boundaries
   const relegationPlayoffStart = Math.max(0, count - 4);
   const autoRelegateStart = Math.max(0, count - 2);
+
+  // Calculate total rounds in a round-robin: each wrestler plays (count - 1) matches
+  const totalRounds = count > 1 ? count - 1 : 0;
+
+  // Mathematical clinch: a wrestler has clinched if even assuming they lose all
+  // remaining matches, no one below them can overtake them for the playoff spots.
+  // Simple conservative check: clinched if their current wins > what 3rd place could
+  // maximally achieve (3rd place's wins + their remaining matches).
+  function hasClinched(idx: number): boolean {
+    if (idx >= 2) return false; // only top 2 can clinch
+    if (count < 3) return standings[idx].wins > 0; // trivially clinched with 2 or fewer
+    const myWins = standings[idx].wins;
+    const gamesPlayed = standings[idx].wins + standings[idx].losses;
+    const remaining = totalRounds - gamesPlayed;
+    // The wrestler at position idx has at minimum (myWins + 0) if they lose everything
+    const myWorstCase = myWins;
+    // The best the 3rd place (or anyone below 2nd) could do
+    let maxRivalBest = 0;
+    for (let j = 2; j < count; j++) {
+      const rivalPlayed = standings[j].wins + standings[j].losses;
+      const rivalRemaining = totalRounds - rivalPlayed;
+      const rivalBest = standings[j].wins + rivalRemaining;
+      maxRivalBest = Math.max(maxRivalBest, rivalBest);
+    }
+    return myWorstCase > maxRivalBest;
+  }
+
+  // Mathematical elimination from playoffs: if even winning all remaining matches
+  // can't get you into top 2
+  function isEliminated(idx: number): boolean {
+    if (idx < 2) return false;
+    const gamesPlayed = standings[idx].wins + standings[idx].losses;
+    const remaining = totalRounds - gamesPlayed;
+    const myBestCase = standings[idx].wins + remaining;
+    // If my best case is less than what the current 2nd place already has, eliminated
+    if (count >= 2 && myBestCase < standings[1].wins) return true;
+    return false;
+  }
 
   return (
     <div>
@@ -263,7 +307,7 @@ function StandingsTable({
             let rowBg = "";
             let zoneIndicator = "";
             if (i < 2) {
-              rowBg = "bg-gold/[0.04] border-l-2 border-l-gold/30";
+              rowBg = "bg-emerald-500/[0.04] border-l-2 border-l-emerald-500/30";
               zoneIndicator = "playoff";
             } else if (i === 2) {
               rowBg = "bg-blue-500/[0.03] border-l-2 border-l-blue-500/20";
@@ -272,9 +316,12 @@ function StandingsTable({
               rowBg = "bg-red-500/[0.04] border-l-2 border-l-red-500/30";
               zoneIndicator = "auto-relegate";
             } else if (i >= relegationPlayoffStart && count > 4) {
-              rowBg = "bg-amber-500/[0.03] border-l-2 border-l-amber-500/20";
+              rowBg = "bg-orange-500/[0.03] border-l-2 border-l-orange-500/30";
               zoneIndicator = "relegation-playoff";
             }
+
+            const clinched = hasClinched(i);
+            const eliminated = isEliminated(i);
 
             return (
               <tr
@@ -289,14 +336,14 @@ function StandingsTable({
                     {s.linkHref ? (
                       <Link
                         href={s.linkHref}
-                        className="font-medium hover:text-gold transition-colors"
+                        className={`font-medium hover:text-gold transition-colors ${eliminated ? "text-muted-foreground/50" : ""}`}
                       >
                         {s.name}
                       </Link>
                     ) : (
-                      <span className="font-medium">{s.name}</span>
+                      <span className={`font-medium ${eliminated ? "text-muted-foreground/50" : ""}`}>{s.name}</span>
                     )}
-                    {zoneIndicator === "playoff" && (
+                    {clinched && (
                       <Badge
                         variant="outline"
                         className="text-[8px] border-emerald-500/30 text-emerald-400 px-1 py-0"
@@ -304,11 +351,19 @@ function StandingsTable({
                         ✓
                       </Badge>
                     )}
+                    {eliminated && (
+                      <Badge
+                        variant="outline"
+                        className="text-[8px] border-muted-foreground/20 text-muted-foreground/40 px-1 py-0"
+                      >
+                        ✗
+                      </Badge>
+                    )}
                     {zoneIndicator === "auto-relegate" && (
                       <span className="text-[8px] font-bold text-red-400/60">↓</span>
                     )}
                     {zoneIndicator === "relegation-playoff" && (
-                      <span className="text-[8px] font-bold text-amber-400/60">⚔</span>
+                      <span className="text-[8px] font-bold text-orange-400/60">⚔</span>
                     )}
                   </span>
                 </td>
