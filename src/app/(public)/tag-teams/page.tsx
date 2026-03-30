@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { TagTeamList } from "@/components/tag-teams/tag-team-list";
+import { sortByName } from "@/lib/utils/sort-name";
 
 export default async function TagTeamsPage() {
   const supabase = await createClient();
@@ -28,7 +29,7 @@ export default async function TagTeamsPage() {
       </p>
       <TagTeamList
         tagTeams={tagTeams ?? []}
-        wrestlers={wrestlers ?? []}
+        wrestlers={sortByName(wrestlers ?? [])}
         isAdmin={!!user}
       />
     </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { sortName } from "@/lib/utils/sort-name";
 import {
   Table,
   TableBody,
@@ -108,7 +109,7 @@ export function DynastyTabs({
         if (cmp === 0) cmp = b.winPct - a.winPct;
         break;
       case "name":
-        cmp = a.name.localeCompare(b.name);
+        cmp = sortName(a.name).localeCompare(sortName(b.name));
         break;
       case "titles":
         cmp = a.championships - b.championships;

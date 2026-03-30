@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { MidSeasonExpansion } from "@/components/season/mid-season-expansion";
+import { sortByName } from "@/lib/utils/sort-name";
 
 export default async function ExpandPage() {
   const supabase = await createClient();
@@ -63,7 +64,7 @@ export default async function ExpandPage() {
         seasonId={season.id}
         tiers={(tiers ?? []) as any}
         assignments={(assignments ?? []) as any}
-        unassignedWrestlers={unassigned as any}
+        unassignedWrestlers={sortByName(unassigned) as any}
       />
     </div>
   );
