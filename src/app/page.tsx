@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { getStatusLabel, getStatusColor } from "@/lib/season/state-machine";
+import { UpNextCard } from "@/components/dashboard/up-next-card";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -41,7 +42,7 @@ export default async function DashboardPage() {
       .from("seasons")
       .select("id", { count: "exact", head: true })
       .eq("status", "completed"),
-    supabase.from("wrestlers").select("id, name, image_url"),
+    supabase.from("wrestlers").select("id, name, image_url, overall_rating"),
   ]);
 
   const wrestlerMap = Object.fromEntries(
@@ -49,6 +50,9 @@ export default async function DashboardPage() {
   );
   const imageMap = Object.fromEntries(
     (wrestlers ?? []).filter((w) => w.image_url).map((w) => [w.id, w.image_url!])
+  );
+  const ratingMap = Object.fromEntries(
+    (wrestlers ?? []).map((w) => [w.id, w.overall_rating ?? null])
   );
 
   // ── Season-specific data ──────────────────────────────────────────────────
@@ -204,6 +208,26 @@ export default async function DashboardPage() {
     if (streak >= 2) winStreaks.set(id, streak);
   }
 
+  // Compute full streaks (positive = wins, negative = losses)
+  const fullStreaks = new Map<string, number>();
+  for (const [id, pMatches] of matchesByParticipant) {
+    const sorted = pMatches.sort(
+      (a: { played_at: string }, b: { played_at: string }) => new Date(b.played_at).getTime() - new Date(a.played_at).getTime()
+    );
+    let streak = 0;
+    if (sorted.length > 0) {
+      const firstWinnerId = sorted[0].winner_wrestler_id || sorted[0].winner_tag_team_id;
+      const isWin = firstWinnerId === id;
+      for (const m of sorted) {
+        const winnerId = m.winner_wrestler_id || m.winner_tag_team_id;
+        if (isWin && winnerId === id) streak++;
+        else if (!isWin && winnerId !== id) streak--;
+        else break;
+      }
+    }
+    fullStreaks.set(id, streak);
+  }
+
   const onFire = Array.from(winStreaks.entries())
     .map(([id, streak]) => ({
       id,
@@ -219,13 +243,51 @@ export default async function DashboardPage() {
   // ── Featured Match (most recent) ──────────────────────────────────────────
   const featuredMatch = playedMatches[0] ?? null;
 
-  // ── Random Upcoming Match ───────────────────────────────────────────────
-  const unplayedMatches = allMatchData.filter(
-    (m) => !m.played_at && m.match_phase === "pool_play"
-  );
-  const randomUpcoming = unplayedMatches.length > 0
-    ? unplayedMatches[Math.floor(Math.random() * unplayedMatches.length)]
-    : null;
+  // ── Upcoming matches for random picker ───────────────────────────────────
+  const unplayedMatches = allMatchData
+    .filter((m: { played_at: string | null; match_phase: string }) => !m.played_at && m.match_phase === "pool_play")
+    .map((m: { id: string; tier_id: string; pool: string | null; wrestler_a_id: string | null; wrestler_b_id: string | null; tag_team_a_id: string | null; tag_team_b_id: string | null }) => ({
+      id: m.id,
+      tier_id: m.tier_id,
+      pool: m.pool,
+      wrestler_a_id: m.wrestler_a_id,
+      wrestler_b_id: m.wrestler_b_id,
+      tag_team_a_id: m.tag_team_a_id,
+      tag_team_b_id: m.tag_team_b_id,
+    }));
+
+  // Build participant stats map for Up Next card
+  const upNextParticipantStats: Record<string, {
+    name: string;
+    image: string | null;
+    wins: number;
+    losses: number;
+    overallRating: number | null;
+    streak: number;
+  }> = {};
+  const allParticipantIds = new Set<string>();
+  for (const m of unplayedMatches) {
+    const aId = m.wrestler_a_id || m.tag_team_a_id;
+    const bId = m.wrestler_b_id || m.tag_team_b_id;
+    if (aId) allParticipantIds.add(aId);
+    if (bId) allParticipantIds.add(bId);
+  }
+  for (const id of allParticipantIds) {
+    upNextParticipantStats[id] = {
+      name: wrestlerMap[id] ?? "?",
+      image: imageMap[id] ?? null,
+      wins: winCounts.get(id) ?? 0,
+      losses: lossCounts.get(id) ?? 0,
+      overallRating: ratingMap[id] ?? null,
+      streak: fullStreaks.get(id) ?? 0,
+    };
+  }
+
+  const upNextTiers = tiersData.map((t: { id: string; tier_number: number; name: string; short_name: string | null }) => ({
+    id: t.id,
+    tier_number: t.tier_number,
+    name: t.short_name || t.name,
+  }));
 
   // ── Recent Results ────────────────────────────────────────────────────────
   const recentMatches = playedMatches.slice(0, 8);
@@ -347,103 +409,14 @@ export default async function DashboardPage() {
         </div>
 
         {/* ── Upcoming Match (Random Picker) ──────────────────────────── */}
-        {randomUpcoming && (() => {
-          const aId = randomUpcoming.wrestler_a_id || randomUpcoming.tag_team_a_id;
-          const bId = randomUpcoming.wrestler_b_id || randomUpcoming.tag_team_b_id;
-          const aName = wrestlerMap[aId ?? ""] ?? "?";
-          const bName = wrestlerMap[bId ?? ""] ?? "?";
-          const aImg = imageMap[aId ?? ""];
-          const bImg = imageMap[bId ?? ""];
-          const aWins = winCounts.get(aId ?? "") ?? 0;
-          const aLosses = lossCounts.get(aId ?? "") ?? 0;
-          const bWins = winCounts.get(bId ?? "") ?? 0;
-          const bLosses = lossCounts.get(bId ?? "") ?? 0;
-          const tier = tiersData.find((t: { id: string }) => t.id === randomUpcoming.tier_id);
-          const tierLabel = tier?.short_name || tier?.name || "?";
-
-          return (
-            <div className="rounded-2xl border-2 border-gold/20 bg-gradient-to-r from-gold/[0.03] via-card to-gold/[0.03] overflow-hidden relative">
-              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
-              <div className="relative px-6 py-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gold/60">
-                      Up Next
-                    </span>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge variant="outline" className="text-[9px] border-border/30 text-muted-foreground">
-                        T{tier?.tier_number} · {tierLabel}
-                      </Badge>
-                      {randomUpcoming.pool && (
-                        <Badge variant="outline" className="text-[9px] border-border/30 text-muted-foreground">
-                          Pool {randomUpcoming.pool}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <Link href="/season/match">
-                    <Button size="sm" className="bg-gold text-black hover:bg-gold-dark font-semibold text-xs gap-1">
-                      🎮 Enter Result
-                    </Button>
-                  </Link>
-                </div>
-
-                <div className="flex items-center justify-center gap-4 sm:gap-8">
-                  {/* Wrestler A */}
-                  <div className="flex flex-col items-center gap-2 flex-1 max-w-[180px]">
-                    {aImg ? (
-                      <img src={aImg} alt={aName} className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover border-2 border-gold/20" />
-                    ) : (
-                      <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-muted/20 border-2 border-gold/10 flex items-center justify-center">
-                        <span className="text-lg font-bold text-muted-foreground/30">{aName.charAt(0)}</span>
-                      </div>
-                    )}
-                    <div className="text-center">
-                      <div className="font-bold text-sm sm:text-base leading-tight">{aName}</div>
-                      <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-                        {aWins}W - {aLosses}L
-                        {(aWins + aLosses) > 0 && (
-                          <span className="text-muted-foreground/50"> · {((aWins / (aWins + aLosses)) * 100).toFixed(0)}%</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* VS */}
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-2xl font-black text-gold/30">VS</span>
-                  </div>
-
-                  {/* Wrestler B */}
-                  <div className="flex flex-col items-center gap-2 flex-1 max-w-[180px]">
-                    {bImg ? (
-                      <img src={bImg} alt={bName} className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover border-2 border-gold/20" />
-                    ) : (
-                      <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-muted/20 border-2 border-gold/10 flex items-center justify-center">
-                        <span className="text-lg font-bold text-muted-foreground/30">{bName.charAt(0)}</span>
-                      </div>
-                    )}
-                    <div className="text-center">
-                      <div className="font-bold text-sm sm:text-base leading-tight">{bName}</div>
-                      <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-                        {bWins}W - {bLosses}L
-                        {(bWins + bLosses) > 0 && (
-                          <span className="text-muted-foreground/50"> · {((bWins / (bWins + bLosses)) * 100).toFixed(0)}%</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3 text-center">
-                  <span className="text-[9px] text-muted-foreground/40">
-                    {unplayedMatches.length} matches remaining · Refresh for another random matchup
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+        {unplayedMatches.length > 0 && (
+          <UpNextCard
+            matches={unplayedMatches}
+            participantStats={upNextParticipantStats}
+            tiers={upNextTiers}
+            remainingCount={unplayedMatches.length}
+          />
+        )}
 
         {/* ── Featured Match ─────────────────────────────────────────── */}
         {featuredMatch && (

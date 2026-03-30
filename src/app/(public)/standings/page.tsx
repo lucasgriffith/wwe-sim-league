@@ -146,19 +146,19 @@ export default async function StandingsPage() {
       <div className="mb-8 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border/30 bg-card/30 px-4 py-3">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Legend</span>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500/15 border border-emerald-500/30" />
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500/20 border-2 border-emerald-500/50" />
           <span className="text-[11px] text-muted-foreground">Playoff Zone (Top 2)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-blue-500/10 border border-blue-500/20" />
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-blue-500/15 border-2 border-blue-500/40" />
           <span className="text-[11px] text-muted-foreground">Wild Card Contention (3rd)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-orange-500/10 border border-orange-500/30" />
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-orange-500/15 border-2 border-orange-500/40" />
           <span className="text-[11px] text-muted-foreground">Relegation Playoff ⚔</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500/10 border border-red-500/20" />
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500/20 border-2 border-red-500/50" />
           <span className="text-[11px] text-muted-foreground">Auto-Relegation ↓ (Bottom 2)</span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -307,16 +307,16 @@ function StandingsTable({
             let rowBg = "";
             let zoneIndicator = "";
             if (i < 2) {
-              rowBg = "bg-emerald-500/[0.04] border-l-2 border-l-emerald-500/30";
+              rowBg = "bg-emerald-500/[0.08] border-l-[3px] border-l-emerald-500/50";
               zoneIndicator = "playoff";
             } else if (i === 2) {
-              rowBg = "bg-blue-500/[0.03] border-l-2 border-l-blue-500/20";
+              rowBg = "bg-blue-500/[0.06] border-l-[3px] border-l-blue-500/40";
               zoneIndicator = "wildcard";
             } else if (i >= autoRelegateStart && count > 4) {
-              rowBg = "bg-red-500/[0.04] border-l-2 border-l-red-500/30";
+              rowBg = "bg-red-500/[0.08] border-l-[3px] border-l-red-500/50";
               zoneIndicator = "auto-relegate";
             } else if (i >= relegationPlayoffStart && count > 4) {
-              rowBg = "bg-orange-500/[0.03] border-l-2 border-l-orange-500/30";
+              rowBg = "bg-orange-500/[0.06] border-l-[3px] border-l-orange-500/40";
               zoneIndicator = "relegation-playoff";
             }
 
