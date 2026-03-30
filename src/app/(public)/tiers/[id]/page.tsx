@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import Link from "next/link";
 import { BracketView } from "@/components/playoffs/bracket-view";
+import { TierSchedule } from "@/components/tiers/tier-schedule";
 import { computeClinchStatus, type ClinchStatus } from "@/lib/standings/clinch";
 
 function formatTime(seconds: number): string {
@@ -402,78 +403,30 @@ export default async function TierDetailPage({
                     </Table>
                   </div>
 
-                  {/* Schedule Grid */}
+                  {/* Schedule Grid with inline match entry */}
                   {schedule.length > 0 && (
-                    <div className="rounded-lg border border-border/40 overflow-hidden max-h-[400px] overflow-y-auto">
-                      <div className="p-3 border-b border-border/30 bg-muted/5">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          Schedule
-                        </h3>
-                      </div>
-                      <div className="divide-y divide-border/20">
-                        {schedule.map(([round, roundMatches]) => (
-                          <div key={round} className="px-3 py-2">
-                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 mb-1.5">
-                              Round {round}
-                            </div>
-                            <div className="space-y-1">
-                              {roundMatches.map((m) => {
-                                const aId =
-                                  m.wrestler_a_id || m.tag_team_a_id;
-                                const bId =
-                                  m.wrestler_b_id || m.tag_team_b_id;
-                                const winnerId =
-                                  m.winner_wrestler_id ||
-                                  m.winner_tag_team_id;
-                                const isPlayed = !!m.played_at;
-
-                                return (
-                                  <div
-                                    key={m.id}
-                                    className={`flex items-center gap-2 rounded px-2 py-1 text-xs ${
-                                      isPlayed
-                                        ? "bg-emerald-500/5"
-                                        : "bg-muted/5"
-                                    }`}
-                                  >
-                                    <span
-                                      className={`flex-1 truncate text-right ${
-                                        isPlayed && winnerId === aId
-                                          ? "font-bold text-emerald-400"
-                                          : isPlayed
-                                            ? "text-muted-foreground/50"
-                                            : ""
-                                      }`}
-                                    >
-                                      {getName(aId)}
-                                    </span>
-                                    <span className="text-[9px] text-muted-foreground/30 shrink-0">
-                                      {isPlayed ? "✓" : "vs"}
-                                    </span>
-                                    <span
-                                      className={`flex-1 truncate ${
-                                        isPlayed && winnerId === bId
-                                          ? "font-bold text-emerald-400"
-                                          : isPlayed
-                                            ? "text-muted-foreground/50"
-                                            : ""
-                                      }`}
-                                    >
-                                      {getName(bId)}
-                                    </span>
-                                    {isPlayed && m.match_time_seconds && (
-                                      <span className="text-[9px] tabular-nums text-muted-foreground/40 shrink-0">
-                                        {formatTime(m.match_time_seconds)}
-                                      </span>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <TierSchedule
+                      isAdmin={!!user}
+                      rounds={schedule.map(([round, roundMatches]) => ({
+                        round,
+                        matches: roundMatches.map((m) => {
+                          const aId = m.wrestler_a_id || m.tag_team_a_id;
+                          const bId = m.wrestler_b_id || m.tag_team_b_id;
+                          const winnerId = m.winner_wrestler_id || m.winner_tag_team_id;
+                          return {
+                            id: m.id,
+                            aId: aId ?? "",
+                            bId: bId ?? "",
+                            aName: getName(aId),
+                            bName: getName(bId),
+                            winnerId,
+                            isPlayed: !!m.played_at,
+                            matchTime: m.match_time_seconds,
+                            isTag: !!m.tag_team_a_id,
+                          };
+                        }),
+                      }))}
+                    />
                   )}
                 </div>
               </div>

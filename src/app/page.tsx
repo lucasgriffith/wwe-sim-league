@@ -553,7 +553,7 @@ export default async function DashboardPage() {
                 return (
                   <Link key={t.tierId} href={`/tiers/${t.tierId}`}>
                     <div className={`rounded-lg border p-2 text-center hover:scale-105 transition-all ${bgOpacity}`} title={`${t.tierName}: ${pct}%`}>
-                      <span className="text-[10px] font-mono font-bold block">{t.tierNumber}</span>
+                      <span className="text-[9px] font-bold block truncate">{t.tierName}</span>
                       <span className={`text-[8px] font-bold tabular-nums ${pct === 100 ? "text-emerald-400" : pct > 0 ? "text-gold/70" : "text-muted-foreground/30"}`}>
                         {pct}%
                       </span>

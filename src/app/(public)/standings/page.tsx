@@ -132,7 +132,7 @@ export default async function StandingsPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Standings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Season {season.season_number} ·{" "}
@@ -140,6 +140,31 @@ export default async function StandingsPage() {
             {season.status.replace("_", " ")}
           </Badge>
         </p>
+      </div>
+
+      {/* Legend */}
+      <div className="mb-8 flex flex-wrap items-center gap-4 rounded-lg border border-border/30 bg-card/30 px-4 py-3">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">Legend</span>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-gold/20 border border-gold/30" />
+          <span className="text-[11px] text-muted-foreground">Playoff Zone (Top 2)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-blue-500/10 border border-blue-500/20" />
+          <span className="text-[11px] text-muted-foreground">Wild Card Contention (3rd)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-amber-500/10 border border-amber-500/20" />
+          <span className="text-[11px] text-muted-foreground">Relegation Playoff Zone</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-500/10 border border-red-500/20" />
+          <span className="text-[11px] text-muted-foreground">Auto-Relegation Zone (Bottom 2)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Badge variant="outline" className="text-[8px] border-emerald-500/30 text-emerald-400 px-1 py-0">✓</Badge>
+          <span className="text-[11px] text-muted-foreground">Clinched Playoffs</span>
+        </div>
       </div>
 
       <div className="space-y-10">
@@ -207,6 +232,11 @@ function StandingsTable({
   standings: Standing[];
   label?: string;
 }) {
+  const count = standings.length;
+  // Zone boundaries: top 2 = playoff, 3rd = wild card, bottom 2 = auto-relegate, 3rd/4th from bottom = relegation playoff
+  const relegationPlayoffStart = Math.max(0, count - 4);
+  const autoRelegateStart = Math.max(0, count - 2);
+
   return (
     <div>
       {label && (
@@ -228,56 +258,77 @@ function StandingsTable({
           </tr>
         </thead>
         <tbody>
-          {standings.map((s, i) => (
-            <tr
-              key={s.id}
-              className={`border-b border-border/10 text-sm ${
-                i < 2
-                  ? "bg-gold/[0.03]"
-                  : i < 3
-                    ? "bg-blue-500/[0.02]"
-                    : ""
-              }`}
-            >
-              <td className="px-3 py-2 tabular-nums text-xs text-muted-foreground">
-                {i + 1}
-              </td>
-              <td className="px-3 py-2">
-                {s.linkHref ? (
-                  <Link
-                    href={s.linkHref}
-                    className="font-medium hover:text-gold transition-colors"
-                  >
-                    {s.name}
-                  </Link>
-                ) : (
-                  <span className="font-medium">{s.name}</span>
-                )}
-                {i < 2 && (
-                  <Badge
-                    variant="outline"
-                    className="ml-1.5 text-[8px] border-gold/20 text-gold/60"
-                  >
-                    Q
-                  </Badge>
-                )}
-              </td>
-              <td className="px-3 py-2 text-center tabular-nums font-medium text-emerald-400">
-                {s.wins}
-              </td>
-              <td className="px-3 py-2 text-center tabular-nums font-medium text-red-400">
-                {s.losses}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums font-medium">
-                {s.wins + s.losses > 0
-                  ? `${(s.winPct * 100).toFixed(0)}%`
-                  : "—"}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-xs text-muted-foreground hidden sm:table-cell">
-                {s.totalTime > 0 ? formatTime(s.totalTime) : "—"}
-              </td>
-            </tr>
-          ))}
+          {standings.map((s, i) => {
+            // Determine zone
+            let rowBg = "";
+            let zoneIndicator = "";
+            if (i < 2) {
+              rowBg = "bg-gold/[0.04] border-l-2 border-l-gold/30";
+              zoneIndicator = "playoff";
+            } else if (i === 2) {
+              rowBg = "bg-blue-500/[0.03] border-l-2 border-l-blue-500/20";
+              zoneIndicator = "wildcard";
+            } else if (i >= autoRelegateStart && count > 4) {
+              rowBg = "bg-red-500/[0.04] border-l-2 border-l-red-500/30";
+              zoneIndicator = "auto-relegate";
+            } else if (i >= relegationPlayoffStart && count > 4) {
+              rowBg = "bg-amber-500/[0.03] border-l-2 border-l-amber-500/20";
+              zoneIndicator = "relegation-playoff";
+            }
+
+            return (
+              <tr
+                key={s.id}
+                className={`border-b border-border/10 text-sm ${rowBg}`}
+              >
+                <td className="px-3 py-2 tabular-nums text-xs text-muted-foreground">
+                  {i + 1}
+                </td>
+                <td className="px-3 py-2">
+                  <span className="flex items-center gap-1.5">
+                    {s.linkHref ? (
+                      <Link
+                        href={s.linkHref}
+                        className="font-medium hover:text-gold transition-colors"
+                      >
+                        {s.name}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{s.name}</span>
+                    )}
+                    {zoneIndicator === "playoff" && (
+                      <Badge
+                        variant="outline"
+                        className="text-[8px] border-emerald-500/30 text-emerald-400 px-1 py-0"
+                      >
+                        ✓
+                      </Badge>
+                    )}
+                    {zoneIndicator === "auto-relegate" && (
+                      <span className="text-[8px] font-bold text-red-400/60">↓</span>
+                    )}
+                    {zoneIndicator === "relegation-playoff" && (
+                      <span className="text-[8px] font-bold text-amber-400/60">⚔</span>
+                    )}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-center tabular-nums font-medium text-emerald-400">
+                  {s.wins}
+                </td>
+                <td className="px-3 py-2 text-center tabular-nums font-medium text-red-400">
+                  {s.losses}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums font-medium">
+                  {s.wins + s.losses > 0
+                    ? `${(s.winPct * 100).toFixed(0)}%`
+                    : "—"}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-xs text-muted-foreground hidden sm:table-cell">
+                  {s.totalTime > 0 ? formatTime(s.totalTime) : "—"}
+                </td>
+              </tr>
+            );
+          })}
           {standings.length === 0 && (
             <tr>
               <td colSpan={6} className="px-3 py-4 text-center text-xs text-muted-foreground">
