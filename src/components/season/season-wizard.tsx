@@ -16,12 +16,10 @@ import {
   createSeason,
   bulkAssignToTier,
   clearTagTierAssignments,
-  advanceSeasonStatus,
-  bulkCreateMatches,
+  startSeason,
 } from "@/app/actions";
-import { generateRoundRobin } from "@/lib/scheduling/round-robin";
 import { toast } from "sonner";
-import type { PoolLabel, MatchPhase } from "@/types/database";
+import type { PoolLabel } from "@/types/database";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
 
@@ -458,76 +456,10 @@ export function SeasonWizard({
     if (!seasonId) return;
     setLoading(true);
     try {
-      // Generate round-robin schedules
-      const allMatches: Array<{
-        season_id: string;
-        tier_id: string;
-        round_number: number;
-        match_phase: MatchPhase;
-        pool: PoolLabel | null;
-        wrestler_a_id?: string | null;
-        wrestler_b_id?: string | null;
-        tag_team_a_id?: string | null;
-        tag_team_b_id?: string | null;
-      }> = [];
-
-      // Re-fetch assignments since they may have changed
-      // We use the assignments from props + any new ones
-      // For now, use router.refresh data — we need to read from the page data
-      // Actually, let's compute from what we know
-
-      for (const tier of tiers) {
-        const tierAssigns = initialAssignments.filter((a) => a.tier_id === tier.id);
-        if (tierAssigns.length < 2) continue;
-
-        const isTag = tier.divisions?.division_type === "tag";
-
-        if (tier.has_pools) {
-          for (const pool of ["A", "B"] as const) {
-            const poolAssigns = tierAssigns.filter((a) => a.pool === pool);
-            const ids = poolAssigns.map((a) => (a.wrestler_id || a.tag_team_id)!);
-            if (ids.length < 2) continue;
-            const schedule = generateRoundRobin(ids);
-            for (const match of schedule) {
-              allMatches.push({
-                season_id: seasonId,
-                tier_id: tier.id,
-                round_number: match.round,
-                match_phase: "pool_play",
-                pool,
-                ...(isTag
-                  ? { tag_team_a_id: match.participantA, tag_team_b_id: match.participantB }
-                  : { wrestler_a_id: match.participantA, wrestler_b_id: match.participantB }),
-              });
-            }
-          }
-        } else {
-          const ids = tierAssigns.map((a) => (a.wrestler_id || a.tag_team_id)!);
-          if (ids.length < 2) continue;
-          const schedule = generateRoundRobin(ids);
-          for (const match of schedule) {
-            allMatches.push({
-              season_id: seasonId,
-              tier_id: tier.id,
-              round_number: match.round,
-              match_phase: "pool_play",
-              pool: null,
-              ...(isTag
-                ? { tag_team_a_id: match.participantA, tag_team_b_id: match.participantB }
-                : { wrestler_a_id: match.participantA, wrestler_b_id: match.participantB }),
-            });
-          }
-        }
-      }
-
-      if (allMatches.length > 0) {
-        for (let i = 0; i < allMatches.length; i += 500) {
-          await bulkCreateMatches(allMatches.slice(i, i + 500));
-        }
-      }
-
-      await advanceSeasonStatus(seasonId, "pool_play");
-      toast.success("Season started! Schedules generated.");
+      // Server-side: fetches FRESH assignments from DB, generates schedules,
+      // creates matches, and advances to pool_play — all in one atomic action
+      const result = await startSeason(seasonId);
+      toast.success(`Season started! ${result.matchCount} matches generated.`);
       router.push("/season");
       router.refresh();
     } catch (err) {
