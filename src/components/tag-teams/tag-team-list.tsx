@@ -54,6 +54,7 @@ export function TagTeamList({
   const [memberB, setMemberB] = useState("");
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [genderFilter, setGenderFilter] = useState<"all" | "male" | "female">("all");
   const [editingTeam, setEditingTeam] = useState<TagTeam | null>(null);
   const [deletingTeam, setDeletingTeam] = useState<TagTeam | null>(null);
 
@@ -64,11 +65,19 @@ export function TagTeamList({
     )
   );
 
-  const filtered = tagTeams.filter((t) =>
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.wrestler_a?.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.wrestler_b?.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const teamGender = (t: TagTeam) => t.wrestler_a?.gender ?? t.wrestler_b?.gender ?? "male";
+  const maleCount = tagTeams.filter((t) => teamGender(t) === "male").length;
+  const femaleCount = tagTeams.filter((t) => teamGender(t) === "female").length;
+
+  const filtered = tagTeams.filter((t) => {
+    const matchesSearch =
+      t.name.toLowerCase().includes(search.toLowerCase()) ||
+      t.wrestler_a?.name.toLowerCase().includes(search.toLowerCase()) ||
+      t.wrestler_b?.name.toLowerCase().includes(search.toLowerCase());
+    const matchesGender =
+      genderFilter === "all" || teamGender(t) === genderFilter;
+    return matchesSearch && matchesGender;
+  });
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -122,6 +131,23 @@ export function TagTeamList({
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-background/50"
           />
+        </div>
+        <div className="flex gap-1.5">
+          {([
+            { key: "all", label: `All (${tagTeams.length})` },
+            { key: "male", label: `Male (${maleCount})` },
+            { key: "female", label: `Female (${femaleCount})` },
+          ] as const).map((g) => (
+            <Button
+              key={g.key}
+              variant={genderFilter === g.key ? "default" : "outline"}
+              size="sm"
+              onClick={() => setGenderFilter(g.key)}
+              className={`text-xs ${genderFilter !== g.key ? "border-border/40 text-muted-foreground hover:text-foreground" : ""}`}
+            >
+              {g.label}
+            </Button>
+          ))}
         </div>
         {isAdmin && (
           <Button
