@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getStatusLabel, getStatusColor } from "@/lib/season/state-machine";
 import { UpNextCard } from "@/components/dashboard/up-next-card";
+import { SeasonTicker } from "@/components/dashboard/season-ticker";
+import { MilestonesBanner, computeMilestones } from "@/components/dashboard/milestones";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -318,6 +320,47 @@ export default async function DashboardPage() {
 
   const overallPct = totalMatches > 0 ? Math.round((totalPlayed / totalMatches) * 100) : 0;
 
+  // ── Milestones ─────────────────────────────────────────────────────────────
+  const fastestPlayedMatch = playedMatches
+    .filter((m) => m.match_time_seconds)
+    .sort((a, b) => a.match_time_seconds - b.match_time_seconds)[0] ?? null;
+
+  const longestStreakEntry = onFire.length > 0 ? onFire[0] : null;
+
+  const undefeatedWrestlers = Array.from(matchesByParticipant.entries())
+    .filter(([id, pMatches]) => {
+      return pMatches.length >= 2 && pMatches.every((m) => {
+        const winnerId = m.winner_wrestler_id || m.winner_tag_team_id;
+        return winnerId === id;
+      });
+    })
+    .map(([id]) => wrestlerMap[id] ?? "?");
+
+  const tiersComplete = tierProgress.filter((t) => t.played === t.total && t.total > 0).length;
+
+  const allMatchTimes = playedMatches
+    .filter((m) => m.match_time_seconds)
+    .map((m) => m.match_time_seconds);
+  const averageMatchTime = allMatchTimes.length > 0
+    ? Math.round(allMatchTimes.reduce((a: number, b: number) => a + b, 0) / allMatchTimes.length)
+    : null;
+
+  const milestones = computeMilestones({
+    totalPlayed,
+    totalMatches,
+    longestStreak: longestStreakEntry
+      ? { name: longestStreakEntry.name, streak: longestStreakEntry.streak }
+      : null,
+    fastestMatch: fastestPlayedMatch
+      ? {
+          name: wrestlerMap[fastestPlayedMatch.winner_wrestler_id || fastestPlayedMatch.winner_tag_team_id || ""] ?? "?",
+          time: fastestPlayedMatch.match_time_seconds,
+        }
+      : null,
+    undefeated: undefeatedWrestlers,
+    tiersCompleted: tiersComplete,
+  });
+
   const quickActions = [
     { href: "/season/setup", label: "Season Setup", icon: "⚙️" },
     { href: "/season/match", label: "Enter Match", primary: true, icon: "🎮" },
@@ -328,6 +371,20 @@ export default async function DashboardPage() {
 
   return (
     <div className="animate-fade-in">
+      {/* ── Live Ticker ─────────────────────────────────────────────── */}
+      {season && totalPlayed > 0 && (
+        <SeasonTicker
+          totalPlayed={totalPlayed}
+          totalMatches={totalMatches}
+          tiersStarted={tierProgress.filter((t) => t.played > 0).length}
+          totalTiers={tierProgress.length}
+          fastestMatch={fastestPlayedMatch?.match_time_seconds ?? null}
+          fastestMatchName={fastestPlayedMatch ? (wrestlerMap[fastestPlayedMatch.winner_wrestler_id || fastestPlayedMatch.winner_tag_team_id || ""] ?? null) : null}
+          averageMatchTime={averageMatchTime}
+          seasonNumber={season.season_number}
+        />
+      )}
+
       {/* ── Hero Banner ──────────────────────────────────────────────── */}
       <div className="relative overflow-hidden border-b border-border/20">
         <div className="absolute inset-0 bg-gradient-to-r from-gold/[0.03] via-transparent to-wwe-red/[0.03]" />
@@ -415,6 +472,9 @@ export default async function DashboardPage() {
             </Link>
           ))}
         </div>
+
+        {/* ── Milestones ──────────────────────────────────────────────── */}
+        {milestones.length > 0 && <MilestonesBanner milestones={milestones} />}
 
         {/* ── Upcoming Match (Random Picker) ──────────────────────────── */}
         {unplayedMatches.length > 0 && (
@@ -518,9 +578,11 @@ export default async function DashboardPage() {
                       )}
                     </div>
                     <p className="text-xs font-bold text-center truncate">{w.name}</p>
-                    <div className="flex items-center justify-center gap-1 mt-1">
-                      <span className="text-[10px]">🔥</span>
-                      <span className="text-[10px] font-bold text-amber-400">{w.streak} streak</span>
+                    <div className="flex items-center justify-center gap-0.5 mt-1">
+                      {Array.from({ length: Math.min(w.streak, 5) }).map((_, i) => (
+                        <span key={i} className="text-[10px]">🔥</span>
+                      ))}
+                      <span className="text-[10px] font-bold text-amber-400 ml-0.5">{w.streak}</span>
                     </div>
                     <p className="text-[10px] text-center text-muted-foreground/50 tabular-nums mt-0.5">
                       {w.wins}W-{w.losses}L
