@@ -289,10 +289,11 @@ export default async function DashboardPage() {
     };
   }
 
-  const upNextTiers = tiersData.map((t: { id: string; tier_number: number; name: string; short_name: string | null }) => ({
+  const upNextTiers = tiersData.map((t: { id: string; tier_number: number; name: string; short_name: string | null; slug: string | null }) => ({
     id: t.id,
     tier_number: t.tier_number,
     name: t.short_name || t.name,
+    slug: t.slug ?? null,
   }));
 
   // ── Recent Results ────────────────────────────────────────────────────────

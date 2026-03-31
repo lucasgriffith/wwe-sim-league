@@ -29,6 +29,7 @@ interface TierInfo {
   id: string;
   tier_number: number;
   name: string;
+  slug: string | null;
 }
 
 interface Props {
@@ -156,7 +157,7 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
             >
               🎲 Shuffle
             </Button>
-            <Link href="/season/match">
+            <Link href={`/tiers/${tier?.slug ?? tier?.id ?? ""}`}>
               <Button size="sm" className="bg-gold text-black hover:bg-gold-dark font-semibold text-xs gap-1">
                 🎮 Enter Result
               </Button>
