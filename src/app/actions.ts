@@ -780,9 +780,10 @@ export async function addWrestlersToSeasonMidway(
         );
         let maxRound = poolMatches.reduce((max, m) => Math.max(max, m.round_number ?? 0), 0);
 
-        // Each new wrestler vs each existing wrestler
+        // Each new wrestler vs each existing wrestler (skip self-matches)
         for (const nw of newInPool) {
           for (const existId of existingInPool) {
+            if (existId === nw.wrestler_id) continue; // prevent self-match
             maxRound++;
             matchInserts.push({
               season_id: seasonId,
@@ -820,6 +821,7 @@ export async function addWrestlersToSeasonMidway(
 
       for (const nw of tierNew) {
         for (const existId of existingIds) {
+          if (existId === nw.wrestler_id) continue; // prevent self-match
           maxRound++;
           matchInserts.push({
             season_id: seasonId,
