@@ -362,14 +362,6 @@ export default async function DashboardPage() {
     tiersCompleted: tiersComplete,
   });
 
-  const quickActions = [
-    { href: "/season/setup", label: "Season Setup", icon: "⚙️" },
-    { href: "/season/match", label: "Enter Match", primary: true, icon: "🎮" },
-    { href: "/standings", label: "Standings", icon: "📊" },
-    { href: "/season/playoffs", label: "Playoffs", icon: "🏆" },
-    { href: "/season/relegation", label: "Relegation", icon: "↕️" },
-  ];
-
   return (
     <div className="animate-fade-in">
       {/* ── Live Ticker ─────────────────────────────────────────────── */}
@@ -453,26 +445,6 @@ export default async function DashboardPage() {
       </div>
 
       <div className="container max-w-screen-2xl px-4 py-6 space-y-8">
-
-        {/* ── Quick Actions ──────────────────────────────────────────── */}
-        <div className="flex flex-wrap gap-2">
-          {quickActions.map((action) => (
-            <Link key={action.href} href={action.href}>
-              <Button
-                variant={action.primary ? "default" : "outline"}
-                size="sm"
-                className={
-                  action.primary
-                    ? "bg-gold text-black hover:bg-gold-dark font-semibold gap-1.5 shadow-md shadow-gold/10"
-                    : "gap-1.5 border-border/50 hover:border-border text-muted-foreground hover:text-foreground"
-                }
-              >
-                <span>{action.icon}</span>
-                {action.label}
-              </Button>
-            </Link>
-          ))}
-        </div>
 
         {/* ── Milestones ──────────────────────────────────────────────── */}
         {milestones.length > 0 && <MilestonesBanner milestones={milestones} />}
