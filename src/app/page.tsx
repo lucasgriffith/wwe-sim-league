@@ -7,7 +7,8 @@ import Link from "next/link";
 import { getStatusLabel, getStatusColor } from "@/lib/season/state-machine";
 import { UpNextCard } from "@/components/dashboard/up-next-card";
 import { SeasonTicker } from "@/components/dashboard/season-ticker";
-import { MilestonesBanner, computeMilestones } from "@/components/dashboard/milestones";
+import { MilestonesBanner } from "@/components/dashboard/milestones";
+import { computeMilestones } from "@/lib/milestones";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
