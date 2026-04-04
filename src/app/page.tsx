@@ -74,6 +74,7 @@ export default async function DashboardPage() {
     tierNumber: number;
     tierName: string;
     tierColor: string | null;
+    divisionName: string;
     played: number;
     total: number;
   }> = [];
@@ -120,12 +121,14 @@ export default async function DashboardPage() {
       .filter((t) => matchesByTier.has(t.id))
       .map((t) => {
         const { played, total } = matchesByTier.get(t.id)!;
+        const div = t.divisions as unknown as { name: string; gender: string } | null;
         return {
           tierId: t.id,
           tierSlug: t.slug ?? null,
           tierNumber: t.tier_number,
           tierName: t.short_name || t.name,
           tierColor: t.color,
+          divisionName: div?.name ?? "",
           played,
           total,
         };
@@ -679,38 +682,107 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ── Recent Results ─────────────────────────────────────────── */}
-        {recentMatches.length > 0 && (
-          <Card className="border-border/30 bg-card/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50">
-                Recent Results
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1.5">
-              {recentMatches.map((m) => {
-                const aId = m.wrestler_a_id || m.tag_team_a_id;
-                const bId = m.wrestler_b_id || m.tag_team_b_id;
-                const winnerId = m.winner_wrestler_id || m.winner_tag_team_id;
-                const aName = wrestlerMap[aId ?? ""] ?? "?";
-                const bName = wrestlerMap[bId ?? ""] ?? "?";
-                const isAWinner = winnerId === aId;
-                const time = m.match_time_seconds ? formatTime(m.match_time_seconds) : null;
-                return (
-                  <div key={m.id} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted/5 transition-colors">
-                    <span className={`truncate ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{aName}</span>
-                    <span className="text-[9px] text-muted-foreground/30 shrink-0">vs</span>
-                    <span className={`truncate ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{bName}</span>
-                    <span className="ml-auto flex items-center gap-2 shrink-0">
-                      {time && <span className="text-[10px] tabular-nums text-muted-foreground/30">{time}</span>}
-                      <Badge variant="outline" className="text-[8px] uppercase tracking-wider border-border/20 px-1.5">{m.match_phase.replace("_", " ")}</Badge>
-                    </span>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
+        {/* ── Recent Results + Tier Map Row ─────────────────────────── */}
+        <div className={`grid gap-4 ${tierProgress.length > 0 && recentMatches.length > 0 ? "lg:grid-cols-[1fr_320px]" : ""}`}>
+          {/* Recent Results */}
+          {recentMatches.length > 0 && (
+            <Card className="border-border/30 bg-card/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50">
+                  Recent Results
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5">
+                {recentMatches.map((m) => {
+                  const aId = m.wrestler_a_id || m.tag_team_a_id;
+                  const bId = m.wrestler_b_id || m.tag_team_b_id;
+                  const winnerId = m.winner_wrestler_id || m.winner_tag_team_id;
+                  const aName = wrestlerMap[aId ?? ""] ?? "?";
+                  const bName = wrestlerMap[bId ?? ""] ?? "?";
+                  const isAWinner = winnerId === aId;
+                  const time = m.match_time_seconds ? formatTime(m.match_time_seconds) : null;
+                  return (
+                    <div key={m.id} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted/5 transition-colors">
+                      <span className={`truncate ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{aName}</span>
+                      <span className="text-[9px] text-muted-foreground/30 shrink-0">vs</span>
+                      <span className={`truncate ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{bName}</span>
+                      <span className="ml-auto flex items-center gap-2 shrink-0">
+                        {time && <span className="text-[10px] tabular-nums text-muted-foreground/30">{time}</span>}
+                        <Badge variant="outline" className="text-[8px] uppercase tracking-wider border-border/20 px-1.5">{m.match_phase.replace("_", " ")}</Badge>
+                      </span>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Tier Progress Map */}
+          {tierProgress.length > 0 && (
+            <Card className="border-border/30 bg-card/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50">
+                  Tier Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 pb-4">
+                {(() => {
+                  const divColors: Record<string, { border: string; bg: string; text: string; dot: string }> = {
+                    "Men's Singles": { border: "border-blue-500/25", bg: "bg-blue-500/8", text: "text-blue-400", dot: "bg-blue-500" },
+                    "Women's Singles": { border: "border-purple-500/25", bg: "bg-purple-500/8", text: "text-purple-400", dot: "bg-purple-500" },
+                    "Men's Tag Teams": { border: "border-emerald-500/25", bg: "bg-emerald-500/8", text: "text-emerald-400", dot: "bg-emerald-500" },
+                    "Women's Tag Teams": { border: "border-orange-500/25", bg: "bg-orange-500/8", text: "text-orange-400", dot: "bg-orange-500" },
+                  };
+                  const groups = [
+                    { label: "Men's Singles", tiers: tierProgress.filter((t) => t.divisionName === "Men's Singles") },
+                    { label: "Women's Singles", tiers: tierProgress.filter((t) => t.divisionName === "Women's Singles") },
+                    { label: "Men's Tag", tiers: tierProgress.filter((t) => t.divisionName === "Men's Tag Teams") },
+                    { label: "Women's Tag", tiers: tierProgress.filter((t) => t.divisionName === "Women's Tag Teams") },
+                  ].filter((g) => g.tiers.length > 0);
+
+                  return groups.map((g) => {
+                    const c = divColors[g.label === "Men's Tag" ? "Men's Tag Teams" : g.label === "Women's Tag" ? "Women's Tag Teams" : g.label] ?? divColors["Men's Singles"];
+                    return (
+                      <div key={g.label}>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className={`h-2 w-2 rounded-full ${c.dot}`} />
+                          <span className={`text-[9px] font-bold uppercase tracking-wider ${c.text}`}>{g.label}</span>
+                        </div>
+                        <div className="grid gap-1 grid-cols-4">
+                          {g.tiers.map((t) => {
+                            const pct = t.total > 0 ? Math.round((t.played / t.total) * 100) : 0;
+                            const done = pct === 100;
+                            return (
+                              <Link key={t.tierId} href={`/tiers/${t.tierSlug ?? t.tierId}`}>
+                                <div
+                                  className={`rounded border p-1.5 text-center hover:scale-105 transition-all ${
+                                    done
+                                      ? "bg-emerald-500/15 border-emerald-500/20"
+                                      : pct > 0
+                                        ? `${c.bg} ${c.border}`
+                                        : "bg-muted/5 border-border/20"
+                                  }`}
+                                  title={`${t.tierName}: ${t.played}/${t.total} (${pct}%)`}
+                                >
+                                  <span className="text-[8px] font-bold block truncate">{t.tierName}</span>
+                                  <span className={`text-[7px] font-bold tabular-nums ${
+                                    done ? "text-emerald-400" : pct > 0 ? c.text : "text-muted-foreground/30"
+                                  }`}>
+                                    {pct}%
+                                  </span>
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         {/* ── Championship Belt Gallery ───────────────────────────────── */}
         {champions.length > 0 && (
@@ -741,30 +813,7 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ── Tier Heat Map ───────────────────────────────────────────── */}
-        {tierProgress.length > 0 && (
-          <div>
-            <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-3">
-              Tier Progress
-            </h2>
-            <div className="grid gap-1.5 grid-cols-4 sm:grid-cols-7 lg:grid-cols-14">
-              {tierProgress.map((t) => {
-                const pct = t.total > 0 ? Math.round((t.played / t.total) * 100) : 0;
-                const bgOpacity = pct === 100 ? "bg-emerald-500/15 border-emerald-500/20" : pct > 0 ? "bg-gold/10 border-gold/15" : "bg-muted/5 border-border/20";
-                return (
-                  <Link key={t.tierId} href={`/tiers/${t.tierSlug ?? t.tierId}`}>
-                    <div className={`rounded-lg border p-2 text-center hover:scale-105 transition-all ${bgOpacity}`} title={`${t.tierName}: ${pct}%`}>
-                      <span className="text-[9px] font-bold block truncate">{t.tierName}</span>
-                      <span className={`text-[8px] font-bold tabular-nums ${pct === 100 ? "text-emerald-400" : pct > 0 ? "text-gold/70" : "text-muted-foreground/30"}`}>
-                        {pct}%
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* Tier Heat Map moved to sidebar with Recent Results */}
 
         {/* ── Stats Bar ──────────────────────────────────────────────── */}
         <div className="grid gap-3 grid-cols-3">
