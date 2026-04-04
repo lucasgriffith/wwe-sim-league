@@ -232,6 +232,10 @@ function StandingsTable({
               ? { borderRight: `2px solid rgba(${rgb},0.25)` }
               : {};
 
+            const zoneBgStyle: React.CSSProperties = isInZone
+              ? { backgroundColor: `rgba(${rgb},0.04)` }
+              : {};
+
             const clinched = hasClinched(i);
             const eliminated = isEliminated(i);
 
@@ -241,11 +245,9 @@ function StandingsTable({
                 ? "text-red-400"
                 : "text-muted-foreground/30";
 
-            const isOddRow = i % 2 === 1;
-
             return (
               <React.Fragment key={s.id}>
-                <tr className={`text-sm ${isOddRow ? "bg-[rgba(255,255,255,0.02)]" : ""}`} style={zoneBorderStyle}>
+                <tr className="text-sm" style={{ ...zoneBorderStyle, ...zoneBgStyle }}>
                   <td className={`px-3 py-2 tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
                     {i + 1}
                   </td>

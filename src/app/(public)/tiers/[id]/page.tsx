@@ -457,8 +457,10 @@ export default async function TierDetailPage({
                             ? { borderRight: `2px solid rgba(${rgb},0.25)` }
                             : {};
 
-                          // Spacer row before zone starts
-                          const needsSpacerBefore = isZoneStart && prevZone !== "none" && prevZone !== myZone && i > 0;
+                          // Zone background shading
+                          const zoneBgStyle: React.CSSProperties = isInZone
+                            ? { backgroundColor: `rgba(${rgb},0.04)` }
+                            : {};
 
                           const streakColor = s.streakLabel.startsWith("W")
                             ? "text-emerald-400"
@@ -466,11 +468,9 @@ export default async function TierDetailPage({
                               ? "text-red-400"
                               : "text-muted-foreground/30";
 
-                          const isOddRow = i % 2 === 1;
-
                           return (
                             <React.Fragment key={s.id}>
-                              <TableRow className={`${isOddRow ? "bg-muted/[0.03]" : ""}`} style={zoneBorderStyle}>
+                              <TableRow style={{ ...zoneBorderStyle, ...zoneBgStyle }}>
                                 <TableCell className={`tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
                                   {i + 1}
                                 </TableCell>
