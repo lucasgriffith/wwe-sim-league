@@ -45,7 +45,7 @@ export default async function DashboardPage() {
       .from("seasons")
       .select("id", { count: "exact", head: true })
       .eq("status", "completed"),
-    supabase.from("wrestlers").select("id, name, image_url, overall_rating, slug"),
+    supabase.from("wrestlers").select("id, name, image_url, overall_rating, slug, gender"),
   ]);
 
   const wrestlerMap = Object.fromEntries(
@@ -59,6 +59,9 @@ export default async function DashboardPage() {
   );
   const slugMap = Object.fromEntries(
     (wrestlers ?? []).filter((w) => w.slug).map((w) => [w.id, w.slug!])
+  );
+  const genderMap = Object.fromEntries(
+    (wrestlers ?? []).map((w) => [w.id, w.gender ?? "male"])
   );
 
   // ── Season-specific data ──────────────────────────────────────────────────
@@ -303,28 +306,37 @@ export default async function DashboardPage() {
     id: t.id,
     tier_number: t.tier_number,
     name: t.short_name || t.name,
+    fullName: t.name,
     slug: t.slug ?? null,
   }));
 
   // ── Recent Results ────────────────────────────────────────────────────────
   const recentMatches = playedMatches.slice(0, 8);
 
-  // ── Power Rankings (top 5 by wins) ────────────────────────────────────────
-  const powerRankings = Array.from(winCounts.entries())
-    .map(([id, wins]) => ({
-      id,
-      slug: slugMap[id] ?? null,
-      name: wrestlerMap[id] ?? "?",
-      image: imageMap[id] ?? null,
-      wins,
-      losses: lossCounts.get(id) ?? 0,
-      winPct: wins / ((wins + (lossCounts.get(id) ?? 0)) || 1),
-    }))
-    .sort((a, b) => {
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      return b.winPct - a.winPct;
-    })
-    .slice(0, 5);
+  // ── Power Rankings by category ──────────────────────────────────────────
+  function buildRankings(filterFn: (id: string) => boolean, limit: number) {
+    return Array.from(winCounts.entries())
+      .filter(([id]) => filterFn(id))
+      .map(([id, wins]) => ({
+        id,
+        slug: slugMap[id] ?? null,
+        name: wrestlerMap[id] ?? "?",
+        image: imageMap[id] ?? null,
+        memberImages: tagMemberImages[id] ?? null,
+        wins,
+        losses: lossCounts.get(id) ?? 0,
+        winPct: wins / ((wins + (lossCounts.get(id) ?? 0)) || 1),
+      }))
+      .sort((a, b) => (b.wins !== a.wins ? b.wins - a.wins : b.winPct - a.winPct))
+      .slice(0, limit);
+  }
+
+  const tagTeamIds = new Set(Object.keys(tagMemberImages));
+  const menRankings = buildRankings((id) => !tagTeamIds.has(id) && genderMap[id] === "male", 10);
+  const womenRankings = buildRankings((id) => !tagTeamIds.has(id) && genderMap[id] === "female", 10);
+  // For tag teams we need gender from the tier division - approximate by checking memberImages
+  const menTagRankings = buildRankings((id) => tagTeamIds.has(id) && !!(tagMemberImages[id]), 4).slice(0, 4);
+  const womenTagRankings: typeof menTagRankings = []; // Will populate when we have data
 
   const overallPct = totalMatches > 0 ? Math.round((totalPlayed / totalMatches) * 100) : 0;
 
@@ -456,87 +468,80 @@ export default async function DashboardPage() {
         {/* ── Milestones ──────────────────────────────────────────────── */}
         {milestones.length > 0 && <MilestonesBanner milestones={milestones} />}
 
-        {/* ── Upcoming Match (Random Picker) ──────────────────────────── */}
-        {unplayedMatches.length > 0 && (
-          <UpNextCard
-            matches={unplayedMatches}
-            participantStats={upNextParticipantStats}
-            tiers={upNextTiers}
-            remainingCount={unplayedMatches.length}
-          />
-        )}
+        {/* ── Up Next + Latest Result Row ─────────────────────────────── */}
+        <div className={`grid gap-4 ${featuredMatch && unplayedMatches.length > 0 ? "lg:grid-cols-2" : ""}`}>
+          {unplayedMatches.length > 0 && (
+            <UpNextCard
+              matches={unplayedMatches}
+              participantStats={upNextParticipantStats}
+              tiers={upNextTiers}
+              remainingCount={unplayedMatches.length}
+            />
+          )}
 
-        {/* ── Featured Match ─────────────────────────────────────────── */}
-        {featuredMatch && (
-          <div className="rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-card overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/[0.03] via-transparent to-purple-500/[0.03]" />
-            <div className="relative px-6 py-5">
-              <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground/40 mb-4">
-                Latest Result
-              </div>
-              <div className="flex items-center justify-center gap-4 sm:gap-8">
-                {/* Wrestler A */}
-                {(() => {
-                  const aId = featuredMatch.wrestler_a_id || featuredMatch.tag_team_a_id;
-                  const winnerId = featuredMatch.winner_wrestler_id || featuredMatch.winner_tag_team_id;
-                  const isWinner = winnerId === aId;
-                  const name = wrestlerMap[aId ?? ""] ?? "?";
-                  const img = imageMap[aId ?? ""];
-                  return (
-                    <div className={`flex flex-col items-center gap-2 flex-1 max-w-[180px] ${isWinner ? "" : "opacity-50"}`}>
-                      {img ? (
-                        <img src={img} alt={name} className={`h-16 w-16 rounded-full object-cover border-2 ${isWinner ? "border-gold shadow-lg shadow-gold/20" : "border-border/30"}`} />
-                      ) : (
-                        <div className={`h-16 w-16 rounded-full flex items-center justify-center text-xl font-bold ${isWinner ? "bg-gold/10 border-2 border-gold text-gold" : "bg-muted/20 border-2 border-border/30 text-muted-foreground/30"}`}>
-                          {name.charAt(0)}
-                        </div>
-                      )}
-                      <span className={`text-sm font-bold text-center leading-tight ${isWinner ? "text-gold" : "text-muted-foreground/50"}`}>
-                        {name}
-                      </span>
-                      {isWinner && <span className="text-[9px] font-bold uppercase tracking-widest text-gold/60">Winner</span>}
-                    </div>
-                  );
-                })()}
-
-                {/* VS */}
-                <div className="flex flex-col items-center gap-1 shrink-0">
-                  <span className="text-2xl font-black text-muted-foreground/10">VS</span>
-                  {featuredMatch.match_time_seconds && (
-                    <span className="text-[10px] tabular-nums text-muted-foreground/30">{formatTime(featuredMatch.match_time_seconds)}</span>
-                  )}
-                  {featuredMatch.stipulation && (
-                    <Badge className="bg-wwe-red/10 text-wwe-red/60 text-[8px] border-0">{featuredMatch.stipulation}</Badge>
-                  )}
+          {featuredMatch && (
+            <div className="rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-card overflow-hidden relative flex flex-col">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/[0.03] via-transparent to-purple-500/[0.03]" />
+              <div className="relative px-5 py-4 flex-1 flex flex-col justify-center">
+                <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground/40 mb-3">
+                  Latest Result
                 </div>
-
-                {/* Wrestler B */}
-                {(() => {
-                  const bId = featuredMatch.wrestler_b_id || featuredMatch.tag_team_b_id;
-                  const winnerId = featuredMatch.winner_wrestler_id || featuredMatch.winner_tag_team_id;
-                  const isWinner = winnerId === bId;
-                  const name = wrestlerMap[bId ?? ""] ?? "?";
-                  const img = imageMap[bId ?? ""];
-                  return (
-                    <div className={`flex flex-col items-center gap-2 flex-1 max-w-[180px] ${isWinner ? "" : "opacity-50"}`}>
-                      {img ? (
-                        <img src={img} alt={name} className={`h-16 w-16 rounded-full object-cover border-2 ${isWinner ? "border-gold shadow-lg shadow-gold/20" : "border-border/30"}`} />
-                      ) : (
-                        <div className={`h-16 w-16 rounded-full flex items-center justify-center text-xl font-bold ${isWinner ? "bg-gold/10 border-2 border-gold text-gold" : "bg-muted/20 border-2 border-border/30 text-muted-foreground/30"}`}>
-                          {name.charAt(0)}
-                        </div>
-                      )}
-                      <span className={`text-sm font-bold text-center leading-tight ${isWinner ? "text-gold" : "text-muted-foreground/50"}`}>
-                        {name}
-                      </span>
-                      {isWinner && <span className="text-[9px] font-bold uppercase tracking-widest text-gold/60">Winner</span>}
-                    </div>
-                  );
-                })()}
+                <div className="flex items-center justify-center gap-4">
+                  {(() => {
+                    const aId = featuredMatch.wrestler_a_id || featuredMatch.tag_team_a_id;
+                    const winnerId = featuredMatch.winner_wrestler_id || featuredMatch.winner_tag_team_id;
+                    const isWinner = winnerId === aId;
+                    const name = wrestlerMap[aId ?? ""] ?? "?";
+                    const img = imageMap[aId ?? ""];
+                    return (
+                      <div className={`flex flex-col items-center gap-1.5 flex-1 max-w-[140px] ${isWinner ? "" : "opacity-40"}`}>
+                        {img ? (
+                          <img src={img} alt={name} className={`h-14 w-14 rounded-full object-cover border-2 ${isWinner ? "border-gold" : "border-border/30"}`} />
+                        ) : (
+                          <div className={`h-14 w-14 rounded-full flex items-center justify-center text-lg font-bold ${isWinner ? "bg-gold/10 border-2 border-gold text-gold" : "bg-muted/20 border-2 border-border/30 text-muted-foreground/30"}`}>
+                            {name.charAt(0)}
+                          </div>
+                        )}
+                        <span className={`text-xs font-bold text-center leading-tight ${isWinner ? "text-gold" : "text-muted-foreground/50"}`}>
+                          {name}
+                        </span>
+                        {isWinner && <span className="text-[8px] font-bold uppercase tracking-widest text-gold/60">Winner</span>}
+                      </div>
+                    );
+                  })()}
+                  <div className="flex flex-col items-center gap-1 shrink-0">
+                    <span className="text-xl font-black text-muted-foreground/10">VS</span>
+                    {featuredMatch.match_time_seconds && (
+                      <span className="text-[10px] tabular-nums text-muted-foreground/40">{formatTime(featuredMatch.match_time_seconds)}</span>
+                    )}
+                  </div>
+                  {(() => {
+                    const bId = featuredMatch.wrestler_b_id || featuredMatch.tag_team_b_id;
+                    const winnerId = featuredMatch.winner_wrestler_id || featuredMatch.winner_tag_team_id;
+                    const isWinner = winnerId === bId;
+                    const name = wrestlerMap[bId ?? ""] ?? "?";
+                    const img = imageMap[bId ?? ""];
+                    return (
+                      <div className={`flex flex-col items-center gap-1.5 flex-1 max-w-[140px] ${isWinner ? "" : "opacity-40"}`}>
+                        {img ? (
+                          <img src={img} alt={name} className={`h-14 w-14 rounded-full object-cover border-2 ${isWinner ? "border-gold" : "border-border/30"}`} />
+                        ) : (
+                          <div className={`h-14 w-14 rounded-full flex items-center justify-center text-lg font-bold ${isWinner ? "bg-gold/10 border-2 border-gold text-gold" : "bg-muted/20 border-2 border-border/30 text-muted-foreground/30"}`}>
+                            {name.charAt(0)}
+                          </div>
+                        )}
+                        <span className={`text-xs font-bold text-center leading-tight ${isWinner ? "text-gold" : "text-muted-foreground/50"}`}>
+                          {name}
+                        </span>
+                        {isWinner && <span className="text-[8px] font-bold uppercase tracking-widest text-gold/60">Winner</span>}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* ── On Fire Section ────────────────────────────────────────── */}
         {onFire.length > 0 && (
@@ -574,72 +579,138 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ── Main Grid: Rankings + Recent Results ────────────────────── */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Power Rankings */}
-          {powerRankings.length > 0 && (
-            <Card className="border-border/30 bg-card/50 lg:col-span-1">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 flex items-center gap-1.5">
-                  <span>⚡</span> Power Rankings
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2.5">
-                {powerRankings.map((w, i) => (
-                  <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-3 group">
-                    <span className={`text-lg font-black tabular-nums w-6 text-right ${i === 0 ? "text-gold" : i === 1 ? "text-foreground/60" : "text-muted-foreground/30"}`}>
-                      {i + 1}
-                    </span>
-                    {w.image ? (
-                      <img src={w.image} alt="" className="h-8 w-8 rounded-full object-cover border border-border/20 shrink-0" />
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
-                        <span className="text-[10px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate group-hover:text-gold transition-colors">{w.name}</p>
-                      <p className="text-[10px] text-muted-foreground/50 tabular-nums">{w.wins}W-{w.losses}L · {(w.winPct * 100).toFixed(0)}%</p>
-                    </div>
-                  </Link>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+        {/* ── Power Rankings (3 columns) ──────────────────────────────── */}
+        {(menRankings.length > 0 || womenRankings.length > 0) && (
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-3 flex items-center gap-1.5">
+              <span>⚡</span> Power Rankings
+            </h2>
+            <div className="grid gap-4 lg:grid-cols-3">
+              {/* Men's Top 10 */}
+              {menRankings.length > 0 && (
+                <Card className="border-border/30 bg-card/50">
+                  <CardHeader className="pb-2 pt-4">
+                    <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-blue-400/70">Men&apos;s Singles</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1.5 pb-4">
+                    {menRankings.map((w, i) => (
+                      <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 group">
+                        <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : i < 3 ? "text-foreground/60" : "text-muted-foreground/30"}`}>{i + 1}</span>
+                        {w.image ? (
+                          <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-border/20 shrink-0" />
+                        ) : (
+                          <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                            <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+                          </div>
+                        )}
+                        <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
+                        <span className="text-[10px] tabular-nums text-muted-foreground/50 shrink-0">{w.wins}W-{w.losses}L</span>
+                      </Link>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
-          {/* Recent Results */}
-          {recentMatches.length > 0 && (
-            <Card className="border-border/30 bg-card/50 lg:col-span-2">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50">
-                  Recent Results
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1.5">
-                {recentMatches.map((m) => {
-                  const aId = m.wrestler_a_id || m.tag_team_a_id;
-                  const bId = m.wrestler_b_id || m.tag_team_b_id;
-                  const winnerId = m.winner_wrestler_id || m.winner_tag_team_id;
-                  const aName = wrestlerMap[aId ?? ""] ?? "?";
-                  const bName = wrestlerMap[bId ?? ""] ?? "?";
-                  const isAWinner = winnerId === aId;
-                  const time = m.match_time_seconds ? formatTime(m.match_time_seconds) : null;
-                  return (
-                    <div key={m.id} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted/5 transition-colors">
-                      <span className={`truncate ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{aName}</span>
-                      <span className="text-[9px] text-muted-foreground/30 shrink-0">vs</span>
-                      <span className={`truncate ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{bName}</span>
-                      <span className="ml-auto flex items-center gap-2 shrink-0">
-                        {time && <span className="text-[10px] tabular-nums text-muted-foreground/30">{time}</span>}
-                        <Badge variant="outline" className="text-[8px] uppercase tracking-wider border-border/20 px-1.5">{m.match_phase.replace("_", " ")}</Badge>
-                      </span>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              {/* Women's Top 10 */}
+              {womenRankings.length > 0 && (
+                <Card className="border-border/30 bg-card/50">
+                  <CardHeader className="pb-2 pt-4">
+                    <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-purple-400/70">Women&apos;s Singles</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1.5 pb-4">
+                    {womenRankings.map((w, i) => (
+                      <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 group">
+                        <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : i < 3 ? "text-foreground/60" : "text-muted-foreground/30"}`}>{i + 1}</span>
+                        {w.image ? (
+                          <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-border/20 shrink-0" />
+                        ) : (
+                          <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                            <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+                          </div>
+                        )}
+                        <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
+                        <span className="text-[10px] tabular-nums text-muted-foreground/50 shrink-0">{w.wins}W-{w.losses}L</span>
+                      </Link>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Tag Teams (Men + Women stacked) */}
+              <Card className="border-border/30 bg-card/50">
+                <CardHeader className="pb-2 pt-4">
+                  <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/70">Tag Teams</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1.5 pb-4">
+                  {menTagRankings.length > 0 ? (
+                    <>
+                      {menTagRankings.map((w, i) => (
+                        <div key={w.id} className="flex items-center gap-2">
+                          <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : "text-muted-foreground/30"}`}>{i + 1}</span>
+                          {w.memberImages ? (
+                            <div className="flex -space-x-1.5 shrink-0">
+                              {w.memberImages[0] ? (
+                                <img src={w.memberImages[0]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0 relative z-10" />
+                              ) : (
+                                <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0 relative z-10" />
+                              )}
+                              {w.memberImages[1] ? (
+                                <img src={w.memberImages[1]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0" />
+                              ) : (
+                                <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0" />
+                              )}
+                            </div>
+                          ) : (
+                            <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                              <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+                            </div>
+                          )}
+                          <span className="text-xs font-semibold truncate flex-1">{w.name}</span>
+                          <span className="text-[10px] tabular-nums text-muted-foreground/50 shrink-0">{w.wins}W-{w.losses}L</span>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/40 py-2">No tag team results yet</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* ── Recent Results ─────────────────────────────────────────── */}
+        {recentMatches.length > 0 && (
+          <Card className="border-border/30 bg-card/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50">
+                Recent Results
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1.5">
+              {recentMatches.map((m) => {
+                const aId = m.wrestler_a_id || m.tag_team_a_id;
+                const bId = m.wrestler_b_id || m.tag_team_b_id;
+                const winnerId = m.winner_wrestler_id || m.winner_tag_team_id;
+                const aName = wrestlerMap[aId ?? ""] ?? "?";
+                const bName = wrestlerMap[bId ?? ""] ?? "?";
+                const isAWinner = winnerId === aId;
+                const time = m.match_time_seconds ? formatTime(m.match_time_seconds) : null;
+                return (
+                  <div key={m.id} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted/5 transition-colors">
+                    <span className={`truncate ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{aName}</span>
+                    <span className="text-[9px] text-muted-foreground/30 shrink-0">vs</span>
+                    <span className={`truncate ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{bName}</span>
+                    <span className="ml-auto flex items-center gap-2 shrink-0">
+                      {time && <span className="text-[10px] tabular-nums text-muted-foreground/30">{time}</span>}
+                      <Badge variant="outline" className="text-[8px] uppercase tracking-wider border-border/20 px-1.5">{m.match_phase.replace("_", " ")}</Badge>
+                    </span>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
 
         {/* ── Championship Belt Gallery ───────────────────────────────── */}
         {champions.length > 0 && (

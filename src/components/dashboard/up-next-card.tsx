@@ -33,6 +33,7 @@ interface TierInfo {
   id: string;
   tier_number: number;
   name: string;
+  fullName?: string;
   slug: string | null;
 }
 
@@ -173,29 +174,38 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
 
       {/* Header row */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <div className="flex items-center gap-2">
+      <div className="px-4 pt-3 pb-2">
+        <div className="flex items-center justify-between mb-1">
           <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gold/60">
             Up Next
           </span>
-          <Badge variant="outline" className="text-[8px] border-border/20 text-muted-foreground/50">
-            T{tier?.tier_number} · {tier?.name ?? "?"}
-            {match.pool ? ` · Pool ${match.pool}` : ""}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={randomize}
+              className="h-7 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+              disabled={isPending}
+            >
+              🎲 Shuffle
+            </Button>
+            <span className="text-[9px] text-muted-foreground/30 tabular-nums">
+              {remainingCount} left
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={randomize}
-            className="h-7 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
-            disabled={isPending}
-          >
-            🎲 Shuffle
-          </Button>
-          <span className="text-[9px] text-muted-foreground/30 tabular-nums">
-            {remainingCount} left
-          </span>
+        <div className="text-sm font-bold text-foreground">
+          {tier?.fullName ?? tier?.name ?? "?"}
+        </div>
+        <div className="flex items-center gap-2 mt-0.5">
+          <Badge variant="outline" className="text-[9px] border-gold/20 text-gold/70">
+            Tier {tier?.tier_number}
+          </Badge>
+          {match.pool && (
+            <Badge variant="outline" className="text-[9px] border-border/30 text-muted-foreground">
+              Pool {match.pool}
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -206,37 +216,41 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
           <div className="flex items-center gap-3">
             <ParticipantPhoto stats={a} />
             <div className="min-w-0">
-              <div className="font-bold text-sm leading-tight truncate">{a.name}</div>
-              <div className="text-[10px] text-muted-foreground/50 tabular-nums">
-                {a.wins}-{a.losses} · {(aWinPct * 100).toFixed(0)}%
+              <div className="font-bold text-sm sm:text-base leading-tight truncate">{a.name}</div>
+              <div className="text-xs text-foreground/70 tabular-nums font-medium">
+                {a.wins}W-{a.losses}L · {(aWinPct * 100).toFixed(0)}%
               </div>
-              {a.overallRating ? (
-                <div className="text-[9px] text-muted-foreground/40">OVR {a.overallRating}</div>
-              ) : null}
-              <div className={`text-[9px] font-medium ${streakColor(a.streak)}`}>
-                {streakLabel(a.streak)}
+              <div className="flex items-center gap-2 mt-0.5">
+                {a.overallRating ? (
+                  <span className="text-[10px] text-foreground/50 font-medium">OVR {a.overallRating}</span>
+                ) : null}
+                <span className={`text-[10px] font-semibold ${streakColor(a.streak)}`}>
+                  {streakLabel(a.streak)}
+                </span>
               </div>
             </div>
           </div>
 
           {/* VS */}
-          <div className="flex flex-col items-center px-2">
-            <span className="text-lg font-black text-muted-foreground/10">VS</span>
+          <div className="flex flex-col items-center px-1">
+            <span className="text-base font-black text-muted-foreground/15">VS</span>
           </div>
 
           {/* Right participant */}
           <div className="flex items-center gap-3 flex-row-reverse">
             <ParticipantPhoto stats={b} />
             <div className="min-w-0 text-right">
-              <div className="font-bold text-sm leading-tight truncate">{b.name}</div>
-              <div className="text-[10px] text-muted-foreground/50 tabular-nums">
-                {b.wins}-{b.losses} · {(bWinPct * 100).toFixed(0)}%
+              <div className="font-bold text-sm sm:text-base leading-tight truncate">{b.name}</div>
+              <div className="text-xs text-foreground/70 tabular-nums font-medium">
+                {b.wins}W-{b.losses}L · {(bWinPct * 100).toFixed(0)}%
               </div>
-              {b.overallRating ? (
-                <div className="text-[9px] text-muted-foreground/40">OVR {b.overallRating}</div>
-              ) : null}
-              <div className={`text-[9px] font-medium ${streakColor(b.streak)}`}>
-                {streakLabel(b.streak)}
+              <div className="flex items-center justify-end gap-2 mt-0.5">
+                {b.overallRating ? (
+                  <span className="text-[10px] text-foreground/50 font-medium">OVR {b.overallRating}</span>
+                ) : null}
+                <span className={`text-[10px] font-semibold ${streakColor(b.streak)}`}>
+                  {streakLabel(b.streak)}
+                </span>
               </div>
             </div>
           </div>
