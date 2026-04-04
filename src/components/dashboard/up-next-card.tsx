@@ -175,7 +175,7 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
 
       {/* Header row */}
       <div className="px-4 pt-3 pb-2">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-1.5">
           <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gold/60">
             Up Next
           </span>
@@ -194,15 +194,15 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
             </span>
           </div>
         </div>
-        <div className="text-sm font-bold text-foreground">
-          {tier?.fullName ?? tier?.name ?? "?"}
-        </div>
-        <div className="flex items-center gap-2 mt-0.5">
-          <Badge variant="outline" className="text-[9px] border-gold/20 text-gold/70">
-            Tier {tier?.tier_number}
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs border-gold/20 text-gold/70 shrink-0">
+            T{tier?.tier_number}
           </Badge>
+          <span className="text-xs font-bold text-foreground truncate">
+            {tier?.fullName ?? tier?.name ?? "?"}
+          </span>
           {match.pool && (
-            <Badge variant="outline" className="text-[9px] border-border/30 text-muted-foreground">
+            <Badge variant="outline" className="text-xs border-border/30 text-muted-foreground shrink-0">
               Pool {match.pool}
             </Badge>
           )}

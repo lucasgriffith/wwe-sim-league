@@ -320,17 +320,24 @@ export default async function DashboardPage() {
   function buildRankings(filterFn: (id: string) => boolean, limit: number) {
     return Array.from(winCounts.entries())
       .filter(([id]) => filterFn(id))
-      .map(([id, wins]) => ({
-        id,
-        slug: slugMap[id] ?? null,
-        name: wrestlerMap[id] ?? "?",
-        image: imageMap[id] ?? null,
-        memberImages: tagMemberImages[id] ?? null,
-        wins,
-        losses: lossCounts.get(id) ?? 0,
-        winPct: wins / ((wins + (lossCounts.get(id) ?? 0)) || 1),
-      }))
-      .sort((a, b) => (b.wins !== a.wins ? b.wins - a.wins : b.winPct - a.winPct))
+      .map(([id, wins]) => {
+        const losses = lossCounts.get(id) ?? 0;
+        const winPct = wins / ((wins + losses) || 1);
+        // Simple power score: wins*3 + winPct*100
+        const pwr = Math.round(wins * 3 + winPct * 100);
+        return {
+          id,
+          slug: slugMap[id] ?? null,
+          name: wrestlerMap[id] ?? "?",
+          image: imageMap[id] ?? null,
+          memberImages: tagMemberImages[id] ?? null,
+          wins,
+          losses,
+          winPct,
+          pwr,
+        };
+      })
+      .sort((a, b) => b.pwr - a.pwr || b.winPct - a.winPct)
       .slice(0, limit);
   }
 
@@ -595,7 +602,15 @@ export default async function DashboardPage() {
                   <CardHeader className="pb-2 pt-4">
                     <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-blue-400/70">Men&apos;s Singles</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-1.5 pb-4">
+                  <CardContent className="pb-4">
+                    <div className="flex items-center gap-2 mb-2 px-0.5">
+                      <span className="w-5" />
+                      <span className="w-7" />
+                      <span className="flex-1" />
+                      <span className="text-[8px] uppercase tracking-wider text-muted-foreground/30 font-bold">W-L</span>
+                      <span className="text-[8px] uppercase tracking-wider text-gold/30 font-bold w-8 text-right">PWR</span>
+                    </div>
+                    <div className="space-y-1.5">
                     {menRankings.map((w, i) => (
                       <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 group">
                         <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : i < 3 ? "text-foreground/60" : "text-muted-foreground/30"}`}>{i + 1}</span>
@@ -607,9 +622,11 @@ export default async function DashboardPage() {
                           </div>
                         )}
                         <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
-                        <span className="text-[10px] tabular-nums text-muted-foreground/50 shrink-0">{w.wins}W-{w.losses}L</span>
+                        <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
+                        <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.pwr}</span>
                       </Link>
                     ))}
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -620,7 +637,15 @@ export default async function DashboardPage() {
                   <CardHeader className="pb-2 pt-4">
                     <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-purple-400/70">Women&apos;s Singles</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-1.5 pb-4">
+                  <CardContent className="pb-4">
+                    <div className="flex items-center gap-2 mb-2 px-0.5">
+                      <span className="w-5" />
+                      <span className="w-7" />
+                      <span className="flex-1" />
+                      <span className="text-[8px] uppercase tracking-wider text-muted-foreground/30 font-bold">W-L</span>
+                      <span className="text-[8px] uppercase tracking-wider text-gold/30 font-bold w-8 text-right">PWR</span>
+                    </div>
+                    <div className="space-y-1.5">
                     {womenRankings.map((w, i) => (
                       <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 group">
                         <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : i < 3 ? "text-foreground/60" : "text-muted-foreground/30"}`}>{i + 1}</span>
@@ -632,9 +657,11 @@ export default async function DashboardPage() {
                           </div>
                         )}
                         <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
-                        <span className="text-[10px] tabular-nums text-muted-foreground/50 shrink-0">{w.wins}W-{w.losses}L</span>
+                        <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
+                        <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.pwr}</span>
                       </Link>
                     ))}
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -669,7 +696,8 @@ export default async function DashboardPage() {
                             </div>
                           )}
                           <span className="text-xs font-semibold truncate flex-1">{w.name}</span>
-                          <span className="text-[10px] tabular-nums text-muted-foreground/50 shrink-0">{w.wins}W-{w.losses}L</span>
+                          <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
+                          <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.pwr}</span>
                         </div>
                       ))}
                     </>
@@ -700,15 +728,45 @@ export default async function DashboardPage() {
                   const aName = wrestlerMap[aId ?? ""] ?? "?";
                   const bName = wrestlerMap[bId ?? ""] ?? "?";
                   const isAWinner = winnerId === aId;
+                  const isTag = !!m.tag_team_a_id;
                   const time = m.match_time_seconds ? formatTime(m.match_time_seconds) : null;
+                  const aImgs = isTag && tagMemberImages[aId ?? ""] ? tagMemberImages[aId ?? ""] : null;
+                  const bImgs = isTag && tagMemberImages[bId ?? ""] ? tagMemberImages[bId ?? ""] : null;
+                  const aImg = !isTag ? imageMap[aId ?? ""] : null;
+                  const bImg = !isTag ? imageMap[bId ?? ""] : null;
                   return (
                     <div key={m.id} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted/5 transition-colors">
+                      {/* A photo */}
+                      {aImgs ? (
+                        <div className="flex -space-x-1.5 shrink-0">
+                          {aImgs[0] ? <img src={aImgs[0]} alt="" className="h-6 w-6 rounded-full object-cover border border-background relative z-10" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background relative z-10" />}
+                          {aImgs[1] ? <img src={aImgs[1]} alt="" className="h-6 w-6 rounded-full object-cover border border-background" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background" />}
+                        </div>
+                      ) : aImg ? (
+                        <img src={aImg} alt="" className="h-6 w-6 rounded-full object-cover border border-border/20 shrink-0" />
+                      ) : (
+                        <div className="h-6 w-6 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                          <span className="text-[8px] font-bold text-muted-foreground/30">{aName.charAt(0)}</span>
+                        </div>
+                      )}
                       <span className={`truncate ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{aName}</span>
                       <span className="text-[9px] text-muted-foreground/30 shrink-0">vs</span>
                       <span className={`truncate ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{bName}</span>
+                      {/* B photo */}
+                      {bImgs ? (
+                        <div className="flex -space-x-1.5 shrink-0">
+                          {bImgs[0] ? <img src={bImgs[0]} alt="" className="h-6 w-6 rounded-full object-cover border border-background relative z-10" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background relative z-10" />}
+                          {bImgs[1] ? <img src={bImgs[1]} alt="" className="h-6 w-6 rounded-full object-cover border border-background" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background" />}
+                        </div>
+                      ) : bImg ? (
+                        <img src={bImg} alt="" className="h-6 w-6 rounded-full object-cover border border-border/20 shrink-0" />
+                      ) : (
+                        <div className="h-6 w-6 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                          <span className="text-[8px] font-bold text-muted-foreground/30">{bName.charAt(0)}</span>
+                        </div>
+                      )}
                       <span className="ml-auto flex items-center gap-2 shrink-0">
-                        {time && <span className="text-[10px] tabular-nums text-muted-foreground/30">{time}</span>}
-                        <Badge variant="outline" className="text-[8px] uppercase tracking-wider border-border/20 px-1.5">{m.match_phase.replace("_", " ")}</Badge>
+                        {time && <span className="text-[10px] tabular-nums text-muted-foreground/40">{time}</span>}
                       </span>
                     </div>
                   );
