@@ -492,11 +492,21 @@ export default async function DashboardPage() {
               <p className="mt-2 text-sm text-muted-foreground max-w-md">
                 CPU-vs-CPU championship simulation across 28 tiers with promotion, relegation, and dynasty tracking.
               </p>
+              {/* Mobile-only compact progress */}
+              {season && totalMatches > 0 && (
+                <div className="flex items-center gap-3 mt-3 sm:hidden">
+                  <div className="h-1.5 flex-1 max-w-32 rounded-full bg-muted/20 overflow-hidden">
+                    <div className="h-full rounded-full bg-gold" style={{ width: `${overallPct}%` }} />
+                  </div>
+                  <span className="text-xs font-bold tabular-nums text-gold">{overallPct}%</span>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{totalPlayed}/{totalMatches}</span>
+                </div>
+              )}
             </div>
 
-            {/* Season Progress Ring */}
+            {/* Season Progress Ring — hidden on mobile */}
             {season && totalMatches > 0 && (
-              <div className="flex items-center gap-6">
+              <div className="hidden sm:flex items-center gap-6">
                 <div className="relative h-32 w-32 shrink-0">
                   <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
                     <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="6" className="text-muted/10" />
@@ -613,7 +623,7 @@ export default async function DashboardPage() {
 
           {/* On Fire + Ice Cold (3rd column) */}
           {(onFire.length > 0 || iceCold.length > 0) && (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[400px] overflow-y-auto">
               {onFire.length > 0 && (
                 <div>
                   <h3 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2 flex items-center gap-1">

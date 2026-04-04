@@ -146,7 +146,7 @@ function StandingsTable({
   }
 
   return (
-    <div>
+    <div className="overflow-x-auto">
       {label && (
         <div className="px-4 py-1.5 bg-muted/10">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -157,13 +157,13 @@ function StandingsTable({
       <table className="w-full">
         <thead>
           <tr className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 border-b border-border/20">
-            <th className="px-3 py-2 text-left w-8">#</th>
-            <th className="px-3 py-2 text-left">Name</th>
-            <th className="px-3 py-2 text-center w-8">W</th>
-            <th className="px-3 py-2 text-center w-8">L</th>
-            <th className="px-3 py-2 text-right w-12">Win%</th>
-            <th className="px-3 py-2 text-center w-10">GB</th>
-            <th className="px-3 py-2 text-center w-10">Strk</th>
+            <th className="px-2 sm:px-3 py-2 text-left w-8">#</th>
+            <th className="px-2 sm:px-3 py-2 text-left">Name</th>
+            <th className="px-1.5 sm:px-3 py-2 text-center w-8">W</th>
+            <th className="px-1.5 sm:px-3 py-2 text-center w-8">L</th>
+            <th className="px-1.5 sm:px-3 py-2 text-right w-12">Win%</th>
+            <th className="px-1.5 sm:px-3 py-2 text-center w-10">GB</th>
+            <th className="px-1.5 sm:px-3 py-2 text-center w-10">Strk</th>
             <th className="px-3 py-2 text-right w-14 hidden sm:table-cell">Avg Time</th>
           </tr>
         </thead>
@@ -248,10 +248,10 @@ function StandingsTable({
             return (
               <React.Fragment key={s.id}>
                 <tr className="text-sm" style={{ ...zoneBorderStyle, ...zoneBgStyle }}>
-                  <td className={`px-3 py-2 tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
+                  <td className={`px-2 sm:px-3 py-2 tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
                     {i + 1}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 sm:px-3 py-2">
                     <span className="flex items-center gap-1.5 font-medium">
                       {s.linkHref ? (
                         <Link
@@ -274,21 +274,21 @@ function StandingsTable({
                       )}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-center tabular-nums font-medium text-emerald-400">
+                  <td className="px-1.5 sm:px-3 py-2 text-center tabular-nums font-medium text-emerald-400">
                     {s.wins}
                   </td>
-                  <td className="px-3 py-2 text-center tabular-nums font-medium text-red-400">
+                  <td className="px-1.5 sm:px-3 py-2 text-center tabular-nums font-medium text-red-400">
                     {s.losses}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums font-medium">
+                  <td className="px-1.5 sm:px-3 py-2 text-right tabular-nums font-medium">
                     {s.wins + s.losses > 0
                       ? `${(s.winPct * 100).toFixed(0)}%`
                       : "—"}
                   </td>
-                  <td className="px-3 py-2 text-center tabular-nums text-xs text-muted-foreground">
+                  <td className="px-1.5 sm:px-3 py-2 text-center tabular-nums text-xs text-muted-foreground">
                     {s.gb}
                   </td>
-                  <td className={`px-3 py-2 text-center tabular-nums text-xs font-semibold ${streakColor}`}>
+                  <td className={`px-1.5 sm:px-3 py-2 text-center tabular-nums text-xs font-semibold ${streakColor}`}>
                     {s.streak}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-xs text-muted-foreground hidden sm:table-cell" style={zoneRightStyle}>
