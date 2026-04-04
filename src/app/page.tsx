@@ -259,6 +259,21 @@ export default async function DashboardPage() {
     .sort((a, b) => b.streak - a.streak)
     .slice(0, 8);
 
+  // Ice Cold: wrestlers on losing streaks (2+)
+  const iceCold = Array.from(fullStreaks.entries())
+    .filter(([, streak]) => streak <= -2)
+    .map(([id, streak]) => ({
+      id,
+      slug: slugMap[id] ?? null,
+      name: wrestlerMap[id] ?? "Unknown",
+      image: imageMap[id] ?? null,
+      streak, // negative number
+      wins: winCounts.get(id) ?? 0,
+      losses: lossCounts.get(id) ?? 0,
+    }))
+    .sort((a, b) => a.streak - b.streak) // most losses first
+    .slice(0, 8);
+
   // ── Featured Match (most recent) ──────────────────────────────────────────
   const featuredMatch = playedMatches[0] ?? null;
 
@@ -323,8 +338,16 @@ export default async function DashboardPage() {
       .map(([id, wins]) => {
         const losses = lossCounts.get(id) ?? 0;
         const winPct = wins / ((wins + losses) || 1);
-        // Simple power score: wins*3 + winPct*100
-        const pwr = Math.round(wins * 3 + winPct * 100);
+        const streak = fullStreaks.get(id) ?? 0;
+        // PWR Score formula (similar to dynasty but weighted for current season):
+        // - Wins × 3: raw win count matters
+        // - Win% × 100 × 2: consistency weighted heavily
+        // - Streak bonus: +5 per win streak (or -3 per loss streak)
+        // - Activity bonus: +1 per match played (rewards engagement)
+        const streakBonus = streak > 0 ? streak * 5 : streak * 3;
+        const pwr = Math.round(
+          wins * 3 + winPct * 100 * 2 + streakBonus + (wins + losses)
+        );
         return {
           id,
           slug: slugMap[id] ?? null,
@@ -335,6 +358,7 @@ export default async function DashboardPage() {
           losses,
           winPct,
           pwr,
+          streak,
         };
       })
       .sort((a, b) => b.pwr - a.pwr || b.winPct - a.winPct)
@@ -553,39 +577,78 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* ── On Fire Section ────────────────────────────────────────── */}
-        {onFire.length > 0 && (
-          <div>
-            <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-3 flex items-center gap-1.5">
-              <span>🔥</span> On Fire
-            </h2>
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
-              {onFire.map((w) => (
-                <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="shrink-0">
-                  <div className="w-[130px] rounded-xl border border-border/30 bg-gradient-to-b from-card to-muted/5 p-3 hover:border-gold/30 hover:shadow-md hover:shadow-gold/5 transition-all">
-                    <div className="flex justify-center mb-2">
-                      {w.image ? (
-                        <img src={w.image} alt={w.name} className="h-12 w-12 rounded-full object-cover border border-border/30" />
-                      ) : (
-                        <div className="h-12 w-12 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center">
-                          <span className="text-sm font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+        {/* ── On Fire + Ice Cold ──────────────────────────────────────── */}
+        {(onFire.length > 0 || iceCold.length > 0) && (
+          <div className={`grid gap-4 ${onFire.length > 0 && iceCold.length > 0 ? "lg:grid-cols-2" : ""}`}>
+            {onFire.length > 0 && (
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-3 flex items-center gap-1.5">
+                  <span>🔥</span> On Fire
+                </h2>
+                <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-1 px-1">
+                  {onFire.map((w) => (
+                    <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="shrink-0">
+                      <div className="w-[115px] rounded-xl border border-amber-500/15 bg-gradient-to-b from-amber-500/5 to-card p-2.5 hover:border-amber-500/30 hover:shadow-md hover:shadow-amber-500/5 transition-all">
+                        <div className="flex justify-center mb-1.5">
+                          {w.image ? (
+                            <img src={w.image} alt={w.name} className="h-10 w-10 rounded-full object-cover border border-amber-500/20" />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center">
+                              <span className="text-xs font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <p className="text-xs font-bold text-center truncate">{w.name}</p>
-                    <div className="flex items-center justify-center gap-0.5 mt-1">
-                      {Array.from({ length: Math.min(w.streak, 5) }).map((_, i) => (
-                        <span key={i} className="text-[10px]">🔥</span>
-                      ))}
-                      <span className="text-[10px] font-bold text-amber-400 ml-0.5">{w.streak}</span>
-                    </div>
-                    <p className="text-[10px] text-center text-muted-foreground/50 tabular-nums mt-0.5">
-                      {w.wins}W-{w.losses}L
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                        <p className="text-[11px] font-bold text-center truncate">{w.name}</p>
+                        <div className="flex items-center justify-center gap-0.5 mt-0.5">
+                          {Array.from({ length: Math.min(w.streak, 5) }).map((_, i) => (
+                            <span key={i} className="text-[9px]">🔥</span>
+                          ))}
+                          <span className="text-[9px] font-bold text-amber-400 ml-0.5">{w.streak}</span>
+                        </div>
+                        <p className="text-[9px] text-center text-foreground/50 tabular-nums mt-0.5">
+                          {w.wins}W-{w.losses}L
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {iceCold.length > 0 && (
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-3 flex items-center gap-1.5">
+                  <span>🧊</span> Ice Cold
+                </h2>
+                <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-1 px-1">
+                  {iceCold.map((w) => (
+                    <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="shrink-0">
+                      <div className="w-[115px] rounded-xl border border-blue-500/15 bg-gradient-to-b from-blue-500/5 to-card p-2.5 hover:border-blue-500/30 hover:shadow-md hover:shadow-blue-500/5 transition-all">
+                        <div className="flex justify-center mb-1.5">
+                          {w.image ? (
+                            <img src={w.image} alt={w.name} className="h-10 w-10 rounded-full object-cover border border-blue-500/20 grayscale-[30%]" />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center">
+                              <span className="text-xs font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-[11px] font-bold text-center truncate">{w.name}</p>
+                        <div className="flex items-center justify-center gap-0.5 mt-0.5">
+                          {Array.from({ length: Math.min(Math.abs(w.streak), 5) }).map((_, i) => (
+                            <span key={i} className="text-[9px]">🧊</span>
+                          ))}
+                          <span className="text-[9px] font-bold text-blue-400 ml-0.5">{Math.abs(w.streak)}L</span>
+                        </div>
+                        <p className="text-[9px] text-center text-foreground/50 tabular-nums mt-0.5">
+                          {w.wins}W-{w.losses}L
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -785,11 +848,11 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent className="space-y-3 pb-4">
                 {(() => {
-                  const divColors: Record<string, { border: string; bg: string; text: string; dot: string }> = {
-                    "Men's Singles": { border: "border-blue-500/25", bg: "bg-blue-500/8", text: "text-blue-400", dot: "bg-blue-500" },
-                    "Women's Singles": { border: "border-purple-500/25", bg: "bg-purple-500/8", text: "text-purple-400", dot: "bg-purple-500" },
-                    "Men's Tag Teams": { border: "border-emerald-500/25", bg: "bg-emerald-500/8", text: "text-emerald-400", dot: "bg-emerald-500" },
-                    "Women's Tag Teams": { border: "border-orange-500/25", bg: "bg-orange-500/8", text: "text-orange-400", dot: "bg-orange-500" },
+                  const divColors: Record<string, { border: string; bg: string; text: string; dot: string; fill: string }> = {
+                    "Men's Singles": { border: "border-blue-500/25", bg: "bg-blue-500/8", text: "text-blue-400", dot: "bg-blue-500", fill: "59,130,246" },
+                    "Women's Singles": { border: "border-purple-500/25", bg: "bg-purple-500/8", text: "text-purple-400", dot: "bg-purple-500", fill: "168,85,247" },
+                    "Men's Tag Teams": { border: "border-emerald-500/25", bg: "bg-emerald-500/8", text: "text-emerald-400", dot: "bg-emerald-500", fill: "16,185,129" },
+                    "Women's Tag Teams": { border: "border-orange-500/25", bg: "bg-orange-500/8", text: "text-orange-400", dot: "bg-orange-500", fill: "249,115,22" },
                   };
                   const groups = [
                     { label: "Men's Singles", tiers: tierProgress.filter((t) => t.divisionName === "Men's Singles") },
@@ -813,17 +876,24 @@ export default async function DashboardPage() {
                             return (
                               <Link key={t.tierId} href={`/tiers/${t.tierSlug ?? t.tierId}`}>
                                 <div
-                                  className={`rounded border p-1.5 text-center hover:scale-105 transition-all ${
+                                  className={`rounded border p-1.5 text-center hover:scale-105 transition-all relative overflow-hidden ${
                                     done
-                                      ? "bg-emerald-500/15 border-emerald-500/20"
+                                      ? "border-emerald-500/30"
                                       : pct > 0
-                                        ? `${c.bg} ${c.border}`
-                                        : "bg-muted/5 border-border/20"
+                                        ? c.border
+                                        : "border-border/20"
                                   }`}
+                                  style={
+                                    done
+                                      ? { background: `rgba(16,185,129,0.15)` }
+                                      : pct > 0
+                                        ? { background: `linear-gradient(to right, rgba(${c.fill},0.15) ${pct}%, transparent ${pct}%)` }
+                                        : {}
+                                  }
                                   title={`${t.tierName}: ${t.played}/${t.total} (${pct}%)`}
                                 >
-                                  <span className="text-[8px] font-bold block truncate">{t.tierName}</span>
-                                  <span className={`text-[7px] font-bold tabular-nums ${
+                                  <span className="text-[8px] font-bold block truncate relative z-10">{t.tierName}</span>
+                                  <span className={`text-[7px] font-bold tabular-nums relative z-10 ${
                                     done ? "text-emerald-400" : pct > 0 ? c.text : "text-muted-foreground/30"
                                   }`}>
                                     {pct}%
