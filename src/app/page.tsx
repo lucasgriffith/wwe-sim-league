@@ -64,6 +64,7 @@ export default async function DashboardPage() {
   // ── Season-specific data ──────────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let allMatchData: any[] = [];
+  let tagMemberImages: Record<string, [string | null, string | null]> = {};
   let tierProgress: Array<{
     tierId: string;
     tierSlug: string | null;
@@ -89,7 +90,7 @@ export default async function DashboardPage() {
         .from("tiers")
         .select("id, tier_number, name, short_name, color, belt_image_url, slug, divisions(name, gender)")
         .order("tier_number"),
-      supabase.from("tag_teams").select("id, name"),
+      supabase.from("tag_teams").select("id, name, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(image_url), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(image_url)"),
     ]);
 
     allMatchData = allMatches ?? [];
@@ -97,6 +98,9 @@ export default async function DashboardPage() {
 
     for (const t of tagTeamNames ?? []) {
       wrestlerMap[t.id] = t.name;
+      const wa = t.wrestler_a as unknown as { image_url: string | null } | null;
+      const wb = t.wrestler_b as unknown as { image_url: string | null } | null;
+      tagMemberImages[t.id] = [wa?.image_url ?? null, wb?.image_url ?? null];
     }
 
     const matchesByTier = new Map<string, { played: number; total: number }>();
@@ -269,6 +273,7 @@ export default async function DashboardPage() {
   const upNextParticipantStats: Record<string, {
     name: string;
     image: string | null;
+    memberImages?: [string | null, string | null];
     wins: number;
     losses: number;
     overallRating: number | null;
@@ -282,9 +287,11 @@ export default async function DashboardPage() {
     if (bId) allParticipantIds.add(bId);
   }
   for (const id of allParticipantIds) {
+    const isTagTeam = !!(tagMemberImages ?? {})[id];
     upNextParticipantStats[id] = {
       name: wrestlerMap[id] ?? "?",
       image: imageMap[id] ?? null,
+      ...(isTagTeam && tagMemberImages[id] ? { memberImages: tagMemberImages[id] } : {}),
       wins: winCounts.get(id) ?? 0,
       losses: lossCounts.get(id) ?? 0,
       overallRating: ratingMap[id] ?? null,
