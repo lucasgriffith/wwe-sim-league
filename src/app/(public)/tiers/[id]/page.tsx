@@ -468,9 +468,12 @@ export default async function TierDetailPage({
                               ? "text-red-400"
                               : "text-muted-foreground/30";
 
+                          // Remove inner border-b for rows within a zone (not the last row of that zone)
+                          const suppressInnerBorder = isInZone && !isZoneEnd ? "border-b-0" : "";
+
                           return (
                             <React.Fragment key={s.id}>
-                              <TableRow style={{ ...zoneBorderStyle, ...zoneBgStyle }}>
+                              <TableRow className={suppressInnerBorder} style={{ ...zoneBorderStyle, ...zoneBgStyle }}>
                                 <TableCell className={`tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
                                   {i + 1}
                                 </TableCell>

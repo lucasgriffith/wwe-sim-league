@@ -282,10 +282,19 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
             <Input
               type="number"
               placeholder="S"
-              min={0}
-              max={59}
               value={seconds}
-              onChange={(e) => setSeconds(e.target.value)}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                if (isNaN(val) || e.target.value === "") {
+                  setSeconds(e.target.value);
+                } else if (val < 0) {
+                  setSeconds("59");
+                } else if (val > 59) {
+                  setSeconds("0");
+                } else {
+                  setSeconds(e.target.value);
+                }
+              }}
               className="w-14 h-8 text-center text-xs font-bold tabular-nums bg-background/50"
               disabled={isPending}
             />
