@@ -215,13 +215,13 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
       </div>
 
       {/* Main matchup */}
-      <div className="px-4 pb-2">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+      <div className="px-3 sm:px-4 pb-2">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 sm:gap-2">
           {/* Left participant */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <ParticipantPhoto stats={a} />
-            <div className="min-w-0">
-              <div className="font-bold text-sm sm:text-base leading-tight truncate">
+            <div className="min-w-0 flex-1">
+              <div className="font-bold text-xs sm:text-sm leading-tight break-words">
                 {isTag ? (
                   <Link href="/tag-teams" className="hover:text-gold transition-colors">{a.name}</Link>
                 ) : (
@@ -231,7 +231,7 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
               <div className="text-xs text-foreground/70 tabular-nums font-medium">
                 {a.wins}W-{a.losses}L · {(aWinPct * 100).toFixed(0)}%
               </div>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                 {a.poolRank && (
                   <span className="text-[10px] text-gold/60 font-semibold">{a.poolRank}</span>
                 )}
@@ -251,10 +251,10 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
           </div>
 
           {/* Right participant */}
-          <div className="flex items-center gap-3 flex-row-reverse">
+          <div className="flex items-center gap-2 sm:gap-3 flex-row-reverse">
             <ParticipantPhoto stats={b} />
-            <div className="min-w-0 text-right">
-              <div className="font-bold text-sm sm:text-base leading-tight truncate">
+            <div className="min-w-0 flex-1 text-right">
+              <div className="font-bold text-xs sm:text-sm leading-tight break-words">
                 {isTag ? (
                   <Link href="/tag-teams" className="hover:text-gold transition-colors">{b.name}</Link>
                 ) : (

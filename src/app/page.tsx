@@ -8,6 +8,7 @@ import { getStatusLabel, getStatusColor } from "@/lib/season/state-machine";
 import { UpNextCard } from "@/components/dashboard/up-next-card";
 import { SeasonTicker } from "@/components/dashboard/season-ticker";
 import { MilestonesBanner } from "@/components/dashboard/milestones";
+import { UndoMatchButton } from "@/components/dashboard/undo-match-button";
 import { computeMilestones } from "@/lib/milestones";
 
 function formatTime(seconds: number): string {
@@ -492,7 +493,10 @@ export default async function DashboardPage() {
                 Simulation League
               </p>
               <p className="mt-2 text-sm text-muted-foreground max-w-md">
-                CPU-vs-CPU championship simulation across 28 tiers with promotion, relegation, and dynasty tracking.
+                CPU-vs-CPU championship simulation across 28 tiers with promotion, relegation, and dynasty tracking.{" "}
+                <Link href="/wiki" className="text-gold/70 hover:text-gold transition-colors">
+                  Learn more →
+                </Link>
               </p>
               {/* Mobile-only compact progress */}
               {season && totalMatches > 0 && (
@@ -511,12 +515,21 @@ export default async function DashboardPage() {
               <div className="hidden sm:flex items-center gap-6">
                 <div className="relative h-32 w-32 shrink-0">
                   <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="6" className="text-muted/10" />
+                    <defs>
+                      <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="rgb(212,175,55)" />
+                        <stop offset="100%" stopColor="rgb(245,158,11)" />
+                      </linearGradient>
+                    </defs>
+                    {/* Track ring — visible in dark mode */}
+                    <circle cx="50" cy="50" r="42" fill="none" strokeWidth="6" stroke="rgba(255,255,255,0.08)" />
+                    {/* Progress fill */}
                     <circle
                       cx="50" cy="50" r="42" fill="none"
                       strokeWidth="6" strokeLinecap="round"
                       strokeDasharray={`${overallPct * 2.64} 264`}
-                      className={overallPct === 100 ? "text-emerald-500" : "text-gold"}
+                      stroke={overallPct === 100 ? "rgb(16,185,129)" : "url(#ringGrad)"}
+                      style={{ filter: "drop-shadow(0 0 6px rgba(212,175,55,0.3))" }}
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -810,7 +823,7 @@ export default async function DashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1.5">
-                {recentMatches.map((m) => {
+                {recentMatches.map((m, matchIdx) => {
                   const aId = m.wrestler_a_id || m.tag_team_a_id;
                   const bId = m.wrestler_b_id || m.tag_team_b_id;
                   const winnerId = m.winner_wrestler_id || m.winner_tag_team_id;
@@ -864,6 +877,9 @@ export default async function DashboardPage() {
                       )}
                       <span className="ml-auto flex items-center gap-2 shrink-0">
                         {time && <span className="text-[10px] tabular-nums text-muted-foreground/40">{time}</span>}
+                        {matchIdx === 0 && (
+                          <UndoMatchButton matchId={m.id} winnerName={wrestlerMap[winnerId ?? ""] ?? "?"} />
+                        )}
                       </span>
                     </div>
                   );
