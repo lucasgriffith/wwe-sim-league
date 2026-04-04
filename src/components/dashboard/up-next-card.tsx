@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ interface UpcomingMatch {
 
 interface ParticipantStats {
   name: string;
+  slug?: string | null;
   image: string | null;
   memberImages?: [string | null, string | null]; // for tag teams
   wins: number;
@@ -196,12 +198,14 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs border-gold/20 text-gold/70 shrink-0">
-            T{tier?.tier_number}
-          </Badge>
-          <span className="text-xs font-bold text-foreground truncate">
+          <Link href={`/tiers/${tier?.slug ?? tier?.id ?? ""}`}>
+            <Badge variant="outline" className="text-xs border-gold/20 text-gold/70 shrink-0 hover:bg-gold/10 transition-colors cursor-pointer">
+              T{tier?.tier_number}
+            </Badge>
+          </Link>
+          <Link href={`/tiers/${tier?.slug ?? tier?.id ?? ""}`} className="text-xs font-bold text-foreground truncate hover:text-gold transition-colors">
             {tier?.fullName ?? tier?.name ?? "?"}
-          </span>
+          </Link>
           {match.pool && (
             <Badge variant="outline" className="text-xs border-border/30 text-muted-foreground shrink-0">
               Pool {match.pool}
@@ -217,7 +221,13 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
           <div className="flex items-center gap-3">
             <ParticipantPhoto stats={a} />
             <div className="min-w-0">
-              <div className="font-bold text-sm sm:text-base leading-tight truncate">{a.name}</div>
+              <div className="font-bold text-sm sm:text-base leading-tight truncate">
+                {isTag ? (
+                  <Link href="/tag-teams" className="hover:text-gold transition-colors">{a.name}</Link>
+                ) : (
+                  <Link href={`/roster/${a.slug ?? aId}`} className="hover:text-gold transition-colors">{a.name}</Link>
+                )}
+              </div>
               <div className="text-xs text-foreground/70 tabular-nums font-medium">
                 {a.wins}W-{a.losses}L · {(aWinPct * 100).toFixed(0)}%
               </div>
@@ -244,7 +254,13 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
           <div className="flex items-center gap-3 flex-row-reverse">
             <ParticipantPhoto stats={b} />
             <div className="min-w-0 text-right">
-              <div className="font-bold text-sm sm:text-base leading-tight truncate">{b.name}</div>
+              <div className="font-bold text-sm sm:text-base leading-tight truncate">
+                {isTag ? (
+                  <Link href="/tag-teams" className="hover:text-gold transition-colors">{b.name}</Link>
+                ) : (
+                  <Link href={`/roster/${b.slug ?? bId}`} className="hover:text-gold transition-colors">{b.name}</Link>
+                )}
+              </div>
               <div className="text-xs text-foreground/70 tabular-nums font-medium">
                 {b.wins}W-{b.losses}L · {(bWinPct * 100).toFixed(0)}%
               </div>

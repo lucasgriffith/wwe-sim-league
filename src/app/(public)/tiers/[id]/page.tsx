@@ -59,7 +59,7 @@ export default async function TierDetailPage({
     const { data } = await supabase
       .from("tier_assignments")
       .select(
-        "id, pool, seed, wrestler_id, tag_team_id, wrestlers(id, name), tag_teams(id, name)"
+        "id, pool, seed, wrestler_id, tag_team_id, wrestlers(id, name, slug), tag_teams(id, name)"
       )
       .eq("season_id", activeSeason.id)
       .eq("tier_id", tier.id)
@@ -102,11 +102,20 @@ export default async function TierDetailPage({
     if (pid) nameMap[pid] = name;
   });
 
+  // Build slug map for wrestler links
+  const wrestlerSlugMap: Record<string, string> = {};
+  assignments.forEach((a) => {
+    if (a.wrestler_id && a.wrestlers?.slug) {
+      wrestlerSlugMap[a.wrestler_id] = a.wrestlers.slug;
+    }
+  });
+
   const division = tier.divisions as {
     name: string;
     gender: string;
     division_type: string;
   };
+  const isTagDivision = division.division_type === "tag";
 
   const pools = tier.has_pools ? ["A", "B"] : [null];
   const standingsByPool = pools.map((pool) => {
@@ -178,6 +187,7 @@ export default async function TierDetailPage({
         gbNum: 0,
         streak,
         streakLabel: streak > 0 ? `W${streak}` : streak < 0 ? `L${Math.abs(streak)}` : "—",
+        linkHref: isTag ? "/tag-teams" : `/roster/${wrestlerSlugMap[participantId!] ?? participantId}`,
       };
     });
 
@@ -379,14 +389,14 @@ export default async function TierDetailPage({
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent border-border/40">
-                          <TableHead className="w-8 text-[10px] uppercase tracking-wider">#</TableHead>
-                          <TableHead className="text-[10px] uppercase tracking-wider">Name</TableHead>
-                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-8">W</TableHead>
-                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-8">L</TableHead>
-                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-12">Win%</TableHead>
-                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-10">GB</TableHead>
-                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-10">Strk</TableHead>
-                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-14 hidden sm:table-cell">Avg Time</TableHead>
+                          <TableHead className="w-8 text-[10px] uppercase tracking-wider px-1 sm:px-4">#</TableHead>
+                          <TableHead className="text-[10px] uppercase tracking-wider px-1 sm:px-4">Name</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-8 px-1 sm:px-4">W</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-8 px-1 sm:px-4">L</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-12 px-1 sm:px-4">Win%</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-10 px-1 sm:px-4 hidden sm:table-cell">GB</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-10 px-1 sm:px-4">Strk</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-14 px-1 sm:px-4 hidden sm:table-cell">Avg Time</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -474,12 +484,18 @@ export default async function TierDetailPage({
                           return (
                             <React.Fragment key={s.id}>
                               <TableRow className={suppressInnerBorder} style={{ ...zoneBorderStyle, ...zoneBgStyle }}>
-                                <TableCell className={`tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
+                                <TableCell className={`tabular-nums text-xs font-bold ${rankColor} ${leftBorder} px-1 sm:px-4`}>
                                   {i + 1}
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="px-1 sm:px-4">
                                   <span className="flex items-center gap-1.5 font-medium">
-                                    {s.name}
+                                    {s.linkHref ? (
+                                      <Link href={s.linkHref} className="hover:text-gold transition-colors">
+                                        {s.name}
+                                      </Link>
+                                    ) : (
+                                      <span>{s.name}</span>
+                                    )}
                                     {zoneIcon && (
                                       <span className={`text-[8px] font-bold ${rankColor}`}>{zoneIcon}</span>
                                     )}
@@ -491,24 +507,24 @@ export default async function TierDetailPage({
                                     )}
                                   </span>
                                 </TableCell>
-                                <TableCell className="text-center tabular-nums font-medium text-emerald-400">
+                                <TableCell className="text-center tabular-nums font-medium text-emerald-400 px-1 sm:px-4">
                                   {s.wins}
                                 </TableCell>
-                                <TableCell className="text-center tabular-nums font-medium text-red-400">
+                                <TableCell className="text-center tabular-nums font-medium text-red-400 px-1 sm:px-4">
                                   {s.losses}
                                 </TableCell>
-                                <TableCell className="text-center tabular-nums font-medium">
+                                <TableCell className="text-center tabular-nums font-medium px-1 sm:px-4">
                                   {s.matchesPlayed > 0
                                     ? (s.winPct * 100).toFixed(0) + "%"
                                     : "-"}
                                 </TableCell>
-                                <TableCell className="text-center tabular-nums text-xs text-muted-foreground">
+                                <TableCell className="text-center tabular-nums text-xs text-muted-foreground px-1 sm:px-4 hidden sm:table-cell">
                                   {s.gb}
                                 </TableCell>
-                                <TableCell className={`text-center tabular-nums text-xs font-semibold ${streakColor}`}>
+                                <TableCell className={`text-center tabular-nums text-xs font-semibold ${streakColor} px-1 sm:px-4`}>
                                   {s.streakLabel}
                                 </TableCell>
-                                <TableCell className="text-center tabular-nums text-xs text-muted-foreground hidden sm:table-cell" style={zoneRightStyle}>
+                                <TableCell className="text-center tabular-nums text-xs text-muted-foreground hidden sm:table-cell px-1 sm:px-4" style={zoneRightStyle}>
                                   {s.avgTime > 0 ? formatTime(s.avgTime) : "-"}
                                 </TableCell>
                               </TableRow>

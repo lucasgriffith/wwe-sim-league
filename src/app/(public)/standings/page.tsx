@@ -169,7 +169,7 @@ export default async function StandingsPage() {
           avgTime,
           gb: "",
           streak,
-          linkHref: isTag ? null : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
+          linkHref: isTag ? "/tag-teams" : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
         };
       });
 

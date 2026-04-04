@@ -297,6 +297,7 @@ export default async function DashboardPage() {
   // Build participant stats map for Up Next card
   const upNextParticipantStats: Record<string, {
     name: string;
+    slug?: string | null;
     image: string | null;
     memberImages?: [string | null, string | null];
     wins: number;
@@ -345,6 +346,7 @@ export default async function DashboardPage() {
     const isTagTeam = !!(tagMemberImages ?? {})[id];
     upNextParticipantStats[id] = {
       name: wrestlerMap[id] ?? "?",
+      slug: slugMap[id] ?? null,
       image: imageMap[id] ?? null,
       ...(isTagTeam && tagMemberImages[id] ? { memberImages: tagMemberImages[id] } : {}),
       wins: winCounts.get(id) ?? 0,
@@ -762,7 +764,7 @@ export default async function DashboardPage() {
                   {menTagRankings.length > 0 ? (
                     <>
                       {menTagRankings.map((w, i) => (
-                        <div key={w.id} className="flex items-center gap-2">
+                        <Link key={w.id} href="/tag-teams" className="flex items-center gap-2 group">
                           <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : "text-muted-foreground/30"}`}>{i + 1}</span>
                           {w.memberImages ? (
                             <div className="flex -space-x-1.5 shrink-0">
@@ -782,10 +784,10 @@ export default async function DashboardPage() {
                               <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
                             </div>
                           )}
-                          <span className="text-xs font-semibold truncate flex-1">{w.name}</span>
+                          <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
                           <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
                           <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.pwr}</span>
-                        </div>
+                        </Link>
                       ))}
                     </>
                   ) : (
@@ -836,9 +838,17 @@ export default async function DashboardPage() {
                           <span className="text-[8px] font-bold text-muted-foreground/30">{aName.charAt(0)}</span>
                         </div>
                       )}
-                      <span className={`truncate ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{aName}</span>
+                      {isTag ? (
+                        <Link href="/tag-teams" className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{aName}</Link>
+                      ) : (
+                        <Link href={`/roster/${slugMap[aId ?? ""] ?? aId}`} className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{aName}</Link>
+                      )}
                       <span className="text-[9px] text-muted-foreground/30 shrink-0">vs</span>
-                      <span className={`truncate ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{bName}</span>
+                      {isTag ? (
+                        <Link href="/tag-teams" className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{bName}</Link>
+                      ) : (
+                        <Link href={`/roster/${slugMap[bId ?? ""] ?? bId}`} className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{bName}</Link>
+                      )}
                       {/* B photo */}
                       {bImgs ? (
                         <div className="flex -space-x-1.5 shrink-0">
