@@ -173,16 +173,37 @@ export default async function TierDetailPage({
         totalTime,
         avgTime,
         matchesPlayed: completedMatches.length,
-        gb: "", // computed after sort
+        gb: "", // computed before sort
+        gbNum: 0,
         streak,
         streakLabel: streak > 0 ? `W${streak}` : streak < 0 ? `L${Math.abs(streak)}` : "—",
       };
     });
 
-    // Sort: win% desc → wins desc → avg time tiebreak
-    stats.sort((a, b) => {
-      if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+    // Compute GB values (relative to best record)
+    // First find the leader by raw wins desc, losses asc
+    const preSorted = [...stats].sort((a, b) => {
       if (b.wins !== a.wins) return b.wins - a.wins;
+      return a.losses - b.losses;
+    });
+    if (preSorted.length > 0) {
+      const leader = preSorted[0];
+      stats.forEach((s) => {
+        const gb = ((leader.wins - s.wins) + (s.losses - leader.losses)) / 2;
+        s.gbNum = gb;
+        s.gb = gb === 0 ? "—" : gb.toFixed(1);
+      });
+    }
+
+    // Sort: GB asc → avg time tiebreak
+    stats.sort((a, b) => {
+      // Primary: GB (lower = better)
+      const gbA = a.gbNum ?? 999;
+      const gbB = b.gbNum ?? 999;
+      if (gbA !== gbB) return gbA - gbB;
+      // Secondary: win% (for teams with same GB but different games played)
+      if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+      // Tertiary: avg time tiebreak
       if (a.avgTime && b.avgTime) {
         const aAbove500 = a.winPct >= 0.5;
         const bAbove500 = b.winPct >= 0.5;
@@ -191,15 +212,6 @@ export default async function TierDetailPage({
       }
       return 0;
     });
-
-    // Compute GB from leader
-    if (stats.length > 0) {
-      const leader = stats[0];
-      stats.forEach((s) => {
-        const gb = ((leader.wins - s.wins) + (s.losses - leader.losses)) / 2;
-        s.gb = gb === 0 ? "—" : gb.toFixed(1);
-      });
-    }
 
     // Compute clinch status
     const matchesPerParticipant = stats.length > 1 ? stats.length - 1 : 0;

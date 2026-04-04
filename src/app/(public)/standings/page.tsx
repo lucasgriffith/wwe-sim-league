@@ -167,29 +167,39 @@ export default async function StandingsPage() {
           losses,
           winPct,
           avgTime,
-          gb: "", // computed after sort
+          gb: "",
           streak,
           linkHref: isTag ? null : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
         };
-      })
-      .sort((a, b) => {
-        if (b.winPct !== a.winPct) return b.winPct - a.winPct;
-        if (b.wins !== a.wins) return b.wins - a.wins;
-        if (a.avgTime && b.avgTime) {
-          if (a.winPct >= 0.5 && b.winPct >= 0.5) return a.avgTime - b.avgTime;
-          if (a.winPct < 0.5 && b.winPct < 0.5) return b.avgTime - a.avgTime;
-        }
-        return 0;
       });
 
-    // Compute games back from leader
-    if (rows.length > 0) {
-      const leader = rows[0];
+    // Compute GB from best record
+    const preSorted = [...rows].sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return a.losses - b.losses;
+    });
+    const gbNums = new Map<string, number>();
+    if (preSorted.length > 0) {
+      const leader = preSorted[0];
       rows.forEach((r) => {
         const gb = ((leader.wins - r.wins) + (r.losses - leader.losses)) / 2;
+        gbNums.set(r.id, gb);
         r.gb = gb === 0 ? "—" : gb.toFixed(1);
       });
     }
+
+    // Sort by GB first, then win%, then avg time tiebreak
+    rows.sort((a, b) => {
+      const gbA = gbNums.get(a.id) ?? 999;
+      const gbB = gbNums.get(b.id) ?? 999;
+      if (gbA !== gbB) return gbA - gbB;
+      if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+      if (a.avgTime && b.avgTime) {
+        if (a.winPct >= 0.5 && b.winPct >= 0.5) return a.avgTime - b.avgTime;
+        if (a.winPct < 0.5 && b.winPct < 0.5) return b.avgTime - a.avgTime;
+      }
+      return 0;
+    });
 
     return rows;
   }
