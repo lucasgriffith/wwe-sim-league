@@ -234,9 +234,9 @@ function StandingsTable({
             return (
               <tr
                 key={s.id}
-                className={`text-sm ${leftBorder} ${zoneBorderTop} ${zoneBorderBottom} ${i < count - 1 && !zoneBorderBottom ? "border-b border-border/10" : ""}`}
+                className={`text-sm ${zoneBorderTop} ${zoneBorderBottom} ${i < count - 1 && !zoneBorderBottom ? "border-b border-border/10" : ""}`}
               >
-                <td className={`px-3 py-2 tabular-nums text-xs font-bold ${rankColor}`}>
+                <td className={`px-3 py-2 tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
                   {i + 1}
                 </td>
                 <td className="px-3 py-2">

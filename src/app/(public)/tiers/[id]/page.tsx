@@ -452,8 +452,8 @@ export default async function TierDetailPage({
                               : "text-muted-foreground/30";
 
                           return (
-                            <TableRow key={s.id} className={`table-row-hover ${leftBorder} ${zoneBorderTop} ${zoneBorderBottom} ${!zoneBorderBottom ? "border-b border-border/10" : ""}`}>
-                              <TableCell className={`tabular-nums text-xs font-bold ${rankColor}`}>
+                            <TableRow key={s.id} className={`table-row-hover ${zoneBorderTop} ${zoneBorderBottom} ${!zoneBorderBottom ? "border-b border-border/10" : ""}`}>
+                              <TableCell className={`tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
                                 {i + 1}
                               </TableCell>
                               <TableCell>
