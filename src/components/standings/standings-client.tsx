@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import type { Standing, TierStandings } from "@/app/(public)/standings/page";
@@ -200,7 +200,7 @@ function StandingsTable({
               leftBorder = "border-l-[3px] border-l-foreground/10";
             }
 
-            // Zone group borders
+            // Zone group borders (inline styles for dynamic colors)
             function getZone(idx: number) {
               if (idx < 0 || idx >= count) return "none";
               if (idx < 2) return "playoff";
@@ -212,15 +212,27 @@ function StandingsTable({
             const myZone = getZone(i);
             const prevZone = getZone(i - 1);
             const nextZone = getZone(i + 1);
-            let zoneBorderTop = "";
-            let zoneBorderBottom = "";
-            if (myZone !== prevZone && myZone === "playoff") zoneBorderTop = "border-t border-t-emerald-500/20";
-            if (myZone === "playoff" && nextZone !== "playoff") zoneBorderBottom = "border-b-2 border-b-emerald-500/15";
-            if (myZone === "wildcard" && prevZone !== "wildcard") zoneBorderTop = "border-t border-t-blue-500/20";
-            if (myZone === "wildcard" && nextZone !== "wildcard") zoneBorderBottom = "border-b-2 border-b-blue-500/15";
-            if (myZone === "relplayoff" && prevZone !== "relplayoff") zoneBorderTop = "border-t border-t-orange-500/20";
-            if (myZone === "relplayoff" && nextZone !== "relplayoff") zoneBorderBottom = "border-b-2 border-b-orange-500/15";
-            if (myZone === "autorel" && prevZone !== "autorel") zoneBorderTop = "border-t border-t-red-500/20";
+
+            const zoneRGB: Record<string, string> = {
+              playoff: "16,185,129",
+              wildcard: "59,130,246",
+              relplayoff: "249,115,22",
+              autorel: "239,68,68",
+            };
+            const rgb = zoneRGB[myZone] ?? "";
+            const isZoneStart = myZone !== "safe" && myZone !== "none" && prevZone !== myZone;
+            const isZoneEnd = myZone !== "safe" && myZone !== "none" && nextZone !== myZone;
+            const isInZone = myZone !== "safe" && myZone !== "none";
+
+            const zoneBorderStyle: React.CSSProperties = {
+              ...(isZoneStart ? { borderTop: `2px solid rgba(${rgb},0.25)` } : {}),
+              ...(isZoneEnd ? { borderBottom: `2px solid rgba(${rgb},0.25)` } : {}),
+            };
+            const zoneRightStyle: React.CSSProperties = isInZone
+              ? { borderRight: `2px solid rgba(${rgb},0.25)` }
+              : {};
+
+            const needsSpacerBefore = isZoneStart && prevZone !== "none" && prevZone !== myZone && i > 0;
 
             const clinched = hasClinched(i);
             const eliminated = isEliminated(i);
@@ -232,57 +244,61 @@ function StandingsTable({
                 : "text-muted-foreground/30";
 
             return (
-              <tr
-                key={s.id}
-                className={`text-sm ${zoneBorderTop} ${zoneBorderBottom} ${i < count - 1 && !zoneBorderBottom ? "border-b border-border/10" : ""}`}
-              >
-                <td className={`px-3 py-2 tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
-                  {i + 1}
-                </td>
-                <td className="px-3 py-2">
-                  <span className="flex items-center gap-1.5 font-medium">
-                    {s.linkHref ? (
-                      <Link
-                        href={s.linkHref}
-                        className="hover:text-gold transition-colors"
-                      >
-                        {s.name}
-                      </Link>
-                    ) : (
-                      <span>{s.name}</span>
-                    )}
-                    {zoneIcon && (
-                      <span className={`text-[8px] font-bold ${rankColor}`}>{zoneIcon}</span>
-                    )}
-                    {clinched && (
-                      <span className="text-[8px] font-bold text-emerald-400 bg-emerald-400/10 px-1 rounded">✓</span>
-                    )}
-                    {eliminated && (
-                      <span className="text-[8px] font-bold text-muted-foreground/40 bg-muted/10 px-1 rounded">✗</span>
-                    )}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-center tabular-nums font-medium text-emerald-400">
-                  {s.wins}
-                </td>
-                <td className="px-3 py-2 text-center tabular-nums font-medium text-red-400">
-                  {s.losses}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums font-medium">
-                  {s.wins + s.losses > 0
-                    ? `${(s.winPct * 100).toFixed(0)}%`
-                    : "—"}
-                </td>
-                <td className="px-3 py-2 text-center tabular-nums text-xs text-muted-foreground">
-                  {s.gb}
-                </td>
-                <td className={`px-3 py-2 text-center tabular-nums text-xs font-semibold ${streakColor}`}>
-                  {s.streak}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-xs text-muted-foreground hidden sm:table-cell">
-                  {s.avgTime > 0 ? formatTime(s.avgTime) : "—"}
-                </td>
-              </tr>
+              <React.Fragment key={s.id}>
+                {needsSpacerBefore && (
+                  <tr className="h-2">
+                    <td colSpan={8} className="p-0" />
+                  </tr>
+                )}
+                <tr className="text-sm" style={zoneBorderStyle}>
+                  <td className={`px-3 py-2 tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
+                    {i + 1}
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      {s.linkHref ? (
+                        <Link
+                          href={s.linkHref}
+                          className="hover:text-gold transition-colors"
+                        >
+                          {s.name}
+                        </Link>
+                      ) : (
+                        <span>{s.name}</span>
+                      )}
+                      {zoneIcon && (
+                        <span className={`text-[8px] font-bold ${rankColor}`}>{zoneIcon}</span>
+                      )}
+                      {clinched && (
+                        <span className="text-[8px] font-bold text-emerald-400 bg-emerald-400/10 px-1 rounded">✓</span>
+                      )}
+                      {eliminated && (
+                        <span className="text-[8px] font-bold text-muted-foreground/40 bg-muted/10 px-1 rounded">✗</span>
+                      )}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-center tabular-nums font-medium text-emerald-400">
+                    {s.wins}
+                  </td>
+                  <td className="px-3 py-2 text-center tabular-nums font-medium text-red-400">
+                    {s.losses}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums font-medium">
+                    {s.wins + s.losses > 0
+                      ? `${(s.winPct * 100).toFixed(0)}%`
+                      : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-center tabular-nums text-xs text-muted-foreground">
+                    {s.gb}
+                  </td>
+                  <td className={`px-3 py-2 text-center tabular-nums text-xs font-semibold ${streakColor}`}>
+                    {s.streak}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-xs text-muted-foreground hidden sm:table-cell" style={zoneRightStyle}>
+                    {s.avgTime > 0 ? formatTime(s.avgTime) : "—"}
+                  </td>
+                </tr>
+              </React.Fragment>
             );
           })}
           {standings.length === 0 && (

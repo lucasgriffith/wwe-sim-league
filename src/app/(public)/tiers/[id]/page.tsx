@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import React from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
@@ -435,15 +436,29 @@ export default async function TierDetailPage({
                           const myZone = getZone(i);
                           const prevZone = getZone(i - 1);
                           const nextZone = getZone(i + 1);
-                          let zoneBorderTop = "";
-                          let zoneBorderBottom = "";
-                          if (myZone !== prevZone && myZone === "playoff") zoneBorderTop = "border-t border-t-emerald-500/20";
-                          if (myZone === "playoff" && nextZone !== "playoff") zoneBorderBottom = "border-b-2 border-b-emerald-500/15";
-                          if (myZone === "wildcard" && prevZone !== "wildcard") zoneBorderTop = "border-t border-t-blue-500/20";
-                          if (myZone === "wildcard" && nextZone !== "wildcard") zoneBorderBottom = "border-b-2 border-b-blue-500/15";
-                          if (myZone === "relplayoff" && prevZone !== "relplayoff") zoneBorderTop = "border-t border-t-orange-500/20";
-                          if (myZone === "relplayoff" && nextZone !== "relplayoff") zoneBorderBottom = "border-b-2 border-b-orange-500/15";
-                          if (myZone === "autorel" && prevZone !== "autorel") zoneBorderTop = "border-t border-t-red-500/20";
+
+                          // Zone border colors (RGB for inline styles)
+                          const zoneRGB: Record<string, string> = {
+                            playoff: "16,185,129",
+                            wildcard: "59,130,246",
+                            relplayoff: "249,115,22",
+                            autorel: "239,68,68",
+                          };
+                          const rgb = zoneRGB[myZone] ?? "";
+                          const isZoneStart = myZone !== "safe" && myZone !== "none" && prevZone !== myZone;
+                          const isZoneEnd = myZone !== "safe" && myZone !== "none" && nextZone !== myZone;
+                          const isInZone = myZone !== "safe" && myZone !== "none";
+
+                          const zoneBorderStyle: React.CSSProperties = {
+                            ...(isZoneStart ? { borderTop: `2px solid rgba(${rgb},0.25)` } : {}),
+                            ...(isZoneEnd ? { borderBottom: `2px solid rgba(${rgb},0.25)` } : {}),
+                          };
+                          const zoneRightStyle: React.CSSProperties = isInZone
+                            ? { borderRight: `2px solid rgba(${rgb},0.25)` }
+                            : {};
+
+                          // Spacer row before zone starts
+                          const needsSpacerBefore = isZoneStart && prevZone !== "none" && prevZone !== myZone && i > 0;
 
                           const streakColor = s.streakLabel.startsWith("W")
                             ? "text-emerald-400"
@@ -452,45 +467,52 @@ export default async function TierDetailPage({
                               : "text-muted-foreground/30";
 
                           return (
-                            <TableRow key={s.id} className={`table-row-hover ${zoneBorderTop} ${zoneBorderBottom} ${!zoneBorderBottom ? "border-b border-border/10" : ""}`}>
-                              <TableCell className={`tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
-                                {i + 1}
-                              </TableCell>
-                              <TableCell>
-                                <span className="flex items-center gap-1.5 font-medium">
-                                  {s.name}
-                                  {zoneIcon && (
-                                    <span className={`text-[8px] font-bold ${rankColor}`}>{zoneIcon}</span>
-                                  )}
-                                  {clinchMap.get(s.id) === "clinched" && (
-                                    <span className="text-[8px] font-bold text-emerald-400 bg-emerald-400/10 px-1 rounded">✓</span>
-                                  )}
-                                  {clinchMap.get(s.id) === "eliminated" && (
-                                    <span className="text-[8px] font-bold text-muted-foreground/40 bg-muted/10 px-1 rounded">✗</span>
-                                  )}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-center tabular-nums font-medium text-emerald-400">
-                                {s.wins}
-                              </TableCell>
-                              <TableCell className="text-center tabular-nums font-medium text-red-400">
-                                {s.losses}
-                              </TableCell>
-                              <TableCell className="text-center tabular-nums font-medium">
-                                {s.matchesPlayed > 0
-                                  ? (s.winPct * 100).toFixed(0) + "%"
-                                  : "-"}
-                              </TableCell>
-                              <TableCell className="text-center tabular-nums text-xs text-muted-foreground">
-                                {s.gb}
-                              </TableCell>
-                              <TableCell className={`text-center tabular-nums text-xs font-semibold ${streakColor}`}>
-                                {s.streakLabel}
-                              </TableCell>
-                              <TableCell className="text-center tabular-nums text-xs text-muted-foreground hidden sm:table-cell">
-                                {s.avgTime > 0 ? formatTime(s.avgTime) : "-"}
-                              </TableCell>
-                            </TableRow>
+                            <React.Fragment key={s.id}>
+                              {needsSpacerBefore && (
+                                <TableRow className="h-2 hover:bg-transparent">
+                                  <TableCell colSpan={8} className="p-0" />
+                                </TableRow>
+                              )}
+                              <TableRow className="table-row-hover" style={zoneBorderStyle}>
+                                <TableCell className={`tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
+                                  {i + 1}
+                                </TableCell>
+                                <TableCell>
+                                  <span className="flex items-center gap-1.5 font-medium">
+                                    {s.name}
+                                    {zoneIcon && (
+                                      <span className={`text-[8px] font-bold ${rankColor}`}>{zoneIcon}</span>
+                                    )}
+                                    {clinchMap.get(s.id) === "clinched" && (
+                                      <span className="text-[8px] font-bold text-emerald-400 bg-emerald-400/10 px-1 rounded">✓</span>
+                                    )}
+                                    {clinchMap.get(s.id) === "eliminated" && (
+                                      <span className="text-[8px] font-bold text-muted-foreground/40 bg-muted/10 px-1 rounded">✗</span>
+                                    )}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-center tabular-nums font-medium text-emerald-400">
+                                  {s.wins}
+                                </TableCell>
+                                <TableCell className="text-center tabular-nums font-medium text-red-400">
+                                  {s.losses}
+                                </TableCell>
+                                <TableCell className="text-center tabular-nums font-medium">
+                                  {s.matchesPlayed > 0
+                                    ? (s.winPct * 100).toFixed(0) + "%"
+                                    : "-"}
+                                </TableCell>
+                                <TableCell className="text-center tabular-nums text-xs text-muted-foreground">
+                                  {s.gb}
+                                </TableCell>
+                                <TableCell className={`text-center tabular-nums text-xs font-semibold ${streakColor}`}>
+                                  {s.streakLabel}
+                                </TableCell>
+                                <TableCell className="text-center tabular-nums text-xs text-muted-foreground hidden sm:table-cell" style={zoneRightStyle}>
+                                  {s.avgTime > 0 ? formatTime(s.avgTime) : "-"}
+                                </TableCell>
+                              </TableRow>
+                            </React.Fragment>
                           );
                         })}
                         {stats.length === 0 && (
