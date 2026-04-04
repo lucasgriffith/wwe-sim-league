@@ -369,10 +369,11 @@ export default async function TierDetailPage({
                     {/* Legend */}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 bg-muted/5 border-b border-border/20">
                       <span className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/40">Legend</span>
-                      <span className="text-[9px] text-emerald-400">● Playoff</span>
-                      <span className="text-[9px] text-blue-400">● Wild Card</span>
-                      <span className="text-[9px] text-orange-400">● Relegation ⚔</span>
-                      <span className="text-[9px] text-red-400">● Auto-Relegate ↓</span>
+                      <span className="text-[9px] text-emerald-400">● Playoff (Top 2)</span>
+                      <span className="text-[9px] text-blue-400">● Wild Card (3rd)</span>
+                      <span className="text-[9px] text-foreground/30">● Safe</span>
+                      <span className="text-[9px] text-orange-400">● Relegation Playoff ⚔ (2nd from bottom)</span>
+                      <span className="text-[9px] text-red-400">● Auto-Relegate ↓ (Last)</span>
                     </div>
                     <Table>
                       <TableHeader>
@@ -390,17 +391,19 @@ export default async function TierDetailPage({
                       <TableBody>
                         {stats.map((s, i) => {
                           const count = stats.length;
-                          const relegationPlayoffStart = Math.max(0, count - 4);
-                          const autoRelegateStart = Math.max(0, count - 2);
+
+                          // Per-pool zone logic:
+                          // Top 2 = Playoff, 3rd = Wild Card, 2nd from bottom = Relegation Playoff, Last = Auto-Relegate
+                          // Everything in between = Safe
+                          const isPlayoff = i < 2;
+                          const isWildCard = i === 2 && count > 3;
+                          const isAutoRelegate = i === count - 1 && count > 2;
+                          const isRelegationPlayoff = i === count - 2 && count > 3 && !isPlayoff && !isWildCard;
+                          const isSafe = !isPlayoff && !isWildCard && !isAutoRelegate && !isRelegationPlayoff;
 
                           let rankColor = "text-muted-foreground/50";
                           let leftBorder = "";
                           let zoneIcon = "";
-
-                          const isPlayoff = i < 2;
-                          const isWildCard = i === 2;
-                          const isAutoRelegate = i >= autoRelegateStart && count > 4;
-                          const isRelegationPlayoff = !isAutoRelegate && i >= relegationPlayoffStart && count > 4;
 
                           if (isPlayoff) {
                             rankColor = "text-emerald-400";
@@ -416,21 +419,31 @@ export default async function TierDetailPage({
                             rankColor = "text-orange-400";
                             leftBorder = "border-l-[3px] border-l-orange-500/40";
                             zoneIcon = "⚔";
+                          } else if (isSafe) {
+                            leftBorder = "border-l-[3px] border-l-foreground/10";
                           }
 
                           // Zone group borders
-                          const nextIsPlayoff = (i + 1) < 2;
-                          const prevIsRelPlayoff = i > 0 && !((i - 1) >= autoRelegateStart && count > 4) && (i - 1) >= relegationPlayoffStart && count > 4;
-                          const nextIsRelPlayoff = !((i + 1) >= autoRelegateStart && count > 4) && (i + 1) < count && (i + 1) >= relegationPlayoffStart && count > 4;
-                          const prevIsAutoRelegate = i > 0 && (i - 1) >= autoRelegateStart && count > 4;
+                          function getZone(idx: number) {
+                            if (idx < 0 || idx >= count) return "none";
+                            if (idx < 2) return "playoff";
+                            if (idx === 2 && count > 3) return "wildcard";
+                            if (idx === count - 1 && count > 2) return "autorel";
+                            if (idx === count - 2 && count > 3 && idx >= 3) return "relplayoff";
+                            return "safe";
+                          }
+                          const myZone = getZone(i);
+                          const prevZone = getZone(i - 1);
+                          const nextZone = getZone(i + 1);
                           let zoneBorderTop = "";
                           let zoneBorderBottom = "";
-                          if (isPlayoff && i === 0) zoneBorderTop = "border-t border-t-emerald-500/20";
-                          if (isPlayoff && !nextIsPlayoff) zoneBorderBottom = "border-b-2 border-b-emerald-500/15";
-                          if (isWildCard) { zoneBorderTop = "border-t border-t-blue-500/20"; zoneBorderBottom = "border-b-2 border-b-blue-500/15"; }
-                          if (isRelegationPlayoff && !prevIsRelPlayoff) zoneBorderTop = "border-t border-t-orange-500/20";
-                          if (isRelegationPlayoff && !nextIsRelPlayoff) zoneBorderBottom = "border-b-2 border-b-orange-500/15";
-                          if (isAutoRelegate && !prevIsAutoRelegate) zoneBorderTop = "border-t border-t-red-500/20";
+                          if (myZone !== prevZone && myZone === "playoff") zoneBorderTop = "border-t border-t-emerald-500/20";
+                          if (myZone === "playoff" && nextZone !== "playoff") zoneBorderBottom = "border-b-2 border-b-emerald-500/15";
+                          if (myZone === "wildcard" && prevZone !== "wildcard") zoneBorderTop = "border-t border-t-blue-500/20";
+                          if (myZone === "wildcard" && nextZone !== "wildcard") zoneBorderBottom = "border-b-2 border-b-blue-500/15";
+                          if (myZone === "relplayoff" && prevZone !== "relplayoff") zoneBorderTop = "border-t border-t-orange-500/20";
+                          if (myZone === "relplayoff" && nextZone !== "relplayoff") zoneBorderBottom = "border-b-2 border-b-orange-500/15";
+                          if (myZone === "autorel" && prevZone !== "autorel") zoneBorderTop = "border-t border-t-red-500/20";
 
                           const streakColor = s.streakLabel.startsWith("W")
                             ? "text-emerald-400"

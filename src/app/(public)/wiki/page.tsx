@@ -71,7 +71,7 @@ export default function WikiPage() {
             <PhaseStep number={1} name="Setup" description="Wrestlers are assigned to tiers and split into pools (Pool A and Pool B). Schedules are generated automatically." />
             <PhaseStep number={2} name="Pool Play" description="Every wrestler plays every other wrestler in their pool exactly once (round robin). Standings are tracked live with wins, losses, and win percentage." />
             <PhaseStep number={3} name="Playoffs" description="The top performers from each pool qualify for a 6-person single-elimination playoff bracket. The winner is crowned champion of that tier." />
-            <PhaseStep number={4} name="Relegation" description="Bottom finishers drop down a tier. Top finishers from lower tiers are promoted up. Borderline wrestlers fight in Steel Cage matches to determine who stays." />
+            <PhaseStep number={4} name="Relegation" description="Last place in each pool drops a tier. 2nd-from-bottom plays a relegation playoff — losers face the tier below's promotion winners in a Steel Cage match." />
             <PhaseStep number={5} name="Completed" description="Season is archived. All results, champions, and movements are recorded for dynasty tracking. Next season begins." />
           </div>
         </Section>
@@ -79,17 +79,25 @@ export default function WikiPage() {
         {/* Pool Play */}
         <Section title="Pool Play &amp; Standings">
           <p>
-            Singles tiers split their wrestlers into two pools (Pool A and Pool
-            B). Each wrestler faces every other wrestler in their pool once —
-            this is a full round robin. Tag team tiers use a single round robin
-            with no pools.
+            All tiers split their participants into two pools (Pool A and Pool
+            B). Each wrestler/team faces every other in their pool once —
+            this is a full round robin.
           </p>
-          <SubSection title="Tiebreakers">
-            <p>When wrestlers are tied in win percentage, ties are broken by:</p>
+          <SubSection title="Standings Columns">
+            <ul>
+              <li><strong>W / L</strong> — Wins and losses</li>
+              <li><strong>Win%</strong> — Win percentage</li>
+              <li><strong>GB</strong> — Games back from pool leader</li>
+              <li><strong>Strk</strong> — Current streak (W3 = 3 wins in a row, L2 = 2 losses)</li>
+              <li><strong>Avg Time</strong> — Average match duration</li>
+            </ul>
+          </SubSection>
+          <SubSection title="Sort Order &amp; Tiebreakers">
+            <p>Standings are sorted by:</p>
             <ol>
-              <li><strong>Head-to-head record</strong> — who won when they faced each other</li>
-              <li><strong>Total match time</strong> — faster combined match times indicate dominance</li>
-              <li><strong>Deterministic tiebreak</strong> — a consistent hash-based method as a final fallback</li>
+              <li><strong>Games Back (GB)</strong> — primary sort, lower is better</li>
+              <li><strong>Win percentage</strong> — secondary tiebreak</li>
+              <li><strong>Average match time</strong> — for wrestlers above .500, shorter avg time is better (dominant wins). Below .500, longer avg time is better (put up more of a fight)</li>
             </ol>
           </SubSection>
         </Section>
@@ -149,33 +157,44 @@ export default function WikiPage() {
         {/* Relegation */}
         <Section title="Relegation &amp; Promotion">
           <p>
-            After playoffs are complete, final standings determine who moves
-            between tiers. The system works in pairs of adjacent tiers:
+            After playoffs are complete, final pool standings determine who
+            moves between tiers. Movement is based on <strong>per-pool
+            finishing position</strong>:
           </p>
           <div className="mt-4 space-y-3">
             <MovementRule
               type="auto-relegate"
-              description="Bottom 2 in each tier automatically drop to the tier below"
+              description="Last place in each pool automatically drops to the tier below"
               color="red"
               arrow="↓"
             />
             <MovementRule
               type="auto-promote"
-              description="Top 2 in each tier (except Tier 1) automatically move up to the tier above"
+              description="1st place in each pool of the tier below automatically moves up (except Tier 1 has no promotion)"
               color="emerald"
               arrow="↑"
             />
             <MovementRule
-              type="steel-cage"
-              description="3rd-from-bottom (higher tier) vs. 3rd-place (lower tier) in a Steel Cage match — winner stays up/moves up. Same for 4th-from-bottom vs. 4th-place."
+              type="relegation-playoff"
+              description="2nd-from-bottom in each pool plays each other. The loser then faces the promotion winner from the tier below in a Steel Cage match. Winner earns/keeps the higher tier spot."
               color="amber"
               arrow="⚔️"
             />
           </div>
-          <p className="mt-4">
-            Relegation matches are <em>always</em> Steel Cage — no randomizer.
-            After all matches are played, the tier assignments are finalized
-            for the next season.
+          <SubSection title="Example (Pool of 6)">
+            <ol>
+              <li><strong>1st-2nd</strong> — Qualify for playoffs</li>
+              <li><strong>3rd</strong> — Wild card contention for playoffs</li>
+              <li><strong>4th</strong> — Safe, no movement</li>
+              <li><strong>5th</strong> — Relegation playoff (plays other pool&apos;s 5th, loser faces Steel Cage)</li>
+              <li><strong>6th</strong> — Auto-relegated to tier below</li>
+            </ol>
+          </SubSection>
+          <p className="mt-3">
+            Relegation Steel Cage matches are <em>always</em> Steel Cage — no
+            stipulation randomizer. After all matches are played, tier
+            assignments are finalized for the next season. The &quot;safe&quot;
+            zone in the middle grows as pool sizes increase.
           </p>
         </Section>
 
@@ -185,9 +204,9 @@ export default function WikiPage() {
             Wrestlers can compete in both singles and tag team divisions
             simultaneously. A wrestler might be in Men&apos;s Singles Tier 5
             while also competing with a partner in Men&apos;s Tag Tier 1.
-            Tag team tiers operate identically to singles tiers except they use
-            a single round robin (no pools) with the top 2 teams going straight
-            to a championship final.
+            Tag team tiers use the same pool system as singles — two pools
+            with round-robin play, 6-person playoff brackets, and the same
+            promotion/relegation rules.
           </p>
         </Section>
 

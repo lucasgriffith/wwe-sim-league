@@ -57,8 +57,9 @@ export function StandingsClient({ divisions }: Props) {
         <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/40">Legend</span>
         <span className="text-[9px] text-emerald-400 font-medium">● Playoff (Top 2)</span>
         <span className="text-[9px] text-blue-400 font-medium">● Wild Card (3rd)</span>
-        <span className="text-[9px] text-orange-400 font-medium">● Relegation ⚔ (3-4 from bottom)</span>
-        <span className="text-[9px] text-red-400 font-medium">● Auto-Relegate ↓ (Bottom 2)</span>
+        <span className="text-[9px] text-foreground/30 font-medium">● Safe</span>
+        <span className="text-[9px] text-orange-400 font-medium">● Relegation Playoff ⚔ (2nd from bottom)</span>
+        <span className="text-[9px] text-red-400 font-medium">● Auto-Relegate ↓ (Last)</span>
       </div>
 
       {/* Tier standings */}
@@ -168,24 +169,18 @@ function StandingsTable({
         </thead>
         <tbody>
           {standings.map((s, i) => {
+            // Per-pool zone logic:
+            // Top 2 = Playoff, 3rd = Wild Card, 2nd from bottom = Relegation Playoff, Last = Auto-Relegate
+            // Everything in between = Safe
+            const isPlayoff = i < 2;
+            const isWildCard = i === 2 && count > 3;
+            const isAutoRelegate = i === count - 1 && count > 2;
+            const isRelegationPlayoff = i === count - 2 && count > 3 && !isPlayoff && !isWildCard;
+            const isSafe = !isPlayoff && !isWildCard && !isAutoRelegate && !isRelegationPlayoff;
+
             let rankColor = "text-muted-foreground/50";
             let leftBorder = "";
             let zoneIcon = "";
-
-            // Zone boundaries
-            const isPlayoff = i < 2;
-            const isWildCard = i === 2;
-            const isAutoRelegate = i >= autoRelegateStart && count > 4;
-            const isRelegationPlayoff = !isAutoRelegate && i >= relegationPlayoffStart && count > 4;
-
-            // First/last in zone for group border
-            const prevIsPlayoff = i > 0 && (i - 1) < 2;
-            const nextIsPlayoff = (i + 1) < 2;
-            const prevIsWildCard = i > 0 && (i - 1) === 2;
-            const prevIsRelPlayoff = i > 0 && !((i - 1) >= autoRelegateStart && count > 4) && (i - 1) >= relegationPlayoffStart && count > 4;
-            const nextIsRelPlayoff = !((i + 1) >= autoRelegateStart && count > 4) && (i + 1) < count && (i + 1) >= relegationPlayoffStart && count > 4;
-            const prevIsAutoRelegate = i > 0 && (i - 1) >= autoRelegateStart && count > 4;
-            const nextIsAutoRelegate = (i + 1) < count && (i + 1) >= autoRelegateStart && count > 4;
 
             if (isPlayoff) {
               rankColor = "text-emerald-400";
@@ -201,18 +196,31 @@ function StandingsTable({
               rankColor = "text-orange-400";
               leftBorder = "border-l-[3px] border-l-orange-500/40";
               zoneIcon = "⚔";
+            } else if (isSafe) {
+              leftBorder = "border-l-[3px] border-l-foreground/10";
             }
 
-            // Zone group top/bottom borders
+            // Zone group borders
+            function getZone(idx: number) {
+              if (idx < 0 || idx >= count) return "none";
+              if (idx < 2) return "playoff";
+              if (idx === 2 && count > 3) return "wildcard";
+              if (idx === count - 1 && count > 2) return "autorel";
+              if (idx === count - 2 && count > 3 && idx >= 3) return "relplayoff";
+              return "safe";
+            }
+            const myZone = getZone(i);
+            const prevZone = getZone(i - 1);
+            const nextZone = getZone(i + 1);
             let zoneBorderTop = "";
             let zoneBorderBottom = "";
-            if (isPlayoff && i === 0) zoneBorderTop = "border-t border-t-emerald-500/20";
-            if (isPlayoff && !nextIsPlayoff) zoneBorderBottom = "border-b-2 border-b-emerald-500/15";
-            if (isWildCard) { zoneBorderTop = "border-t border-t-blue-500/20"; zoneBorderBottom = "border-b-2 border-b-blue-500/15"; }
-            if (isRelegationPlayoff && !prevIsRelPlayoff) zoneBorderTop = "border-t border-t-orange-500/20";
-            if (isRelegationPlayoff && !nextIsRelPlayoff) zoneBorderBottom = "border-b-2 border-b-orange-500/15";
-            if (isAutoRelegate && !prevIsAutoRelegate) zoneBorderTop = "border-t border-t-red-500/20";
-            if (isAutoRelegate && i === count - 1) zoneBorderBottom = "";
+            if (myZone !== prevZone && myZone === "playoff") zoneBorderTop = "border-t border-t-emerald-500/20";
+            if (myZone === "playoff" && nextZone !== "playoff") zoneBorderBottom = "border-b-2 border-b-emerald-500/15";
+            if (myZone === "wildcard" && prevZone !== "wildcard") zoneBorderTop = "border-t border-t-blue-500/20";
+            if (myZone === "wildcard" && nextZone !== "wildcard") zoneBorderBottom = "border-b-2 border-b-blue-500/15";
+            if (myZone === "relplayoff" && prevZone !== "relplayoff") zoneBorderTop = "border-t border-t-orange-500/20";
+            if (myZone === "relplayoff" && nextZone !== "relplayoff") zoneBorderBottom = "border-b-2 border-b-orange-500/15";
+            if (myZone === "autorel" && prevZone !== "autorel") zoneBorderTop = "border-t border-t-red-500/20";
 
             const clinched = hasClinched(i);
             const eliminated = isEliminated(i);
