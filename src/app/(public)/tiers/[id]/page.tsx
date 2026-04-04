@@ -393,20 +393,44 @@ export default async function TierDetailPage({
                           const relegationPlayoffStart = Math.max(0, count - 4);
                           const autoRelegateStart = Math.max(0, count - 2);
 
-                          // Zone-based text color
-                          let nameColor = "";
+                          let rankColor = "text-muted-foreground/50";
+                          let leftBorder = "";
                           let zoneIcon = "";
-                          if (i < 2) {
-                            nameColor = "text-emerald-400";
-                          } else if (i === 2) {
-                            nameColor = "text-blue-400";
-                          } else if (i >= autoRelegateStart && count > 4) {
-                            nameColor = "text-red-400";
+
+                          const isPlayoff = i < 2;
+                          const isWildCard = i === 2;
+                          const isAutoRelegate = i >= autoRelegateStart && count > 4;
+                          const isRelegationPlayoff = !isAutoRelegate && i >= relegationPlayoffStart && count > 4;
+
+                          if (isPlayoff) {
+                            rankColor = "text-emerald-400";
+                            leftBorder = "border-l-[3px] border-l-emerald-500/50";
+                          } else if (isWildCard) {
+                            rankColor = "text-blue-400";
+                            leftBorder = "border-l-[3px] border-l-blue-500/40";
+                          } else if (isAutoRelegate) {
+                            rankColor = "text-red-400";
+                            leftBorder = "border-l-[3px] border-l-red-500/50";
                             zoneIcon = "↓";
-                          } else if (i >= relegationPlayoffStart && count > 4) {
-                            nameColor = "text-orange-400";
+                          } else if (isRelegationPlayoff) {
+                            rankColor = "text-orange-400";
+                            leftBorder = "border-l-[3px] border-l-orange-500/40";
                             zoneIcon = "⚔";
                           }
+
+                          // Zone group borders
+                          const nextIsPlayoff = (i + 1) < 2;
+                          const prevIsRelPlayoff = i > 0 && !((i - 1) >= autoRelegateStart && count > 4) && (i - 1) >= relegationPlayoffStart && count > 4;
+                          const nextIsRelPlayoff = !((i + 1) >= autoRelegateStart && count > 4) && (i + 1) < count && (i + 1) >= relegationPlayoffStart && count > 4;
+                          const prevIsAutoRelegate = i > 0 && (i - 1) >= autoRelegateStart && count > 4;
+                          let zoneBorderTop = "";
+                          let zoneBorderBottom = "";
+                          if (isPlayoff && i === 0) zoneBorderTop = "border-t border-t-emerald-500/20";
+                          if (isPlayoff && !nextIsPlayoff) zoneBorderBottom = "border-b-2 border-b-emerald-500/15";
+                          if (isWildCard) { zoneBorderTop = "border-t border-t-blue-500/20"; zoneBorderBottom = "border-b-2 border-b-blue-500/15"; }
+                          if (isRelegationPlayoff && !prevIsRelPlayoff) zoneBorderTop = "border-t border-t-orange-500/20";
+                          if (isRelegationPlayoff && !nextIsRelPlayoff) zoneBorderBottom = "border-b-2 border-b-orange-500/15";
+                          if (isAutoRelegate && !prevIsAutoRelegate) zoneBorderTop = "border-t border-t-red-500/20";
 
                           const streakColor = s.streakLabel.startsWith("W")
                             ? "text-emerald-400"
@@ -415,15 +439,15 @@ export default async function TierDetailPage({
                               : "text-muted-foreground/30";
 
                           return (
-                            <TableRow key={s.id} className="table-row-hover border-border/30">
-                              <TableCell className="tabular-nums text-xs text-muted-foreground/50">
+                            <TableRow key={s.id} className={`table-row-hover ${leftBorder} ${zoneBorderTop} ${zoneBorderBottom} ${!zoneBorderBottom ? "border-b border-border/10" : ""}`}>
+                              <TableCell className={`tabular-nums text-xs font-bold ${rankColor}`}>
                                 {i + 1}
                               </TableCell>
                               <TableCell>
-                                <span className={`flex items-center gap-1.5 font-medium ${nameColor}`}>
+                                <span className="flex items-center gap-1.5 font-medium">
                                   {s.name}
                                   {zoneIcon && (
-                                    <span className="text-[8px] font-bold">{zoneIcon}</span>
+                                    <span className={`text-[8px] font-bold ${rankColor}`}>{zoneIcon}</span>
                                   )}
                                   {clinchMap.get(s.id) === "clinched" && (
                                     <span className="text-[8px] font-bold text-emerald-400 bg-emerald-400/10 px-1 rounded">✓</span>
