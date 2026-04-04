@@ -15,6 +15,7 @@ interface Standing {
   losses: number;
   winPct: number;
   totalTime: number;
+  avgTime: number;
   linkHref: string | null;
 }
 
@@ -113,6 +114,7 @@ export default async function StandingsPage() {
           (sum, m) => sum + (m.match_time_seconds ?? 0),
           0
         );
+        const avgTime = pMatches.length > 0 ? Math.round(totalTime / pMatches.length) : 0;
         return {
           id: pid,
           name,
@@ -120,10 +122,19 @@ export default async function StandingsPage() {
           losses,
           winPct,
           totalTime,
+          avgTime,
           linkHref: isTag ? null : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
         };
       })
-      .sort((a, b) => b.winPct - a.winPct || a.totalTime - b.totalTime);
+      .sort((a, b) => {
+        if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (a.avgTime && b.avgTime) {
+          if (a.winPct >= 0.5 && b.winPct >= 0.5) return a.avgTime - b.avgTime;
+          if (a.winPct < 0.5 && b.winPct < 0.5) return b.avgTime - a.avgTime;
+        }
+        return 0;
+      });
   }
 
   const divisionOrder = [
@@ -301,7 +312,7 @@ function StandingsTable({
             <th className="px-3 py-2 text-center w-8">W</th>
             <th className="px-3 py-2 text-center w-8">L</th>
             <th className="px-3 py-2 text-right w-14">Win%</th>
-            <th className="px-3 py-2 text-right w-14 hidden sm:table-cell">Time</th>
+            <th className="px-3 py-2 text-right w-14 hidden sm:table-cell">Avg Time</th>
           </tr>
         </thead>
         <tbody>
@@ -382,7 +393,7 @@ function StandingsTable({
                     : "—"}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-xs text-muted-foreground hidden sm:table-cell">
-                  {s.totalTime > 0 ? formatTime(s.totalTime) : "—"}
+                  {s.avgTime > 0 ? formatTime(s.avgTime) : "—"}
                 </td>
               </tr>
             );

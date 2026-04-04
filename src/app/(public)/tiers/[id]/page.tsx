@@ -143,6 +143,10 @@ export default async function TierDetailPage({
         0
       );
 
+      const avgTime = completedMatches.length > 0
+        ? Math.round(totalTime / completedMatches.length)
+        : 0;
+
       return {
         id: participantId!,
         name,
@@ -151,11 +155,28 @@ export default async function TierDetailPage({
         winPct:
           completedMatches.length > 0 ? wins / completedMatches.length : 0,
         totalTime,
+        avgTime,
         matchesPlayed: completedMatches.length,
       };
     });
 
-    stats.sort((a, b) => b.winPct - a.winPct || a.totalTime - b.totalTime);
+    // Sort: wins desc, then tiebreak by avg time
+    // >50% win rate: shorter avg time = better (dominant wins)
+    // <50% win rate: longer avg time = better (put up a fight)
+    stats.sort((a, b) => {
+      // Primary: win percentage
+      if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+      // Secondary: wins
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      // Tertiary: avg time tiebreak
+      if (a.avgTime && b.avgTime) {
+        const aAbove500 = a.winPct >= 0.5;
+        const bAbove500 = b.winPct >= 0.5;
+        if (aAbove500 && bAbove500) return a.avgTime - b.avgTime; // shorter = better
+        if (!aAbove500 && !bAbove500) return b.avgTime - a.avgTime; // longer = better
+      }
+      return 0;
+    });
 
     // Compute clinch status
     const matchesPerParticipant = stats.length > 1 ? stats.length - 1 : 0;
@@ -329,7 +350,7 @@ export default async function TierDetailPage({
                             Win%
                           </TableHead>
                           <TableHead className="text-center text-[11px] uppercase tracking-wider">
-                            Time
+                            Avg Time
                           </TableHead>
                         </TableRow>
                       </TableHeader>
@@ -380,7 +401,7 @@ export default async function TierDetailPage({
                                 : "-"}
                             </TableCell>
                             <TableCell className="text-center tabular-nums text-muted-foreground">
-                              {s.totalTime > 0 ? formatTime(s.totalTime) : "-"}
+                              {s.avgTime > 0 ? formatTime(s.avgTime) : "-"}
                             </TableCell>
                           </TableRow>
                         ))}
