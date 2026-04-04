@@ -466,14 +466,11 @@ export default async function TierDetailPage({
                               ? "text-red-400"
                               : "text-muted-foreground/30";
 
+                          const isOddRow = i % 2 === 1;
+
                           return (
                             <React.Fragment key={s.id}>
-                              {needsSpacerBefore && (
-                                <TableRow className="h-2 hover:bg-transparent">
-                                  <TableCell colSpan={8} className="p-0" />
-                                </TableRow>
-                              )}
-                              <TableRow className="table-row-hover" style={zoneBorderStyle}>
+                              <TableRow className={`${isOddRow ? "bg-muted/[0.03]" : ""}`} style={zoneBorderStyle}>
                                 <TableCell className={`tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
                                   {i + 1}
                                 </TableCell>
