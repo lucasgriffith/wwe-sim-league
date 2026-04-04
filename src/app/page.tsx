@@ -68,6 +68,8 @@ export default async function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let allMatchData: any[] = [];
   let tagMemberImages: Record<string, [string | null, string | null]> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let tierAssignmentsData: any[] = [];
   let tierProgress: Array<{
     tierId: string;
     tierSlug: string | null;
@@ -84,7 +86,7 @@ export default async function DashboardPage() {
   let tiersData: any[] = [];
 
   if (season) {
-    const [{ data: allMatches }, { data: tiers }, { data: tagTeamNames }] = await Promise.all([
+    const [{ data: allMatches }, { data: tiers }, { data: tagTeamNames }, { data: tierAssignments }] = await Promise.all([
       supabase
         .from("matches")
         .select("id, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, stipulation, match_phase, match_time_seconds, tier_id, played_at")
@@ -95,10 +97,12 @@ export default async function DashboardPage() {
         .select("id, tier_number, name, short_name, color, belt_image_url, slug, divisions(name, gender)")
         .order("tier_number"),
       supabase.from("tag_teams").select("id, name, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(image_url), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(image_url)"),
+      supabase.from("tier_assignments").select("tier_id, wrestler_id, tag_team_id, pool").eq("season_id", season.id),
     ]);
 
     allMatchData = allMatches ?? [];
     tiersData = tiers ?? [];
+    tierAssignmentsData = tierAssignments ?? [];
 
     for (const t of tagTeamNames ?? []) {
       wrestlerMap[t.id] = t.name;
@@ -299,6 +303,7 @@ export default async function DashboardPage() {
     losses: number;
     overallRating: number | null;
     streak: number;
+    poolRank?: string | null;
   }> = {};
   const allParticipantIds = new Set<string>();
   for (const m of unplayedMatches) {
@@ -307,6 +312,35 @@ export default async function DashboardPage() {
     if (aId) allParticipantIds.add(aId);
     if (bId) allParticipantIds.add(bId);
   }
+  // Compute pool rankings for each participant
+  const poolRankMap = new Map<string, string>();
+  if (tierAssignmentsData.length > 0) {
+    // Group assignments by tier+pool
+    const groups = new Map<string, Array<{ id: string }>>();
+    for (const a of tierAssignmentsData) {
+      const pid = a.wrestler_id || a.tag_team_id;
+      if (!pid) continue;
+      const key = `${a.tier_id}|${a.pool ?? "all"}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push({ id: pid });
+    }
+    // Sort each group by wins desc, compute rank
+    for (const [, members] of groups) {
+      const sorted = [...members].sort((a, b) => {
+        const aW = winCounts.get(a.id) ?? 0;
+        const bW = winCounts.get(b.id) ?? 0;
+        const aL = lossCounts.get(a.id) ?? 0;
+        const bL = lossCounts.get(b.id) ?? 0;
+        const aGb = ((bW - aW) + (aL - bL)) / 2;
+        return aGb;
+      });
+      sorted.forEach((m, idx) => {
+        const ordinal = idx === 0 ? "1st" : idx === 1 ? "2nd" : idx === 2 ? "3rd" : `${idx + 1}th`;
+        poolRankMap.set(m.id, ordinal);
+      });
+    }
+  }
+
   for (const id of allParticipantIds) {
     const isTagTeam = !!(tagMemberImages ?? {})[id];
     upNextParticipantStats[id] = {
@@ -317,6 +351,7 @@ export default async function DashboardPage() {
       losses: lossCounts.get(id) ?? 0,
       overallRating: ratingMap[id] ?? null,
       streak: fullStreaks.get(id) ?? 0,
+      poolRank: poolRankMap.get(id) ?? null,
     };
   }
 
@@ -329,7 +364,7 @@ export default async function DashboardPage() {
   }));
 
   // ── Recent Results ────────────────────────────────────────────────────────
-  const recentMatches = playedMatches.slice(0, 8);
+  const recentMatches = playedMatches.slice(0, 10);
 
   // ── Power Rankings by category ──────────────────────────────────────────
   function buildRankings(filterFn: (id: string) => boolean, limit: number) {
@@ -502,8 +537,8 @@ export default async function DashboardPage() {
         {/* ── Milestones ──────────────────────────────────────────────── */}
         {milestones.length > 0 && <MilestonesBanner milestones={milestones} />}
 
-        {/* ── Up Next + Latest Result Row ─────────────────────────────── */}
-        <div className={`grid gap-4 ${featuredMatch && unplayedMatches.length > 0 ? "lg:grid-cols-2" : ""}`}>
+        {/* ── Up Next + Latest Result + Streaks Row ──────────────────── */}
+        <div className="grid gap-4 lg:grid-cols-[1fr_1fr]  xl:grid-cols-[2fr_1fr_1fr]">
           {unplayedMatches.length > 0 && (
             <UpNextCard
               matches={unplayedMatches}
@@ -575,82 +610,61 @@ export default async function DashboardPage() {
               </div>
             </div>
           )}
+
+          {/* On Fire + Ice Cold (3rd column) */}
+          {(onFire.length > 0 || iceCold.length > 0) && (
+            <div className="space-y-4">
+              {onFire.length > 0 && (
+                <div>
+                  <h3 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2 flex items-center gap-1">
+                    <span>🔥</span> On Fire
+                  </h3>
+                  <div className="space-y-1.5">
+                    {onFire.slice(0, 5).map((w) => (
+                      <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-amber-500/10 bg-amber-500/[0.03] px-2 py-1.5 hover:border-amber-500/25 transition-all group">
+                        {w.image ? (
+                          <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-amber-500/20 shrink-0" />
+                        ) : (
+                          <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                            <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+                          </div>
+                        )}
+                        <span className="text-[11px] font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
+                        <span className="text-[9px] font-bold text-amber-400 shrink-0">
+                          {Array.from({ length: Math.min(w.streak, 3) }).map((_, i) => "🔥").join("")} {w.streak}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {iceCold.length > 0 && (
+                <div>
+                  <h3 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2 flex items-center gap-1">
+                    <span>🧊</span> Ice Cold
+                  </h3>
+                  <div className="space-y-1.5">
+                    {iceCold.slice(0, 5).map((w) => (
+                      <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-blue-500/10 bg-blue-500/[0.03] px-2 py-1.5 hover:border-blue-500/25 transition-all group">
+                        {w.image ? (
+                          <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-blue-500/20 grayscale-[30%] shrink-0" />
+                        ) : (
+                          <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                            <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+                          </div>
+                        )}
+                        <span className="text-[11px] font-semibold truncate flex-1 group-hover:text-blue-400 transition-colors">{w.name}</span>
+                        <span className="text-[9px] font-bold text-blue-400 shrink-0">
+                          {Array.from({ length: Math.min(Math.abs(w.streak), 3) }).map((_, i) => "🧊").join("")} {Math.abs(w.streak)}L
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-
-        {/* ── On Fire + Ice Cold ──────────────────────────────────────── */}
-        {(onFire.length > 0 || iceCold.length > 0) && (
-          <div className={`grid gap-4 ${onFire.length > 0 && iceCold.length > 0 ? "lg:grid-cols-2" : ""}`}>
-            {onFire.length > 0 && (
-              <div>
-                <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-3 flex items-center gap-1.5">
-                  <span>🔥</span> On Fire
-                </h2>
-                <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-1 px-1">
-                  {onFire.map((w) => (
-                    <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="shrink-0">
-                      <div className="w-[115px] rounded-xl border border-amber-500/15 bg-gradient-to-b from-amber-500/5 to-card p-2.5 hover:border-amber-500/30 hover:shadow-md hover:shadow-amber-500/5 transition-all">
-                        <div className="flex justify-center mb-1.5">
-                          {w.image ? (
-                            <img src={w.image} alt={w.name} className="h-10 w-10 rounded-full object-cover border border-amber-500/20" />
-                          ) : (
-                            <div className="h-10 w-10 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center">
-                              <span className="text-xs font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-[11px] font-bold text-center truncate">{w.name}</p>
-                        <div className="flex items-center justify-center gap-0.5 mt-0.5">
-                          {Array.from({ length: Math.min(w.streak, 5) }).map((_, i) => (
-                            <span key={i} className="text-[9px]">🔥</span>
-                          ))}
-                          <span className="text-[9px] font-bold text-amber-400 ml-0.5">{w.streak}</span>
-                        </div>
-                        <p className="text-[9px] text-center text-foreground/50 tabular-nums mt-0.5">
-                          {w.wins}W-{w.losses}L
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {iceCold.length > 0 && (
-              <div>
-                <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-3 flex items-center gap-1.5">
-                  <span>🧊</span> Ice Cold
-                </h2>
-                <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-1 px-1">
-                  {iceCold.map((w) => (
-                    <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="shrink-0">
-                      <div className="w-[115px] rounded-xl border border-blue-500/15 bg-gradient-to-b from-blue-500/5 to-card p-2.5 hover:border-blue-500/30 hover:shadow-md hover:shadow-blue-500/5 transition-all">
-                        <div className="flex justify-center mb-1.5">
-                          {w.image ? (
-                            <img src={w.image} alt={w.name} className="h-10 w-10 rounded-full object-cover border border-blue-500/20 grayscale-[30%]" />
-                          ) : (
-                            <div className="h-10 w-10 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center">
-                              <span className="text-xs font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-[11px] font-bold text-center truncate">{w.name}</p>
-                        <div className="flex items-center justify-center gap-0.5 mt-0.5">
-                          {Array.from({ length: Math.min(Math.abs(w.streak), 5) }).map((_, i) => (
-                            <span key={i} className="text-[9px]">🧊</span>
-                          ))}
-                          <span className="text-[9px] font-bold text-blue-400 ml-0.5">{Math.abs(w.streak)}L</span>
-                        </div>
-                        <p className="text-[9px] text-center text-foreground/50 tabular-nums mt-0.5">
-                          {w.wins}W-{w.losses}L
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ── Power Rankings (3 columns) ──────────────────────────────── */}
         {(menRankings.length > 0 || womenRankings.length > 0) && (
@@ -774,7 +788,7 @@ export default async function DashboardPage() {
         )}
 
         {/* ── Recent Results + Tier Map Row ─────────────────────────── */}
-        <div className={`grid gap-4 ${tierProgress.length > 0 && recentMatches.length > 0 ? "lg:grid-cols-[1fr_320px]" : ""}`}>
+        <div className={`grid gap-4 ${tierProgress.length > 0 && recentMatches.length > 0 ? "lg:grid-cols-2" : ""}`}>
           {/* Recent Results */}
           {recentMatches.length > 0 && (
             <Card className="border-border/30 bg-card/50">

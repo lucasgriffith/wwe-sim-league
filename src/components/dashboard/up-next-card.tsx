@@ -26,6 +26,7 @@ interface ParticipantStats {
   wins: number;
   losses: number;
   overallRating: number | null;
+  poolRank?: string | null; // e.g. "1st in Pool A"
   streak: number;
 }
 
@@ -221,6 +222,9 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
                 {a.wins}W-{a.losses}L · {(aWinPct * 100).toFixed(0)}%
               </div>
               <div className="flex items-center gap-2 mt-0.5">
+                {a.poolRank && (
+                  <span className="text-[10px] text-gold/60 font-semibold">{a.poolRank}</span>
+                )}
                 {a.overallRating ? (
                   <span className="text-[10px] text-foreground/50 font-medium">OVR {a.overallRating}</span>
                 ) : null}
@@ -245,6 +249,9 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
                 {b.wins}W-{b.losses}L · {(bWinPct * 100).toFixed(0)}%
               </div>
               <div className="flex items-center justify-end gap-2 mt-0.5">
+                {b.poolRank && (
+                  <span className="text-[10px] text-gold/60 font-semibold">{b.poolRank}</span>
+                )}
                 {b.overallRating ? (
                   <span className="text-[10px] text-foreground/50 font-medium">OVR {b.overallRating}</span>
                 ) : null}
@@ -279,7 +286,7 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
               max={59}
               value={seconds}
               onChange={(e) => setSeconds(e.target.value)}
-              className="w-12 h-8 text-center text-xs font-bold tabular-nums bg-background/50"
+              className="w-14 h-8 text-center text-xs font-bold tabular-nums bg-background/50"
               disabled={isPending}
             />
           </div>
