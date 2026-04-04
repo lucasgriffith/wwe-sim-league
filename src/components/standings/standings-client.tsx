@@ -55,10 +55,10 @@ export function StandingsClient({ divisions }: Props) {
       {/* Legend */}
       <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-border/30 bg-card/30 px-3 py-2">
         <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/40">Legend</span>
-        <LegendItem color="emerald" label="Playoff (Top 2)" />
-        <LegendItem color="blue" label="Wild Card (3rd)" />
-        <LegendItem color="orange" label="Relegation ⚔" />
-        <LegendItem color="red" label="Auto-Relegate ↓" />
+        <span className="text-[9px] text-emerald-400 font-medium">● Playoff (Top 2)</span>
+        <span className="text-[9px] text-blue-400 font-medium">● Wild Card (3rd)</span>
+        <span className="text-[9px] text-orange-400 font-medium">● Relegation ⚔ (3-4 from bottom)</span>
+        <span className="text-[9px] text-red-400 font-medium">● Auto-Relegate ↓ (Bottom 2)</span>
       </div>
 
       {/* Tier standings */}
@@ -103,21 +103,6 @@ export function StandingsClient({ divisions }: Props) {
           </p>
         )}
       </div>
-    </div>
-  );
-}
-
-function LegendItem({ color, label }: { color: string; label: string }) {
-  const colors: Record<string, string> = {
-    emerald: "bg-emerald-500/20 border-emerald-500/50",
-    blue: "bg-blue-500/15 border-blue-500/40",
-    orange: "bg-orange-500/15 border-orange-500/40",
-    red: "bg-red-500/20 border-red-500/50",
-  };
-  return (
-    <div className="flex items-center gap-1">
-      <span className={`inline-block h-2 w-2 rounded-sm border-2 ${colors[color]}`} />
-      <span className="text-[10px] text-muted-foreground">{label}</span>
     </div>
   );
 }
@@ -183,20 +168,18 @@ function StandingsTable({
         </thead>
         <tbody>
           {standings.map((s, i) => {
-            let rowBg = "";
-            let zoneIndicator = "";
+            let nameColor = "";
+            let zoneIcon = "";
             if (i < 2) {
-              rowBg = "bg-emerald-500/[0.08] border-l-[3px] border-l-emerald-500/50";
-              zoneIndicator = "playoff";
+              nameColor = "text-emerald-400";
             } else if (i === 2) {
-              rowBg = "bg-blue-500/[0.06] border-l-[3px] border-l-blue-500/40";
-              zoneIndicator = "wildcard";
+              nameColor = "text-blue-400";
             } else if (i >= autoRelegateStart && count > 4) {
-              rowBg = "bg-red-500/[0.08] border-l-[3px] border-l-red-500/50";
-              zoneIndicator = "auto-relegate";
+              nameColor = "text-red-400";
+              zoneIcon = "↓";
             } else if (i >= relegationPlayoffStart && count > 4) {
-              rowBg = "bg-orange-500/[0.06] border-l-[3px] border-l-orange-500/40";
-              zoneIndicator = "relegation-playoff";
+              nameColor = "text-orange-400";
+              zoneIcon = "⚔";
             }
 
             const clinched = hasClinched(i);
@@ -211,34 +194,31 @@ function StandingsTable({
             return (
               <tr
                 key={s.id}
-                className={`border-b border-border/10 text-sm ${rowBg}`}
+                className="border-b border-border/10 text-sm"
               >
-                <td className="px-3 py-2 tabular-nums text-xs text-muted-foreground">
+                <td className="px-3 py-2 tabular-nums text-xs text-muted-foreground/50">
                   {i + 1}
                 </td>
                 <td className="px-3 py-2">
-                  <span className="flex items-center gap-1.5">
+                  <span className={`flex items-center gap-1.5 font-medium ${nameColor}`}>
                     {s.linkHref ? (
                       <Link
                         href={s.linkHref}
-                        className={`font-medium hover:text-gold transition-colors ${eliminated ? "text-muted-foreground/50" : ""}`}
+                        className="hover:text-gold transition-colors"
                       >
                         {s.name}
                       </Link>
                     ) : (
-                      <span className={`font-medium ${eliminated ? "text-muted-foreground/50" : ""}`}>{s.name}</span>
+                      <span>{s.name}</span>
+                    )}
+                    {zoneIcon && (
+                      <span className="text-[8px] font-bold">{zoneIcon}</span>
                     )}
                     {clinched && (
-                      <Badge variant="outline" className="text-[8px] border-emerald-500/30 text-emerald-400 px-1 py-0">✓</Badge>
+                      <span className="text-[8px] font-bold text-emerald-400 bg-emerald-400/10 px-1 rounded">✓</span>
                     )}
                     {eliminated && (
-                      <Badge variant="outline" className="text-[8px] border-muted-foreground/20 text-muted-foreground/40 px-1 py-0">✗</Badge>
-                    )}
-                    {zoneIndicator === "auto-relegate" && (
-                      <span className="text-[8px] font-bold text-red-400/60">↓</span>
-                    )}
-                    {zoneIndicator === "relegation-playoff" && (
-                      <span className="text-[8px] font-bold text-orange-400/60">⚔</span>
+                      <span className="text-[8px] font-bold text-muted-foreground/40 bg-muted/10 px-1 rounded">✗</span>
                     )}
                   </span>
                 </td>

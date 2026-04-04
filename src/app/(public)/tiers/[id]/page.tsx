@@ -147,6 +147,22 @@ export default async function TierDetailPage({
         ? Math.round(totalTime / completedMatches.length)
         : 0;
 
+      // Compute streak
+      const sortedByDate = [...completedMatches]
+        .filter((m) => m.played_at)
+        .sort((a, b) => new Date(b.played_at).getTime() - new Date(a.played_at).getTime());
+      let streak = 0;
+      if (sortedByDate.length > 0) {
+        const winnerId = isTag ? sortedByDate[0].winner_tag_team_id : sortedByDate[0].winner_wrestler_id;
+        const isFirstWin = winnerId === participantId;
+        for (const m of sortedByDate) {
+          const mWinner = isTag ? m.winner_tag_team_id : m.winner_wrestler_id;
+          if (isFirstWin && mWinner === participantId) streak++;
+          else if (!isFirstWin && mWinner !== participantId) streak--;
+          else break;
+        }
+      }
+
       return {
         id: participantId!,
         name,
@@ -157,26 +173,33 @@ export default async function TierDetailPage({
         totalTime,
         avgTime,
         matchesPlayed: completedMatches.length,
+        gb: "", // computed after sort
+        streak,
+        streakLabel: streak > 0 ? `W${streak}` : streak < 0 ? `L${Math.abs(streak)}` : "—",
       };
     });
 
-    // Sort: wins desc, then tiebreak by avg time
-    // >50% win rate: shorter avg time = better (dominant wins)
-    // <50% win rate: longer avg time = better (put up a fight)
+    // Sort: win% desc → wins desc → avg time tiebreak
     stats.sort((a, b) => {
-      // Primary: win percentage
       if (b.winPct !== a.winPct) return b.winPct - a.winPct;
-      // Secondary: wins
       if (b.wins !== a.wins) return b.wins - a.wins;
-      // Tertiary: avg time tiebreak
       if (a.avgTime && b.avgTime) {
         const aAbove500 = a.winPct >= 0.5;
         const bAbove500 = b.winPct >= 0.5;
-        if (aAbove500 && bAbove500) return a.avgTime - b.avgTime; // shorter = better
-        if (!aAbove500 && !bAbove500) return b.avgTime - a.avgTime; // longer = better
+        if (aAbove500 && bAbove500) return a.avgTime - b.avgTime;
+        if (!aAbove500 && !bAbove500) return b.avgTime - a.avgTime;
       }
       return 0;
     });
+
+    // Compute GB from leader
+    if (stats.length > 0) {
+      const leader = stats[0];
+      stats.forEach((s) => {
+        const gb = ((leader.wins - s.wins) + (s.losses - leader.losses)) / 2;
+        s.gb = gb === 0 ? "—" : gb.toFixed(1);
+      });
+    }
 
     // Compute clinch status
     const matchesPerParticipant = stats.length > 1 ? stats.length - 1 : 0;
@@ -331,84 +354,100 @@ export default async function TierDetailPage({
                 <div className="grid gap-6 lg:grid-cols-2">
                   {/* Standings Table */}
                   <div className="rounded-lg border border-border/40 overflow-hidden">
+                    {/* Legend */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 bg-muted/5 border-b border-border/20">
+                      <span className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/40">Legend</span>
+                      <span className="text-[9px] text-emerald-400">● Playoff</span>
+                      <span className="text-[9px] text-blue-400">● Wild Card</span>
+                      <span className="text-[9px] text-orange-400">● Relegation ⚔</span>
+                      <span className="text-[9px] text-red-400">● Auto-Relegate ↓</span>
+                    </div>
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent border-border/40">
-                          <TableHead className="w-10 text-[11px] uppercase tracking-wider">
-                            #
-                          </TableHead>
-                          <TableHead className="text-[11px] uppercase tracking-wider">
-                            Name
-                          </TableHead>
-                          <TableHead className="text-center text-[11px] uppercase tracking-wider">
-                            W
-                          </TableHead>
-                          <TableHead className="text-center text-[11px] uppercase tracking-wider">
-                            L
-                          </TableHead>
-                          <TableHead className="text-center text-[11px] uppercase tracking-wider">
-                            Win%
-                          </TableHead>
-                          <TableHead className="text-center text-[11px] uppercase tracking-wider">
-                            Avg Time
-                          </TableHead>
+                          <TableHead className="w-8 text-[10px] uppercase tracking-wider">#</TableHead>
+                          <TableHead className="text-[10px] uppercase tracking-wider">Name</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-8">W</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-8">L</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-12">Win%</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-10">GB</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-10">Strk</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-14 hidden sm:table-cell">Avg Time</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {stats.map((s, i) => (
-                          <TableRow
-                            key={s.id}
-                            className="table-row-hover border-border/30"
-                          >
-                            <TableCell
-                              className={`tabular-nums font-semibold ${
-                                i < 2
-                                  ? "text-gold"
-                                  : i === 2
-                                    ? "text-muted-foreground"
-                                    : "text-muted-foreground/50"
-                              }`}
-                            >
-                              {i + 1}
-                              {i < 2 && (
-                                <span className="ml-0.5 text-[8px]">★</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              <span className="flex items-center gap-1.5">
-                                {s.name}
-                                {clinchMap.get(s.id) === "clinched" && (
-                                  <span className="text-[8px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-1 rounded" title="Clinched playoff spot">
-                                    ✓
-                                  </span>
-                                )}
-                                {clinchMap.get(s.id) === "eliminated" && (
-                                  <span className="text-[8px] font-bold uppercase tracking-wider text-red-400/60 bg-red-400/10 px-1 rounded" title="Eliminated from playoffs">
-                                    ✗
-                                  </span>
-                                )}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-center tabular-nums">
-                              {s.wins}
-                            </TableCell>
-                            <TableCell className="text-center tabular-nums">
-                              {s.losses}
-                            </TableCell>
-                            <TableCell className="text-center tabular-nums">
-                              {s.matchesPlayed > 0
-                                ? (s.winPct * 100).toFixed(0) + "%"
-                                : "-"}
-                            </TableCell>
-                            <TableCell className="text-center tabular-nums text-muted-foreground">
-                              {s.avgTime > 0 ? formatTime(s.avgTime) : "-"}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {stats.map((s, i) => {
+                          const count = stats.length;
+                          const relegationPlayoffStart = Math.max(0, count - 4);
+                          const autoRelegateStart = Math.max(0, count - 2);
+
+                          // Zone-based text color
+                          let nameColor = "";
+                          let zoneIcon = "";
+                          if (i < 2) {
+                            nameColor = "text-emerald-400";
+                          } else if (i === 2) {
+                            nameColor = "text-blue-400";
+                          } else if (i >= autoRelegateStart && count > 4) {
+                            nameColor = "text-red-400";
+                            zoneIcon = "↓";
+                          } else if (i >= relegationPlayoffStart && count > 4) {
+                            nameColor = "text-orange-400";
+                            zoneIcon = "⚔";
+                          }
+
+                          const streakColor = s.streakLabel.startsWith("W")
+                            ? "text-emerald-400"
+                            : s.streakLabel.startsWith("L")
+                              ? "text-red-400"
+                              : "text-muted-foreground/30";
+
+                          return (
+                            <TableRow key={s.id} className="table-row-hover border-border/30">
+                              <TableCell className="tabular-nums text-xs text-muted-foreground/50">
+                                {i + 1}
+                              </TableCell>
+                              <TableCell>
+                                <span className={`flex items-center gap-1.5 font-medium ${nameColor}`}>
+                                  {s.name}
+                                  {zoneIcon && (
+                                    <span className="text-[8px] font-bold">{zoneIcon}</span>
+                                  )}
+                                  {clinchMap.get(s.id) === "clinched" && (
+                                    <span className="text-[8px] font-bold text-emerald-400 bg-emerald-400/10 px-1 rounded">✓</span>
+                                  )}
+                                  {clinchMap.get(s.id) === "eliminated" && (
+                                    <span className="text-[8px] font-bold text-muted-foreground/40 bg-muted/10 px-1 rounded">✗</span>
+                                  )}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-center tabular-nums font-medium text-emerald-400">
+                                {s.wins}
+                              </TableCell>
+                              <TableCell className="text-center tabular-nums font-medium text-red-400">
+                                {s.losses}
+                              </TableCell>
+                              <TableCell className="text-center tabular-nums font-medium">
+                                {s.matchesPlayed > 0
+                                  ? (s.winPct * 100).toFixed(0) + "%"
+                                  : "-"}
+                              </TableCell>
+                              <TableCell className="text-center tabular-nums text-xs text-muted-foreground">
+                                {s.gb}
+                              </TableCell>
+                              <TableCell className={`text-center tabular-nums text-xs font-semibold ${streakColor}`}>
+                                {s.streakLabel}
+                              </TableCell>
+                              <TableCell className="text-center tabular-nums text-xs text-muted-foreground hidden sm:table-cell">
+                                {s.avgTime > 0 ? formatTime(s.avgTime) : "-"}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                         {stats.length === 0 && (
                           <TableRow>
                             <TableCell
-                              colSpan={6}
+                              colSpan={8}
                               className="text-center text-muted-foreground py-8"
                             >
                               No participants assigned yet
