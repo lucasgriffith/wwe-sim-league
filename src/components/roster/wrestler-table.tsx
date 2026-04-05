@@ -32,6 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { WrestlerForm } from "./wrestler-form";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { updateWrestler, deleteWrestler } from "@/app/actions";
 import { toast } from "sonner";
 
@@ -329,6 +330,7 @@ function EditWrestlerDialog({
     wrestler.overall_rating?.toString() ?? ""
   );
   const [isActive, setIsActive] = useState(wrestler.is_active);
+  const [imageUrl, setImageUrl] = useState(wrestler.image_url ?? "");
 
   function handleSave() {
     startTransition(async () => {
@@ -339,6 +341,7 @@ function EditWrestlerDialog({
           brand: brand || undefined,
           overall_rating: overallRating ? parseInt(overallRating) : undefined,
           is_active: isActive,
+          image_url: imageUrl || undefined,
         });
         toast.success(`${name} updated`);
         onClose();
@@ -360,6 +363,14 @@ function EditWrestlerDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="space-y-1.5">
+            <Label>Photo</Label>
+            <ImageUpload
+              folder="wrestlers"
+              currentUrl={imageUrl || null}
+              onUpload={(url) => setImageUrl(url)}
+            />
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="edit-name">Name</Label>
             <Input
