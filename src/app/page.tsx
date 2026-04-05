@@ -10,6 +10,8 @@ import { SeasonTicker } from "@/components/dashboard/season-ticker";
 import { MilestonesBanner } from "@/components/dashboard/milestones";
 import { UndoMatchButton } from "@/components/dashboard/undo-match-button";
 import { computeMilestones } from "@/lib/milestones";
+import { SeasonTimeline } from "@/components/dashboard/season-timeline";
+import { LiveFeed } from "@/components/dashboard/live-feed";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -437,6 +439,17 @@ export default async function DashboardPage() {
     ? Math.round(allMatchTimes.reduce((a: number, b: number) => a + b, 0) / allMatchTimes.length)
     : null;
 
+  // ── First match date for timeline ─────────────────────────────────────────
+  const firstMatchDate = playedMatches.length > 0
+    ? playedMatches.reduce((earliest, m) => {
+        const d = new Date(m.played_at).getTime();
+        return d < earliest ? d : earliest;
+      }, Infinity)
+    : null;
+  const firstMatchDateISO = firstMatchDate !== null && firstMatchDate !== Infinity
+    ? new Date(firstMatchDate).toISOString()
+    : null;
+
   const milestones = computeMilestones({
     totalPlayed,
     totalMatches,
@@ -455,6 +468,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="animate-fade-in">
+      {/* ── Live Feed (Realtime notifications) ─────────────────────── */}
+      <LiveFeed />
+
       {/* ── Live Ticker ─────────────────────────────────────────────── */}
       {season && totalPlayed > 0 && (
         <SeasonTicker
@@ -558,6 +574,15 @@ export default async function DashboardPage() {
       </div>
 
       <div className="container max-w-screen-2xl px-4 py-6 space-y-8">
+
+        {/* ── Season Timeline ────────────────────────────────────────── */}
+        {season && totalPlayed >= 2 && (
+          <SeasonTimeline
+            totalPlayed={totalPlayed}
+            totalMatches={totalMatches}
+            firstMatchDate={firstMatchDateISO}
+          />
+        )}
 
         {/* ── Milestones ──────────────────────────────────────────────── */}
         {milestones.length > 0 && <MilestonesBanner milestones={milestones} />}
