@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeAccentPicker } from "@/components/theme-accent";
 
 const navLinks = [
   { href: "/", label: "Dashboard" },
@@ -112,6 +113,8 @@ export function SiteHeader() {
               <DropdownMenuItem render={<Link href="/season/relegation" />}>
                 Relegation
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <ThemeAccentPicker />
             </DropdownMenuContent>
           </DropdownMenu>
 

@@ -18,6 +18,7 @@ export interface Standing {
   avgTime: number;
   gb: string;
   streak: string;
+  trend: boolean[];
   linkHref: string | null;
 }
 
@@ -160,6 +161,18 @@ export default async function StandingsPage() {
         const s = streakMap.get(pid) ?? 0;
         const streak = s > 0 ? `W${s}` : s < 0 ? `L${Math.abs(s)}` : "—";
 
+        // Compute trend (last 10 results, chronological order)
+        const sortedDesc = [...pMatches]
+          .filter((m) => m.played_at)
+          .sort((a, b) => new Date(b.played_at).getTime() - new Date(a.played_at).getTime());
+        const trend = sortedDesc
+          .slice(0, 10)
+          .reverse()
+          .map((m) => {
+            const winnerId = isTag ? m.winner_tag_team_id : m.winner_wrestler_id;
+            return winnerId === pid;
+          });
+
         return {
           id: pid,
           name,
@@ -169,6 +182,7 @@ export default async function StandingsPage() {
           avgTime,
           gb: "",
           streak,
+          trend,
           linkHref: isTag ? "/tag-teams" : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
         };
       });

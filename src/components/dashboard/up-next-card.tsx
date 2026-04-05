@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { recordMatchResult } from "@/app/actions";
 import { toast } from "sonner";
+import { MatchCardExport } from "./match-card-export";
 /* eslint-disable @next/next/no-img-element */
 
 interface UpcomingMatch {
@@ -244,6 +245,16 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
             </Badge>
             <span className="tabular-nums font-medium">{formatMatchTime(celebration.matchTime)}</span>
           </div>
+
+          {/* Share button */}
+          <MatchCardExport
+            winnerName={celebration.winnerName}
+            loserName={celebration.winnerId === aId ? b.name : a.name}
+            matchTime={formatMatchTime(celebration.matchTime)}
+            tierName={tier?.name ?? "?"}
+            tierNumber={tier?.tier_number ?? 0}
+            winnerImageUrl={winnerStats.image}
+          />
         </div>
 
         {/* CSS animations */}

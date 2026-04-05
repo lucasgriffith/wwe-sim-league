@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import type { Standing, TierStandings } from "@/app/(public)/standings/page";
+import { Sparkline } from "@/components/ui/sparkline";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -164,6 +165,7 @@ function StandingsTable({
             <th className="px-1 sm:px-3 py-2 text-right w-12">Win%</th>
             <th className="px-1 sm:px-3 py-2 text-center w-10 hidden sm:table-cell">GB</th>
             <th className="px-1 sm:px-3 py-2 text-center w-10">Strk</th>
+            <th className="px-1 sm:px-3 py-2 text-center w-12 hidden sm:table-cell">Trend</th>
             <th className="px-1 sm:px-3 py-2 text-right w-14 hidden sm:table-cell">Avg Time</th>
           </tr>
         </thead>
@@ -291,6 +293,9 @@ function StandingsTable({
                   <td className={`px-1 sm:px-3 py-2 text-center tabular-nums text-xs font-semibold ${streakColor}`}>
                     {s.streak}
                   </td>
+                  <td className="px-1 sm:px-3 py-2 text-center hidden sm:table-cell">
+                    {s.trend.length > 0 && <Sparkline results={s.trend} />}
+                  </td>
                   <td className="px-1 sm:px-3 py-2 text-right tabular-nums text-xs text-muted-foreground hidden sm:table-cell" style={zoneRightStyle}>
                     {s.avgTime > 0 ? formatTime(s.avgTime) : "—"}
                   </td>
@@ -300,7 +305,7 @@ function StandingsTable({
           })}
           {standings.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-3 py-4 text-center text-xs text-muted-foreground">
+              <td colSpan={9} className="px-3 py-4 text-center text-xs text-muted-foreground">
                 No matches played yet
               </td>
             </tr>

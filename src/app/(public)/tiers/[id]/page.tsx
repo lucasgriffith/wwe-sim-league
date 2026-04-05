@@ -17,6 +17,7 @@ import Link from "next/link";
 import { BracketView } from "@/components/playoffs/bracket-view";
 import { TierSchedule } from "@/components/tiers/tier-schedule";
 import { computeClinchStatus, type ClinchStatus } from "@/lib/standings/clinch";
+import { Sparkline } from "@/components/ui/sparkline";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -173,6 +174,15 @@ export default async function TierDetailPage({
         }
       }
 
+      // Compute trend (last 10 match results, chronological order)
+      const trend = sortedByDate
+        .slice(0, 10)
+        .reverse()
+        .map((m) => {
+          const mWinner = isTag ? m.winner_tag_team_id : m.winner_wrestler_id;
+          return mWinner === participantId;
+        });
+
       return {
         id: participantId!,
         name,
@@ -187,6 +197,7 @@ export default async function TierDetailPage({
         gbNum: 0,
         streak,
         streakLabel: streak > 0 ? `W${streak}` : streak < 0 ? `L${Math.abs(streak)}` : "—",
+        trend,
         linkHref: isTag ? "/tag-teams" : `/roster/${wrestlerSlugMap[participantId!] ?? participantId}`,
       };
     });
@@ -396,6 +407,7 @@ export default async function TierDetailPage({
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-12 px-1 sm:px-4">Win%</TableHead>
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-10 px-1 sm:px-4 hidden sm:table-cell">GB</TableHead>
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-10 px-1 sm:px-4">Strk</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-12 px-1 sm:px-4 hidden sm:table-cell">Trend</TableHead>
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-14 px-1 sm:px-4 hidden sm:table-cell">Avg Time</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -524,6 +536,9 @@ export default async function TierDetailPage({
                                 <TableCell className={`text-center tabular-nums text-xs font-semibold ${streakColor} px-1 sm:px-4`}>
                                   {s.streakLabel}
                                 </TableCell>
+                                <TableCell className="text-center px-1 sm:px-4 hidden sm:table-cell">
+                                  {s.trend.length > 0 && <Sparkline results={s.trend} />}
+                                </TableCell>
                                 <TableCell className="text-center tabular-nums text-xs text-muted-foreground hidden sm:table-cell px-1 sm:px-4" style={zoneRightStyle}>
                                   {s.avgTime > 0 ? formatTime(s.avgTime) : "-"}
                                 </TableCell>
@@ -534,7 +549,7 @@ export default async function TierDetailPage({
                         {stats.length === 0 && (
                           <TableRow>
                             <TableCell
-                              colSpan={8}
+                              colSpan={9}
                               className="text-center text-muted-foreground py-8"
                             >
                               No participants assigned yet
