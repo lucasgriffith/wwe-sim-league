@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { getCurrentChampions } from "@/lib/champions";
+import { ProfileImageUpload } from "@/components/roster/profile-image-upload";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -52,6 +53,7 @@ export default async function WrestlerProfilePage({
     { data: tiers },
     { data: wrestlers },
     { data: tagTeamMemberships },
+    { data: { user } },
   ] = await Promise.all([
     supabase.from("wrestlers").select("*").eq("id", id).single(),
     supabase
@@ -78,6 +80,7 @@ export default async function WrestlerProfilePage({
       .from("tag_teams")
       .select("id, name, wrestler_a_id, wrestler_b_id, is_active")
       .or(`wrestler_a_id.eq.${id},wrestler_b_id.eq.${id}`),
+    supabase.auth.getUser(),
   ]);
 
   if (!wrestler) notFound();
@@ -225,20 +228,25 @@ export default async function WrestlerProfilePage({
 
       {/* Header */}
       <div className="mt-6 mb-8 flex items-start gap-5">
-        {wrestler.image_url ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={wrestler.image_url}
-            alt={wrestler.name}
-            className="h-20 w-20 rounded-xl object-cover border-2 border-border/30 shrink-0 shadow-lg"
-          />
-        ) : (
-          <div className="h-20 w-20 rounded-xl bg-muted/20 border-2 border-border/20 flex items-center justify-center shrink-0">
-            <span className="text-2xl font-bold text-muted-foreground/30">
-              {wrestler.name.charAt(0)}
-            </span>
-          </div>
-        )}
+        <div className="shrink-0">
+          {wrestler.image_url ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={wrestler.image_url}
+              alt={wrestler.name}
+              className="h-20 w-20 rounded-xl object-cover border-2 border-border/30 shadow-lg"
+            />
+          ) : (
+            <div className="h-20 w-20 rounded-xl bg-muted/20 border-2 border-border/20 flex items-center justify-center">
+              <span className="text-2xl font-bold text-muted-foreground/30">
+                {wrestler.name.charAt(0)}
+              </span>
+            </div>
+          )}
+          {!!user && (
+            <ProfileImageUpload wrestlerId={id} currentUrl={wrestler.image_url} />
+          )}
+        </div>
         <div>
         <h1 className="text-3xl font-bold tracking-tight">{wrestler.name}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-2">
