@@ -68,7 +68,7 @@ export default async function TiersPage() {
                 <div
                   className={`group relative rounded-xl border border-border/40 overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:shadow-black/20 ${
                     divisionBorderHover[division.name] ?? "hover:border-border/60"
-                  } ${tier.belt_image_url ? "h-72" : "h-auto"}`}
+                  } ${tier.belt_image_url ? "h-48" : "h-auto"}`}
                 >
                   {/* Belt image — prominent, vivid */}
                   {tier.belt_image_url ? (
@@ -95,7 +95,7 @@ export default async function TiersPage() {
                       <img
                         src={tier.belt_image_url}
                         alt=""
-                        className="absolute inset-0 w-full h-full object-contain p-3 pt-8 pb-16 transition-transform group-hover:scale-105"
+                        className="absolute -inset-8 w-[calc(100%+4rem)] h-[calc(100%+4rem)] object-contain pb-8 transition-transform group-hover:scale-105"
                       />
                       {/* Bottom overlay with text */}
                       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-background via-background/90 to-transparent">
