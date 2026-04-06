@@ -95,7 +95,7 @@ export default async function TiersPage() {
                       <img
                         src={tier.belt_image_url}
                         alt=""
-                        className="absolute -inset-8 w-[calc(100%+4rem)] h-[calc(100%+4rem)] object-contain pb-8 transition-transform group-hover:scale-105"
+                        className="absolute -inset-5 w-[calc(100%+2.5rem)] h-[calc(100%+2.5rem)] object-contain pb-8 transition-transform group-hover:scale-105"
                       />
                       {/* Bottom overlay with text */}
                       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-background via-background/90 to-transparent">
