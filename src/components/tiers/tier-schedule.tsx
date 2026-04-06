@@ -71,10 +71,144 @@ export function TierSchedule({
     });
   }
 
+  // Split rounds into two columns
+  const midpoint = Math.ceil(rounds.length / 2);
+  const leftRounds = rounds.slice(0, midpoint);
+  const rightRounds = rounds.slice(midpoint);
+
+  function renderRound({ round, matches }: ScheduleRound) {
+    return (
+      <div key={round} className="px-2.5 py-1.5">
+        <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50 mb-1">
+          R{round}
+        </div>
+        <div className="space-y-0.5">
+          {matches.map((m) => {
+            const isExpanded = expandedMatch === m.id;
+            return (
+              <div key={m.id}>
+                <div
+                  className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] transition-all ${
+                    m.isPlayed
+                      ? "bg-emerald-500/5"
+                      : isExpanded
+                        ? "bg-gold/5 border border-gold/20 cursor-pointer"
+                        : isAdmin
+                          ? "bg-muted/5 hover:bg-gold/5 cursor-pointer"
+                          : "bg-muted/5"
+                  }`}
+                  onClick={() => {
+                    if (m.isPlayed || !isAdmin) return;
+                    setExpandedMatch(isExpanded ? null : m.id);
+                    setMinutes("");
+                    setSeconds("");
+                  }}
+                >
+                  <span
+                    className={`flex-1 truncate text-right ${
+                      m.isPlayed && m.winnerId === m.aId
+                        ? "font-bold text-emerald-400"
+                        : m.isPlayed
+                          ? "text-muted-foreground/50"
+                          : ""
+                    }`}
+                  >
+                    {m.aName}
+                  </span>
+                  <span className="text-[8px] text-muted-foreground/30 shrink-0">
+                    {m.isPlayed ? "✓" : "vs"}
+                  </span>
+                  <span
+                    className={`flex-1 truncate ${
+                      m.isPlayed && m.winnerId === m.bId
+                        ? "font-bold text-emerald-400"
+                        : m.isPlayed
+                          ? "text-muted-foreground/50"
+                          : ""
+                    }`}
+                  >
+                    {m.bName}
+                  </span>
+                  {m.isPlayed && m.matchTime && (
+                    <span className="text-[8px] tabular-nums text-muted-foreground/40 shrink-0">
+                      {formatTime(m.matchTime)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Inline entry */}
+                {isExpanded && isAdmin && !m.isPlayed && (
+                  <div className="mt-1 mb-1.5 rounded-lg border border-gold/20 bg-gold/[0.02] p-2 space-y-1.5 animate-slide-down">
+                    <div className="flex items-center justify-center gap-1">
+                      <Input
+                        type="number"
+                        placeholder="M"
+                        min={0}
+                        value={minutes}
+                        onChange={(e) => setMinutes(e.target.value)}
+                        className="w-12 h-7 text-center text-[11px] font-bold tabular-nums"
+                        autoFocus
+                      />
+                      <span className="text-xs font-bold text-muted-foreground/30">:</span>
+                      <Input
+                        type="number"
+                        placeholder="S"
+                        value={seconds}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (isNaN(val) || e.target.value === "") {
+                            setSeconds(e.target.value);
+                          } else if (val < 0) {
+                            setSeconds("59");
+                          } else if (val > 59) {
+                            setSeconds("0");
+                          } else {
+                            setSeconds(e.target.value);
+                          }
+                        }}
+                        className="w-12 h-7 text-center text-[11px] font-bold tabular-nums"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-[10px] font-bold hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRecord(m, m.aId);
+                        }}
+                        disabled={isPending}
+                      >
+                        {m.aName}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-[10px] font-bold hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRecord(m, m.bId);
+                        }}
+                        disabled={isPending}
+                      >
+                        {m.bName}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-lg border border-border/40 overflow-hidden max-h-[500px] overflow-y-auto">
-      <div className="p-3 border-b border-border/30 bg-muted/5 sticky top-0 z-10 backdrop-blur-sm">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="px-3 py-2 border-b border-border/30 bg-muted/5 sticky top-0 z-10 backdrop-blur-sm">
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Schedule
           {isAdmin && (
             <span className="text-[9px] text-muted-foreground/40 font-normal ml-2">
@@ -83,124 +217,13 @@ export function TierSchedule({
           )}
         </h3>
       </div>
-      <div className="divide-y divide-border/20">
-        {rounds.map(({ round, matches }) => (
-          <div key={round} className="px-3 py-2">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 mb-1.5">
-              Round {round}
-            </div>
-            <div className="space-y-1">
-              {matches.map((m) => {
-                const isExpanded = expandedMatch === m.id;
-                return (
-                  <div key={m.id}>
-                    <div
-                      className={`flex items-center gap-2 rounded px-2 py-1 text-xs transition-all ${
-                        m.isPlayed
-                          ? "bg-emerald-500/5"
-                          : isExpanded
-                            ? "bg-gold/5 border border-gold/20 cursor-pointer"
-                            : isAdmin
-                              ? "bg-muted/5 hover:bg-gold/5 cursor-pointer"
-                              : "bg-muted/5"
-                      }`}
-                      onClick={() => {
-                        if (m.isPlayed || !isAdmin) return;
-                        setExpandedMatch(isExpanded ? null : m.id);
-                        setMinutes("");
-                        setSeconds("");
-                      }}
-                    >
-                      <span
-                        className={`flex-1 truncate text-right ${
-                          m.isPlayed && m.winnerId === m.aId
-                            ? "font-bold text-emerald-400"
-                            : m.isPlayed
-                              ? "text-muted-foreground/50"
-                              : ""
-                        }`}
-                      >
-                        {m.aName}
-                      </span>
-                      <span className="text-[9px] text-muted-foreground/30 shrink-0">
-                        {m.isPlayed ? "✓" : "vs"}
-                      </span>
-                      <span
-                        className={`flex-1 truncate ${
-                          m.isPlayed && m.winnerId === m.bId
-                            ? "font-bold text-emerald-400"
-                            : m.isPlayed
-                              ? "text-muted-foreground/50"
-                              : ""
-                        }`}
-                      >
-                        {m.bName}
-                      </span>
-                      {m.isPlayed && m.matchTime && (
-                        <span className="text-[9px] tabular-nums text-muted-foreground/40 shrink-0">
-                          {formatTime(m.matchTime)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Inline entry */}
-                    {isExpanded && isAdmin && !m.isPlayed && (
-                      <div className="mt-1 mb-2 rounded-lg border border-gold/20 bg-gold/[0.02] p-2.5 space-y-2 animate-slide-down">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Input
-                            type="number"
-                            placeholder="Min"
-                            min={0}
-                            value={minutes}
-                            onChange={(e) => setMinutes(e.target.value)}
-                            className="w-14 h-8 text-center text-xs font-bold tabular-nums"
-                            autoFocus
-                          />
-                          <span className="text-sm font-bold text-muted-foreground/30">:</span>
-                          <Input
-                            type="number"
-                            placeholder="Sec"
-                            min={0}
-                            max={59}
-                            value={seconds}
-                            onChange={(e) => setSeconds(e.target.value)}
-                            className="w-14 h-8 text-center text-xs font-bold tabular-nums"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-9 text-[11px] font-bold hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98]"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRecord(m, m.aId);
-                            }}
-                            disabled={isPending}
-                          >
-                            {m.aName}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-9 text-[11px] font-bold hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98]"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRecord(m, m.bId);
-                            }}
-                            disabled={isPending}
-                          >
-                            {m.bName}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 divide-x divide-border/20">
+        <div className="divide-y divide-border/10">
+          {leftRounds.map(renderRound)}
+        </div>
+        <div className="divide-y divide-border/10">
+          {rightRounds.map(renderRound)}
+        </div>
       </div>
     </div>
   );
