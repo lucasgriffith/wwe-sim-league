@@ -37,7 +37,10 @@ export function TierSchedule({
   rounds: ScheduleRound[];
   isAdmin: boolean;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(() => {
+    if (typeof window !== "undefined") return window.innerWidth >= 1024;
+    return false;
+  });
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
   const [minutes, setMinutes] = useState("");
   const [seconds, setSeconds] = useState("");
