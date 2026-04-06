@@ -317,15 +317,7 @@ export default async function TierDetailPage({
             {division.name}
           </Badge>
         </div>
-        <div className="flex items-start gap-4">
-          {tier.belt_image_url && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={tier.belt_image_url}
-              alt={`${tier.name} belt`}
-              className="h-16 w-auto object-contain shrink-0 opacity-80"
-            />
-          )}
+        <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold sm:text-3xl">{tier.name}</h1>
             {tier.fixed_stipulation && (
@@ -340,6 +332,14 @@ export default async function TierDetailPage({
               <BeltImageEditor tierId={tier.id} currentUrl={tier.belt_image_url} />
             )}
           </div>
+          {tier.belt_image_url && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={tier.belt_image_url}
+              alt={`${tier.name} belt`}
+              className="h-24 sm:h-32 w-auto object-contain shrink-0 opacity-90"
+            />
+          )}
         </div>
       </div>
 
