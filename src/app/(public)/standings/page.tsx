@@ -203,12 +203,38 @@ export default async function StandingsPage() {
       });
     }
 
-    // Sort by GB first, then win%, then avg time tiebreak
+    // Head-to-head lookup for 2-way ties
+    function h2hCompare(aId: string, bId: string): number {
+      const h2hMatches = tierMatches.filter((m) => {
+        const mA = isTag ? m.tag_team_a_id : m.wrestler_a_id;
+        const mB = isTag ? m.tag_team_b_id : m.wrestler_b_id;
+        return (mA === aId && mB === bId) || (mA === bId && mB === aId);
+      });
+      if (h2hMatches.length === 0) return 0;
+      const aWins = h2hMatches.filter((m) => {
+        const winner = isTag ? m.winner_tag_team_id : m.winner_wrestler_id;
+        return winner === aId;
+      }).length;
+      const bWins = h2hMatches.length - aWins;
+      if (aWins > bWins) return -1;
+      if (bWins > aWins) return 1;
+      return 0;
+    }
+
+    // Sort by GB first, then h2h (2-way only), then avg time tiebreak
     rows.sort((a, b) => {
       const gbA = gbNums.get(a.id) ?? 999;
       const gbB = gbNums.get(b.id) ?? 999;
       if (gbA !== gbB) return gbA - gbB;
       if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+      // Head-to-head for 2-way ties only
+      const tiedCount = rows.filter(
+        (r) => (gbNums.get(r.id) ?? 999) === gbA && r.winPct === a.winPct
+      ).length;
+      if (tiedCount === 2) {
+        const h2h = h2hCompare(a.id, b.id);
+        if (h2h !== 0) return h2h;
+      }
       if (a.avgTime && b.avgTime) {
         if (a.winPct >= 0.5 && b.winPct >= 0.5) return a.avgTime - b.avgTime;
         if (a.winPct < 0.5 && b.winPct < 0.5) return b.avgTime - a.avgTime;

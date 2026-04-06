@@ -222,7 +222,27 @@ export default async function TierDetailPage({
       });
     }
 
-    // Sort: GB asc → avg time tiebreak
+    // Head-to-head lookup: given two participant IDs, who won?
+    // Returns 1 if a won more h2h, -1 if b won more, 0 if tied/no matches
+    const completedPoolMatches = poolMatches.filter((m) => m.played_at);
+    function h2hCompare(aId: string, bId: string): number {
+      const h2hMatches = completedPoolMatches.filter((m) => {
+        const mA = m.wrestler_a_id || m.tag_team_a_id;
+        const mB = m.wrestler_b_id || m.tag_team_b_id;
+        return (mA === aId && mB === bId) || (mA === bId && mB === aId);
+      });
+      if (h2hMatches.length === 0) return 0;
+      const aWins = h2hMatches.filter((m) => {
+        const winner = m.winner_wrestler_id || m.winner_tag_team_id;
+        return winner === aId;
+      }).length;
+      const bWins = h2hMatches.length - aWins;
+      if (aWins > bWins) return -1; // a is better (sort a first)
+      if (bWins > aWins) return 1;  // b is better
+      return 0;
+    }
+
+    // Sort: GB asc → head-to-head (2-way ties only) → avg time tiebreak
     stats.sort((a, b) => {
       // Primary: GB (lower = better)
       const gbA = a.gbNum ?? 999;
@@ -230,6 +250,14 @@ export default async function TierDetailPage({
       if (gbA !== gbB) return gbA - gbB;
       // Secondary: win% (for teams with same GB but different games played)
       if (b.winPct !== a.winPct) return b.winPct - a.winPct;
+      // Head-to-head — only for 2-way ties (skip for 3+ way ties)
+      const tiedCount = stats.filter(
+        (s) => s.gbNum === gbA && s.winPct === a.winPct
+      ).length;
+      if (tiedCount === 2) {
+        const h2h = h2hCompare(a.id, b.id);
+        if (h2h !== 0) return h2h;
+      }
       // Tertiary: avg time tiebreak
       if (a.avgTime && b.avgTime) {
         const aAbove500 = a.winPct >= 0.5;
