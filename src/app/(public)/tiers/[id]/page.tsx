@@ -410,8 +410,8 @@ export default async function TierDetailPage({
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-8 px-1 sm:px-4">W</TableHead>
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-8 px-1 sm:px-4">L</TableHead>
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-12 px-1 sm:px-4">Win%</TableHead>
-                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-10 px-1 sm:px-4 hidden sm:table-cell">GB</TableHead>
-                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-10 px-1 sm:px-4">Strk</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-10 px-1 sm:px-4">GB</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-10 px-1 sm:px-4 hidden sm:table-cell">Strk</TableHead>
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-12 px-1 sm:px-4 hidden sm:table-cell">Trend</TableHead>
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-14 px-1 sm:px-4 hidden sm:table-cell">Avg Time</TableHead>
                         </TableRow>
@@ -541,10 +541,10 @@ export default async function TierDetailPage({
                                     ? (s.winPct * 100).toFixed(0) + "%"
                                     : "-"}
                                 </TableCell>
-                                <TableCell className="text-center tabular-nums text-xs text-muted-foreground px-1 sm:px-4 hidden sm:table-cell">
+                                <TableCell className="text-center tabular-nums text-xs text-muted-foreground px-1 sm:px-4">
                                   {s.gb}
                                 </TableCell>
-                                <TableCell className={`text-center tabular-nums text-xs font-semibold ${streakColor} px-1 sm:px-4`}>
+                                <TableCell className={`text-center tabular-nums text-xs font-semibold ${streakColor} px-1 sm:px-4 hidden sm:table-cell`}>
                                   {s.streakLabel}
                                 </TableCell>
                                 <TableCell className="text-center px-1 sm:px-4 hidden sm:table-cell">

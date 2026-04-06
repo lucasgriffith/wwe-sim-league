@@ -37,11 +37,15 @@ export function TierSchedule({
   rounds: ScheduleRound[];
   isAdmin: boolean;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
   const [minutes, setMinutes] = useState("");
   const [seconds, setSeconds] = useState("");
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  const totalMatches = rounds.reduce((sum, r) => sum + r.matches.length, 0);
+  const playedCount = rounds.reduce((sum, r) => sum + r.matches.filter((m) => m.isPlayed).length, 0);
 
   function handleRecord(match: ScheduleMatch, winnerId: string) {
     const timeSeconds =
@@ -206,25 +210,42 @@ export function TierSchedule({
   }
 
   return (
-    <div className="rounded-lg border border-border/40 overflow-hidden max-h-[500px] overflow-y-auto">
-      <div className="px-3 py-2 border-b border-border/30 bg-muted/5 sticky top-0 z-10 backdrop-blur-sm">
+    <div className="rounded-lg border border-border/40 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 bg-muted/5 flex items-center justify-between hover:bg-muted/10 transition-colors"
+      >
         <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Schedule
-          {isAdmin && (
-            <span className="text-[9px] text-muted-foreground/40 font-normal ml-2">
-              click unplayed to enter result
-            </span>
-          )}
+          <span className="text-[9px] text-muted-foreground/40 font-normal ml-2">
+            {playedCount}/{totalMatches}
+          </span>
         </h3>
-      </div>
-      <div className="grid grid-cols-2 divide-x divide-border/20">
-        <div className="divide-y divide-border/10">
-          {leftRounds.map(renderRound)}
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          className={`text-muted-foreground/40 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="max-h-[400px] overflow-y-auto border-t border-border/20">
+          <div className="grid grid-cols-2 divide-x divide-border/20">
+            <div className="divide-y divide-border/10">
+              {leftRounds.map(renderRound)}
+            </div>
+            <div className="divide-y divide-border/10">
+              {rightRounds.map(renderRound)}
+            </div>
+          </div>
         </div>
-        <div className="divide-y divide-border/10">
-          {rightRounds.map(renderRound)}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
