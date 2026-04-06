@@ -83,7 +83,7 @@ export function StandingsClient({ divisions, champions = {} }: Props) {
             </div>
 
             {tier.hasPools ? (
-              <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border/30">
+              <div className="grid md:grid-cols-2 gap-y-2 md:gap-x-3 md:gap-y-0">
                 {tier.pools.map((p) => (
                   <StandingsTable
                     key={p.pool ?? "all"}
