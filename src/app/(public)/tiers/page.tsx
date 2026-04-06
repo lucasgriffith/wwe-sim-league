@@ -68,36 +68,37 @@ export default async function TiersPage() {
                 <div
                   className={`group relative rounded-xl border border-border/40 overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:shadow-black/20 ${
                     divisionBorderHover[division.name] ?? "hover:border-border/60"
-                  } ${tier.belt_image_url ? "h-48" : "h-auto"}`}
+                  } ${tier.belt_image_url ? "h-72" : "h-auto"}`}
                 >
                   {/* Belt image — prominent, vivid */}
                   {tier.belt_image_url ? (
                     <>
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/95" />
+                      {/* Top left tier badge */}
+                      <div className="absolute top-2.5 left-3 z-10 flex items-center gap-1.5">
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] font-semibold uppercase tracking-wider bg-background/60 backdrop-blur-sm"
+                          style={{
+                            color: tier.color ?? undefined,
+                            borderColor: tier.color ? `${tier.color}40` : undefined,
+                          }}
+                        >
+                          T{tier.tier_number}
+                        </Badge>
+                        {tier.short_name && (
+                          <span className="text-[10px] font-mono text-muted-foreground/70 bg-background/60 backdrop-blur-sm px-1.5 py-0.5 rounded">
+                            {tier.short_name}
+                          </span>
+                        )}
+                      </div>
                       <img
                         src={tier.belt_image_url}
                         alt=""
-                        className="absolute inset-0 w-full h-full object-contain p-4 pt-2 pb-12 transition-transform group-hover:scale-105"
+                        className="absolute inset-0 w-full h-full object-contain p-3 pt-8 pb-16 transition-transform group-hover:scale-105"
                       />
                       {/* Bottom overlay with text */}
                       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-background via-background/90 to-transparent">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <Badge
-                            variant="outline"
-                            className="text-[9px] font-semibold uppercase tracking-wider"
-                            style={{
-                              color: tier.color ?? undefined,
-                              borderColor: tier.color ? `${tier.color}40` : undefined,
-                            }}
-                          >
-                            T{tier.tier_number}
-                          </Badge>
-                          {tier.short_name && (
-                            <span className="text-[10px] font-mono text-muted-foreground/50">
-                              {tier.short_name}
-                            </span>
-                          )}
-                        </div>
                         <h3 className="text-sm font-bold leading-tight text-foreground">
                           {tier.name}
                         </h3>
