@@ -27,24 +27,30 @@ export function MatchCardExport({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Read accent color from CSS variable
+    const accentRgb = getComputedStyle(document.documentElement)
+      .getPropertyValue("--accent-color").trim() || "212, 175, 55";
+    const accentHex = `rgb(${accentRgb})`;
+    const accentAlpha = (a: number) => `rgba(${accentRgb}, ${a})`;
+
     // --- Background ---
     ctx.fillStyle = "#1a1a2e";
     ctx.fillRect(0, 0, 600, 400);
 
     // Subtle border/frame
-    ctx.strokeStyle = "#d4af37";
+    ctx.strokeStyle = accentHex;
     ctx.lineWidth = 3;
     ctx.strokeRect(12, 12, 576, 376);
 
     // Inner subtle border
-    ctx.strokeStyle = "rgba(212, 175, 55, 0.2)";
+    ctx.strokeStyle = accentAlpha(0.2);
     ctx.lineWidth = 1;
     ctx.strokeRect(18, 18, 564, 364);
 
     // Top gold accent line
     const topGrad = ctx.createLinearGradient(0, 0, 600, 0);
     topGrad.addColorStop(0, "transparent");
-    topGrad.addColorStop(0.5, "#d4af37");
+    topGrad.addColorStop(0.5, accentHex);
     topGrad.addColorStop(1, "transparent");
     ctx.fillStyle = topGrad;
     ctx.fillRect(12, 12, 576, 3);
@@ -52,14 +58,14 @@ export function MatchCardExport({
     // --- "WINNER" label ---
     ctx.font = "bold 14px system-ui, -apple-system, sans-serif";
     ctx.letterSpacing = "6px";
-    ctx.fillStyle = "rgba(212, 175, 55, 0.6)";
+    ctx.fillStyle = accentAlpha(0.6);
     ctx.textAlign = "center";
     ctx.fillText("W I N N E R", 300, 80);
 
     // --- Winner name with gold gradient ---
     const nameGrad = ctx.createLinearGradient(100, 100, 500, 140);
     nameGrad.addColorStop(0, "#f5d060");
-    nameGrad.addColorStop(0.5, "#d4af37");
+    nameGrad.addColorStop(0.5, accentHex);
     nameGrad.addColorStop(1, "#f5d060");
 
     // Size the font based on name length
@@ -69,7 +75,7 @@ export function MatchCardExport({
     ctx.textAlign = "center";
 
     // Gold glow effect
-    ctx.shadowColor = "rgba(212, 175, 55, 0.5)";
+    ctx.shadowColor = accentAlpha(0.5);
     ctx.shadowBlur = 20;
     ctx.fillText(winnerName, 300, 150);
     ctx.shadowBlur = 0;
@@ -90,7 +96,7 @@ export function MatchCardExport({
     // --- Divider line ---
     const divGrad = ctx.createLinearGradient(150, 0, 450, 0);
     divGrad.addColorStop(0, "transparent");
-    divGrad.addColorStop(0.5, "rgba(212, 175, 55, 0.3)");
+    divGrad.addColorStop(0.5, accentAlpha(0.3));
     divGrad.addColorStop(1, "transparent");
     ctx.fillStyle = divGrad;
     ctx.fillRect(150, 275, 300, 1);
@@ -103,7 +109,7 @@ export function MatchCardExport({
 
     // --- Branding ---
     ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
-    ctx.fillStyle = "rgba(212, 175, 55, 0.35)";
+    ctx.fillStyle = accentAlpha(0.35);
     ctx.textAlign = "center";
     ctx.fillText("WWE 2K26 SIM LEAGUE", 300, 365);
 

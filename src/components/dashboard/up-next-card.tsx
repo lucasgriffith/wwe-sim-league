@@ -213,7 +213,11 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
               className="absolute w-1.5 h-1.5 rounded-full animate-confetti"
               style={{
                 left: `${Math.random() * 100}%`,
-                backgroundColor: ["#d4af37", "#f59e0b", "#10b981", "#ef4444", "#3b82f6", "#a855f7"][i % 6],
+                backgroundColor: [
+                  `rgb(var(--accent-color))`,
+                  `rgba(var(--accent-color),0.7)`,
+                  "#10b981", "#ef4444", "#3b82f6", "#a855f7"
+                ][i % 6],
                 animationDelay: `${Math.random() * 0.5}s`,
                 animationDuration: `${2 + Math.random() * 1.5}s`,
               }}
@@ -276,8 +280,8 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount }:
             animation: pulse-gold 1s ease-in-out infinite alternate;
           }
           @keyframes pulse-gold {
-            0% { text-shadow: 0 0 8px rgba(212,175,55,0.3); }
-            100% { text-shadow: 0 0 20px rgba(212,175,55,0.6); }
+            0% { text-shadow: 0 0 8px rgba(var(--accent-color),0.3); }
+            100% { text-shadow: 0 0 20px rgba(var(--accent-color),0.6); }
           }
         `}</style>
       </div>
