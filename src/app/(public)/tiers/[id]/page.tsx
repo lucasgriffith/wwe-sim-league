@@ -325,7 +325,7 @@ export default async function TierDetailPage({
               <img
                 src={tier.belt_image_url}
                 alt={`${tier.name} belt`}
-                className="h-16 sm:h-20 w-auto object-contain shrink-0"
+                className="h-32 sm:h-40 w-auto object-contain shrink-0"
               />
             )}
           </div>
