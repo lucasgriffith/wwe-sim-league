@@ -1,14 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-
-const divisionBgColors: Record<string, string> = {
-  "Men's Singles": "from-blue-500/8 to-blue-500/0 hover:border-blue-500/20",
-  "Women's Singles": "from-purple-500/8 to-purple-500/0 hover:border-purple-500/20",
-  "Men's Tag Teams": "from-emerald-500/8 to-emerald-500/0 hover:border-emerald-500/20",
-  "Women's Tag Teams": "from-orange-500/8 to-orange-500/0 hover:border-orange-500/20",
-};
+/* eslint-disable @next/next/no-img-element */
 
 const divisionTextColors: Record<string, string> = {
   "Men's Singles": "text-blue-400",
@@ -22,6 +15,13 @@ const divisionAccents: Record<string, string> = {
   "Women's Singles": "bg-purple-500",
   "Men's Tag Teams": "bg-emerald-500",
   "Women's Tag Teams": "bg-orange-500",
+};
+
+const divisionBorderHover: Record<string, string> = {
+  "Men's Singles": "hover:border-blue-500/30",
+  "Women's Singles": "hover:border-purple-500/30",
+  "Men's Tag Teams": "hover:border-emerald-500/30",
+  "Women's Tag Teams": "hover:border-orange-500/30",
 };
 
 export default async function TiersPage() {
@@ -65,52 +65,92 @@ export default async function TiersPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 stagger-children">
             {division.tiers.map((tier) => (
               <Link key={tier.id} href={`/tiers/${tier.slug}`}>
-                <Card
-                  className={`card-hover cursor-pointer bg-gradient-to-br border-border/40 transition-all relative overflow-hidden ${
-                    divisionBgColors[division.name] ?? ""
-                  }`}
+                <div
+                  className={`group relative rounded-xl border border-border/40 overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:shadow-black/20 ${
+                    divisionBorderHover[division.name] ?? "hover:border-border/60"
+                  } ${tier.belt_image_url ? "h-48" : "h-auto"}`}
                 >
-                  {/* Belt watermark */}
-                  {tier.belt_image_url && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={tier.belt_image_url}
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-contain opacity-[0.2] pointer-events-none scale-105"
-                    />
+                  {/* Belt image — prominent, vivid */}
+                  {tier.belt_image_url ? (
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/95" />
+                      <img
+                        src={tier.belt_image_url}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-contain p-4 pt-2 pb-12 transition-transform group-hover:scale-105"
+                      />
+                      {/* Bottom overlay with text */}
+                      <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-background via-background/90 to-transparent">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] font-semibold uppercase tracking-wider"
+                            style={{
+                              color: tier.color ?? undefined,
+                              borderColor: tier.color ? `${tier.color}40` : undefined,
+                            }}
+                          >
+                            T{tier.tier_number}
+                          </Badge>
+                          {tier.short_name && (
+                            <span className="text-[10px] font-mono text-muted-foreground/50">
+                              {tier.short_name}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-bold leading-tight text-foreground">
+                          {tier.name}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground/60">
+                          <span>{tier.has_pools ? "2 Pools + Playoff" : "Round Robin"}</span>
+                          <span className="text-muted-foreground/20">·</span>
+                          <span>{tier.pool_size}</span>
+                          {tier.fixed_stipulation && (
+                            <>
+                              <span className="text-muted-foreground/20">·</span>
+                              <span className="text-wwe-red/70">{tier.fixed_stipulation}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    /* No belt image — clean card fallback */
+                    <div className="p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] font-semibold uppercase tracking-wider"
+                          style={{
+                            color: tier.color ?? undefined,
+                            borderColor: tier.color ? `${tier.color}40` : undefined,
+                          }}
+                        >
+                          T{tier.tier_number}
+                        </Badge>
+                        {tier.short_name && (
+                          <span className="text-[10px] font-mono text-muted-foreground/50">
+                            {tier.short_name}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-sm font-bold leading-tight mb-2">
+                        {tier.name}
+                      </h3>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
+                        <span>{tier.has_pools ? "2 Pools + Playoff" : "Round Robin"}</span>
+                        <span className="text-muted-foreground/20">·</span>
+                        <span>{tier.pool_size}</span>
+                        {tier.fixed_stipulation && (
+                          <>
+                            <span className="text-muted-foreground/20">·</span>
+                            <span className="text-wwe-red/70">{tier.fixed_stipulation}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   )}
-                  <CardHeader className="pb-2 relative">
-                    <div className="flex items-center justify-between">
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] font-semibold uppercase tracking-wider"
-                        style={{ color: tier.color ?? undefined, borderColor: tier.color ? `${tier.color}40` : undefined }}
-                      >
-                        Tier {tier.tier_number}
-                      </Badge>
-                      {tier.short_name && (
-                        <span className="text-[11px] font-mono text-muted-foreground/50">
-                          {tier.short_name}
-                        </span>
-                      )}
-                    </div>
-                    <CardTitle className="text-sm leading-tight mt-1">
-                      {tier.name}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0 relative">
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <span>{tier.has_pools ? "2 Pools + Playoff" : "Round Robin + Final"}</span>
-                      <span className="text-muted-foreground/30">&middot;</span>
-                      <span>{tier.pool_size} participants</span>
-                    </div>
-                    {tier.fixed_stipulation && (
-                      <Badge variant="secondary" className="mt-2 text-[10px] bg-wwe-red/10 text-wwe-red border-0">
-                        {tier.fixed_stipulation}
-                      </Badge>
-                    )}
-                  </CardContent>
-                </Card>
+                </div>
               </Link>
             ))}
           </div>

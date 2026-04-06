@@ -11,7 +11,7 @@ interface ImageUploadProps {
   className?: string;
 }
 
-const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
+const MAX_SIZE = 4 * 1024 * 1024; // 4 MB
 
 export function ImageUpload({
   folder,
