@@ -153,7 +153,7 @@ export function TierSchedule({
                         min={0}
                         value={minutes}
                         onChange={(e) => setMinutes(e.target.value)}
-                        className="w-12 h-7 text-center text-[11px] font-bold tabular-nums"
+                        className="w-14 h-7 text-center text-[11px] font-bold tabular-nums"
                         autoFocus
                       />
                       <span className="text-xs font-bold text-muted-foreground/30">:</span>
@@ -173,7 +173,7 @@ export function TierSchedule({
                             setSeconds(e.target.value);
                           }
                         }}
-                        className="w-12 h-7 text-center text-[11px] font-bold tabular-nums"
+                        className="w-14 h-7 text-center text-[11px] font-bold tabular-nums"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-1">
