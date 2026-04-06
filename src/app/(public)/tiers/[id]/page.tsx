@@ -317,28 +317,28 @@ export default async function TierDetailPage({
             {division.name}
           </Badge>
         </div>
-        <div className="flex items-center justify-between gap-4">
-          <div>
+        <div>
+          <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold sm:text-3xl">{tier.name}</h1>
-            {tier.fixed_stipulation && (
-              <p className="mt-2 text-sm text-muted-foreground">
-                All matches:{" "}
-                <span className="text-wwe-red font-medium">
-                  {tier.fixed_stipulation}
-                </span>
-              </p>
-            )}
-            {!!user && (
-              <BeltImageEditor tierId={tier.id} currentUrl={tier.belt_image_url} />
+            {tier.belt_image_url && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={tier.belt_image_url}
+                alt={`${tier.name} belt`}
+                className="h-16 sm:h-20 w-auto object-contain shrink-0"
+              />
             )}
           </div>
-          {tier.belt_image_url && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={tier.belt_image_url}
-              alt={`${tier.name} belt`}
-              className="h-24 sm:h-32 w-auto object-contain shrink-0 opacity-90"
-            />
+          {tier.fixed_stipulation && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              All matches:{" "}
+              <span className="text-wwe-red font-medium">
+                {tier.fixed_stipulation}
+              </span>
+            </p>
+          )}
+          {!!user && (
+            <BeltImageEditor tierId={tier.id} currentUrl={tier.belt_image_url} />
           )}
         </div>
       </div>
