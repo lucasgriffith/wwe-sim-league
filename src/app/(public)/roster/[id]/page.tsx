@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import { getCurrentChampions } from "@/lib/champions";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -60,17 +61,17 @@ export default async function WrestlerProfilePage({
       .order("created_at", { ascending: false }),
     supabase
       .from("matches")
-      .select("*, tiers(name, short_name, tier_number), seasons(season_number)")
+      .select("*, tiers(name, short_name, tier_number, belt_image_url), seasons(season_number)")
       .eq("wrestler_a_id", id)
       .order("played_at", { ascending: false }),
     supabase
       .from("matches")
-      .select("*, tiers(name, short_name, tier_number), seasons(season_number)")
+      .select("*, tiers(name, short_name, tier_number, belt_image_url), seasons(season_number)")
       .eq("wrestler_b_id", id)
       .order("played_at", { ascending: false }),
     supabase
       .from("tiers")
-      .select("id, name, short_name, tier_number")
+      .select("id, name, short_name, tier_number, belt_image_url")
       .order("tier_number"),
     supabase.from("wrestlers").select("id, name, slug").order("name"),
     supabase
@@ -104,16 +105,22 @@ export default async function WrestlerProfilePage({
   const losses = allMatches.length - wins;
   const winPct = allMatches.length > 0 ? ((wins / allMatches.length) * 100).toFixed(1) : null;
 
+  // Get current champions
+  const currentChampions = await getCurrentChampions(supabase);
+  const isCurrentChampion = !!currentChampions[id];
+
   // Championships (finals won)
   const titlesWon = allMatches
     .filter((m) => m.match_phase === "final" && m.winner_wrestler_id === id)
     .map((m) => {
-      const tier = m.tiers as { name: string; short_name: string | null; tier_number: number } | null;
+      const tier = m.tiers as { name: string; short_name: string | null; tier_number: number; belt_image_url: string | null } | null;
       const season = m.seasons as { season_number: number } | null;
       return {
         tierName: tier?.short_name || tier?.name || "Unknown",
         tierNumber: tier?.tier_number ?? 99,
         season: season?.season_number ?? 0,
+        beltImageUrl: tier?.belt_image_url ?? null,
+        tierId: m.tier_id as string,
       };
     });
 
@@ -293,16 +300,42 @@ export default async function WrestlerProfilePage({
       {titlesWon.length > 0 && (
         <div className="mt-6">
           <SectionHeader>Championships Won</SectionHeader>
-          <div className="flex flex-wrap gap-2">
-            {titlesWon.map((t, i) => (
-              <Badge
-                key={i}
-                className="bg-gold/10 text-gold border-gold/20 text-xs gap-1"
-              >
-                🏆 {t.tierName}
-                <span className="text-gold/60">S{t.season}</span>
-              </Badge>
-            ))}
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+            {titlesWon.map((t, i) => {
+              const isCurrent = currentChampions[id]?.beltName === t.tierName;
+              return (
+                <div
+                  key={i}
+                  className={`relative flex-shrink-0 rounded-lg border p-3 min-w-[140px] max-w-[180px] ${
+                    isCurrent
+                      ? "border-gold/40 bg-gold/[0.06] shadow-[0_0_12px_rgba(212,175,55,0.15)]"
+                      : "border-gold/20 bg-gold/[0.03]"
+                  }`}
+                >
+                  {isCurrent && (
+                    <div className="absolute top-2 right-2 flex items-center gap-1">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-gold" />
+                      </span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-gold">Current</span>
+                    </div>
+                  )}
+                  {t.beltImageUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={t.beltImageUrl}
+                      alt={`${t.tierName} belt`}
+                      className="h-12 w-auto object-contain mx-auto mb-2"
+                    />
+                  ) : (
+                    <div className="text-2xl text-center mb-2">🏆</div>
+                  )}
+                  <p className="text-sm font-bold text-gold text-center truncate">{t.tierName}</p>
+                  <p className="text-[10px] text-gold/60 text-center mt-0.5">Season {t.season}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

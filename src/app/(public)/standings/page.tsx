@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { StandingsClient } from "@/components/standings/standings-client";
+import { getCurrentChampions } from "@/lib/champions";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -254,6 +255,9 @@ export default async function StandingsPage() {
     });
   }
 
+  // Get current champions
+  const champions = await getCurrentChampions(supabase);
+
   const divisions = divisionOrder
     .map((name) => ({
       name,
@@ -273,7 +277,7 @@ export default async function StandingsPage() {
         </p>
       </div>
 
-      <StandingsClient divisions={divisions} />
+      <StandingsClient divisions={divisions} champions={champions} />
     </div>
   );
 }

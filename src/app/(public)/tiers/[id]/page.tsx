@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { BeltImageEditor } from "@/components/tiers/belt-image-editor";
+import { getCurrentChampions } from "@/lib/champions";
+import { ChampionBadge } from "@/components/ui/champion-badge";
 import {
   Table,
   TableBody,
@@ -82,6 +84,9 @@ export default async function TierDetailPage({
       .order("pool");
     matches = data ?? [];
   }
+
+  // Get current champions
+  const champions = await getCurrentChampions(supabase);
 
   // Get all wrestler/tag names for match display
   const allIds = new Set<string>();
@@ -507,6 +512,12 @@ export default async function TierDetailPage({
                                       </Link>
                                     ) : (
                                       <span>{s.name}</span>
+                                    )}
+                                    {champions[s.id] && (
+                                      <ChampionBadge
+                                        beltName={champions[s.id].beltName}
+                                        beltImageUrl={champions[s.id].beltImageUrl}
+                                      />
                                     )}
                                     {zoneIcon && (
                                       <span className={`text-[8px] font-bold ${rankColor}`}>{zoneIcon}</span>

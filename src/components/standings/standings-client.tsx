@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import type { Standing, TierStandings } from "@/app/(public)/standings/page";
 import { Sparkline } from "@/components/ui/sparkline";
+import { ChampionBadge } from "@/components/ui/champion-badge";
+import type { ChampionInfo } from "@/lib/champions";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -24,9 +26,10 @@ interface Props {
     name: string;
     tiers: TierStandings[];
   }>;
+  champions?: Record<string, ChampionInfo>;
 }
 
-export function StandingsClient({ divisions }: Props) {
+export function StandingsClient({ divisions, champions = {} }: Props) {
   const [activeDivision, setActiveDivision] = useState(divisions[0]?.name ?? "");
 
   const activeTiers = divisions.find((d) => d.name === activeDivision)?.tiers ?? [];
@@ -87,6 +90,7 @@ export function StandingsClient({ divisions }: Props) {
                     label={p.pool ? `Pool ${p.pool}` : undefined}
                     standings={p.standings}
                     poolSize={p.standings.length}
+                    champions={champions}
                   />
                 ))}
               </div>
@@ -94,6 +98,7 @@ export function StandingsClient({ divisions }: Props) {
               <StandingsTable
                 standings={tier.pools[0]?.standings ?? []}
                 poolSize={tier.pools[0]?.standings.length ?? 0}
+                champions={champions}
               />
             )}
           </div>
@@ -113,10 +118,12 @@ function StandingsTable({
   standings,
   label,
   poolSize,
+  champions = {},
 }: {
   standings: Standing[];
   label?: string;
   poolSize: number;
+  champions?: Record<string, ChampionInfo>;
 }) {
   const count = standings.length;
   const relegationPlayoffStart = Math.max(0, count - 4);
@@ -264,6 +271,12 @@ function StandingsTable({
                         </Link>
                       ) : (
                         <span>{s.name}</span>
+                      )}
+                      {champions[s.id] && (
+                        <ChampionBadge
+                          beltName={champions[s.id].beltName}
+                          beltImageUrl={champions[s.id].beltImageUrl}
+                        />
                       )}
                       {zoneIcon && (
                         <span className={`text-[8px] font-bold ${rankColor}`}>{zoneIcon}</span>
