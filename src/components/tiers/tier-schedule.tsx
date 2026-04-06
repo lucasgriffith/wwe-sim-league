@@ -97,7 +97,7 @@ export function TierSchedule({
                 <div
                   className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] transition-all ${
                     m.isPlayed
-                      ? "bg-emerald-500/5"
+                      ? "bg-gold/5"
                       : isExpanded
                         ? "bg-gold/5 border border-gold/20 cursor-pointer"
                         : isAdmin
@@ -114,7 +114,7 @@ export function TierSchedule({
                   <span
                     className={`flex-1 truncate text-right ${
                       m.isPlayed && m.winnerId === m.aId
-                        ? "font-bold text-emerald-400"
+                        ? "font-bold text-gold"
                         : m.isPlayed
                           ? "text-muted-foreground/50"
                           : ""
@@ -128,7 +128,7 @@ export function TierSchedule({
                   <span
                     className={`flex-1 truncate ${
                       m.isPlayed && m.winnerId === m.bId
-                        ? "font-bold text-emerald-400"
+                        ? "font-bold text-gold"
                         : m.isPlayed
                           ? "text-muted-foreground/50"
                           : ""
