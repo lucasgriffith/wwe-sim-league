@@ -529,9 +529,9 @@ export default async function TierDetailPage({
                             ? { borderRight: `2px solid rgba(${rgb},0.25)` }
                             : {};
 
-                          // Zone background shading
+                          // Zone gradient wash — left to right fade
                           const zoneBgStyle: React.CSSProperties = isInZone
-                            ? { backgroundColor: `rgba(${rgb},0.04)` }
+                            ? { background: `linear-gradient(to right, rgba(${rgb},0.1) 0%, rgba(${rgb},0.03) 30%, transparent 60%)` }
                             : {};
 
                           const streakColor = s.streakLabel.startsWith("W")
