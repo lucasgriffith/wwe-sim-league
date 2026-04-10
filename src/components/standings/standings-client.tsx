@@ -238,7 +238,9 @@ function StandingsTable({
 
             const zoneBgStyle: React.CSSProperties = isInZone
               ? { background: `linear-gradient(to right, rgba(${rgb},0.18) 0%, rgba(${rgb},0.06) 35%, transparent 65%)` }
-              : {};
+              : isSafe
+                ? { background: `linear-gradient(to right, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 35%, transparent 65%)` }
+                : {};
 
             const clinched = hasClinched(i);
             const eliminated = isEliminated(i);
