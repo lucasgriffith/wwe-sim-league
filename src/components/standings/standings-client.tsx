@@ -233,16 +233,11 @@ function StandingsTable({
             const isZoneEnd = myZone !== "safe" && myZone !== "none" && nextZone !== myZone;
             const isInZone = myZone !== "safe" && myZone !== "none";
 
-            const zoneBorderStyle: React.CSSProperties = {
-              ...(isZoneStart ? { borderTop: `2px solid rgba(${rgb},0.25)` } : {}),
-              ...(isZoneEnd ? { borderBottom: `2px solid rgba(${rgb},0.25)` } : {}),
-            };
-            const zoneRightStyle: React.CSSProperties = isInZone
-              ? { borderRight: `2px solid rgba(${rgb},0.25)` }
-              : {};
+            const zoneBorderStyle: React.CSSProperties = {};
+            const zoneRightStyle: React.CSSProperties = {};
 
             const zoneBgStyle: React.CSSProperties = isInZone
-              ? { background: `linear-gradient(to right, rgba(${rgb},0.1) 0%, rgba(${rgb},0.03) 30%, transparent 60%)` }
+              ? { background: `linear-gradient(to right, rgba(${rgb},0.18) 0%, rgba(${rgb},0.06) 35%, transparent 65%)` }
               : {};
 
             const clinched = hasClinched(i);
