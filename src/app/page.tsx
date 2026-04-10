@@ -10,7 +10,6 @@ import { SeasonTicker } from "@/components/dashboard/season-ticker";
 import { MilestonesBanner } from "@/components/dashboard/milestones";
 import { UndoMatchButton } from "@/components/dashboard/undo-match-button";
 import { computeMilestones } from "@/lib/milestones";
-import { SeasonTimeline } from "@/components/dashboard/season-timeline";
 import { LiveFeed } from "@/components/dashboard/live-feed";
 
 function formatTime(seconds: number): string {
@@ -441,16 +440,22 @@ export default async function DashboardPage() {
     ? Math.round(allMatchTimes.reduce((a: number, b: number) => a + b, 0) / allMatchTimes.length)
     : null;
 
-  // ── First match date for timeline ─────────────────────────────────────────
+  // ── Pace and projection ───────────────────────────────────────────────────
   const firstMatchDate = playedMatches.length > 0
     ? playedMatches.reduce((earliest, m) => {
         const d = new Date(m.played_at).getTime();
         return d < earliest ? d : earliest;
       }, Infinity)
     : null;
-  const firstMatchDateISO = firstMatchDate !== null && firstMatchDate !== Infinity
-    ? new Date(firstMatchDate).toISOString()
-    : null;
+
+  let matchesPerDay: number | null = null;
+  let projectedDaysLeft: number | null = null;
+  if (firstMatchDate && firstMatchDate !== Infinity && totalPlayed >= 2) {
+    const daysSinceFirst = Math.max(1, (Date.now() - firstMatchDate) / (1000 * 60 * 60 * 24));
+    matchesPerDay = Math.round((totalPlayed / daysSinceFirst) * 10) / 10;
+    const remaining = totalMatches - totalPlayed;
+    projectedDaysLeft = matchesPerDay > 0 ? Math.ceil(remaining / matchesPerDay) : null;
+  }
 
   const milestones = computeMilestones({
     totalPlayed,
@@ -564,10 +569,18 @@ export default async function DashboardPage() {
                     <span className="text-muted-foreground">Tiers:</span>
                     <span className="font-bold tabular-nums">{tierProgress.filter((t) => t.played === t.total && t.total > 0).length}/{tierProgress.length}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Roster:</span>
-                    <span className="font-bold tabular-nums">{wrestlerCount ?? 0}</span>
-                  </div>
+                  {matchesPerDay && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Pace:</span>
+                      <span className="font-bold tabular-nums">{matchesPerDay}/day</span>
+                    </div>
+                  )}
+                  {projectedDaysLeft && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">ETA:</span>
+                      <span className="font-bold tabular-nums">~{projectedDaysLeft}d</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -576,15 +589,6 @@ export default async function DashboardPage() {
       </div>
 
       <div className="container max-w-screen-2xl px-4 py-6 space-y-8">
-
-        {/* ── Season Timeline ────────────────────────────────────────── */}
-        {season && totalPlayed >= 2 && (
-          <SeasonTimeline
-            totalPlayed={totalPlayed}
-            totalMatches={totalMatches}
-            firstMatchDate={firstMatchDateISO}
-          />
-        )}
 
         {/* ── Milestones ──────────────────────────────────────────────── */}
         {milestones.length > 0 && <MilestonesBanner milestones={milestones} />}
