@@ -44,6 +44,15 @@ export default async function WrestlerProfilePage({
     id = found.id;
   }
 
+  // Fetch current season for upcoming matches
+  const { data: currentSeason } = await supabase
+    .from("seasons")
+    .select("id")
+    .neq("status", "completed")
+    .order("season_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   // Fetch everything in parallel
   const [
     { data: wrestler },
@@ -54,6 +63,8 @@ export default async function WrestlerProfilePage({
     { data: wrestlers },
     { data: tagTeamMemberships },
     { data: { user } },
+    { data: upcomingAsA },
+    { data: upcomingAsB },
   ] = await Promise.all([
     supabase.from("wrestlers").select("*").eq("id", id).single(),
     supabase
@@ -81,6 +92,23 @@ export default async function WrestlerProfilePage({
       .select("id, name, wrestler_a_id, wrestler_b_id, is_active")
       .or(`wrestler_a_id.eq.${id},wrestler_b_id.eq.${id}`),
     supabase.auth.getUser(),
+    // Upcoming matches: unplayed matches for this wrestler in current season
+    currentSeason
+      ? supabase
+          .from("matches")
+          .select("id, wrestler_a_id, wrestler_b_id, tier_id, match_phase, tiers(name, short_name, tier_number)")
+          .eq("season_id", currentSeason.id)
+          .eq("wrestler_a_id", id)
+          .is("played_at", null)
+      : Promise.resolve({ data: [] }),
+    currentSeason
+      ? supabase
+          .from("matches")
+          .select("id, wrestler_a_id, wrestler_b_id, tier_id, match_phase, tiers(name, short_name, tier_number)")
+          .eq("season_id", currentSeason.id)
+          .eq("wrestler_b_id", id)
+          .is("played_at", null)
+      : Promise.resolve({ data: [] }),
   ]);
 
   if (!wrestler) notFound();
@@ -91,6 +119,26 @@ export default async function WrestlerProfilePage({
   const wrestlerSlugMap = Object.fromEntries(
     (wrestlers ?? []).filter((w) => w.slug).map((w) => [w.id, w.slug])
   );
+
+  // Build upcoming matches list
+  const upcomingMatches = [...(upcomingAsA ?? []), ...(upcomingAsB ?? [])].map((m) => {
+    const oppId = m.wrestler_a_id === id ? m.wrestler_b_id : m.wrestler_a_id;
+    const tier = m.tiers as unknown as { name: string; short_name: string | null; tier_number: number } | null;
+    // Find pool from tier_assignments for this wrestler
+    const assignment = (assignments ?? []).find(
+      (a) => a.tiers && (a.tiers as { id: string }).id === m.tier_id
+    );
+    return {
+      id: m.id,
+      opponentId: oppId,
+      opponentName: oppId ? wrestlerMap[oppId] ?? "Unknown" : "Unknown",
+      opponentSlug: oppId ? wrestlerSlugMap[oppId] ?? oppId : null,
+      tierName: tier?.short_name || tier?.name || "Unknown",
+      tierNumber: tier?.tier_number ?? 99,
+      pool: assignment?.pool ?? null,
+      phase: m.match_phase,
+    };
+  });
 
   // Combine and sort all matches
   const allMatches = [...(matchesAsA ?? []), ...(matchesAsB ?? [])]
@@ -456,6 +504,45 @@ export default async function WrestlerProfilePage({
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Matches */}
+      {upcomingMatches.length > 0 && (
+        <div className="mt-8">
+          <SectionHeader>Upcoming Matches ({upcomingMatches.length})</SectionHeader>
+          <div className="space-y-1.5">
+            {upcomingMatches.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center gap-3 rounded-lg border border-border/30 bg-card/30 px-4 py-2.5"
+              >
+                <span className="text-xs font-mono text-muted-foreground/50">
+                  T{m.tierNumber}
+                </span>
+                <span className="text-sm font-medium">{m.tierName}</span>
+                {m.pool && (
+                  <Badge variant="secondary" className="text-[9px]">
+                    Pool {m.pool}
+                  </Badge>
+                )}
+                <span className="text-xs text-muted-foreground/40 ml-auto mr-1">vs</span>
+                {m.opponentSlug ? (
+                  <Link
+                    href={`/roster/${m.opponentSlug}`}
+                    className="text-sm font-semibold hover:text-gold transition-colors"
+                  >
+                    {m.opponentName}
+                  </Link>
+                ) : (
+                  <span className="text-sm font-semibold">{m.opponentName}</span>
+                )}
+                <Badge variant="outline" className="text-[9px] text-muted-foreground/50">
+                  {phaseLabel(m.phase)}
+                </Badge>
+              </div>
+            ))}
           </div>
         </div>
       )}

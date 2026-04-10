@@ -71,6 +71,7 @@ export default async function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let allMatchData: any[] = [];
   let tagMemberImages: Record<string, [string | null, string | null]> = {};
+  let tagGenderMap: Record<string, string> = {};
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let tierAssignmentsData: any[] = [];
   let tierProgress: Array<{
@@ -99,7 +100,7 @@ export default async function DashboardPage() {
         .from("tiers")
         .select("id, tier_number, name, short_name, color, belt_image_url, slug, divisions(name, gender)")
         .order("tier_number"),
-      supabase.from("tag_teams").select("id, name, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(image_url), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(image_url)"),
+      supabase.from("tag_teams").select("id, name, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(image_url, gender), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(image_url, gender)"),
       supabase.from("tier_assignments").select("tier_id, wrestler_id, tag_team_id, pool").eq("season_id", season.id),
     ]);
 
@@ -109,9 +110,11 @@ export default async function DashboardPage() {
 
     for (const t of tagTeamNames ?? []) {
       wrestlerMap[t.id] = t.name;
-      const wa = t.wrestler_a as unknown as { image_url: string | null } | null;
-      const wb = t.wrestler_b as unknown as { image_url: string | null } | null;
+      const wa = t.wrestler_a as unknown as { image_url: string | null; gender: string | null } | null;
+      const wb = t.wrestler_b as unknown as { image_url: string | null; gender: string | null } | null;
       tagMemberImages[t.id] = [wa?.image_url ?? null, wb?.image_url ?? null];
+      // Determine tag team gender from members (use wrestler_a's gender)
+      tagGenderMap[t.id] = wa?.gender ?? "male";
     }
 
     const matchesByTier = new Map<string, { played: number; total: number }>();
@@ -408,9 +411,8 @@ export default async function DashboardPage() {
   const tagTeamIds = new Set(Object.keys(tagMemberImages));
   const menRankings = buildRankings((id) => !tagTeamIds.has(id) && genderMap[id] === "male", 10);
   const womenRankings = buildRankings((id) => !tagTeamIds.has(id) && genderMap[id] === "female", 10);
-  // For tag teams we need gender from the tier division - approximate by checking memberImages
-  const menTagRankings = buildRankings((id) => tagTeamIds.has(id) && !!(tagMemberImages[id]), 4).slice(0, 4);
-  const womenTagRankings: typeof menTagRankings = []; // Will populate when we have data
+  const menTagRankings = buildRankings((id) => tagTeamIds.has(id) && tagGenderMap[id] === "male", 5);
+  const womenTagRankings = buildRankings((id) => tagTeamIds.has(id) && tagGenderMap[id] === "female", 5);
 
   const overallPct = totalMatches > 0 ? Math.round((totalPlayed / totalMatches) * 100) : 0;
 
@@ -793,42 +795,79 @@ export default async function DashboardPage() {
                 </Card>
               )}
 
-              {/* Tag Teams (Men + Women stacked) */}
+              {/* Tag Teams (Men's + Women's stacked) */}
               <Card className="border-border/30 bg-card/50">
                 <CardHeader className="pb-2 pt-4">
                   <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/70">Tag Teams</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-1.5 pb-4">
-                  {menTagRankings.length > 0 ? (
-                    <>
-                      {menTagRankings.map((w, i) => (
-                        <Link key={w.id} href="/tag-teams" className="flex items-center gap-2 group">
-                          <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : "text-muted-foreground/30"}`}>{i + 1}</span>
-                          {w.memberImages ? (
-                            <div className="flex -space-x-1.5 shrink-0">
-                              {w.memberImages[0] ? (
-                                <img src={w.memberImages[0]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0 relative z-10" />
-                              ) : (
-                                <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0 relative z-10" />
-                              )}
-                              {w.memberImages[1] ? (
-                                <img src={w.memberImages[1]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0" />
-                              ) : (
-                                <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0" />
-                              )}
-                            </div>
-                          ) : (
-                            <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
-                              <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
-                            </div>
-                          )}
-                          <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
-                          <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
-                          <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.pwr}</span>
-                        </Link>
-                      ))}
-                    </>
-                  ) : (
+                <CardContent className="space-y-4 pb-4">
+                  {menTagRankings.length > 0 && (
+                    <div>
+                      <div className="text-[9px] font-bold uppercase tracking-wider text-blue-400/60 mb-1.5">Men&apos;s</div>
+                      <div className="space-y-1.5">
+                        {menTagRankings.map((w, i) => (
+                          <Link key={w.id} href="/tag-teams" className="flex items-center gap-2 group">
+                            <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : "text-muted-foreground/30"}`}>{i + 1}</span>
+                            {w.memberImages ? (
+                              <div className="flex -space-x-1.5 shrink-0">
+                                {w.memberImages[0] ? (
+                                  <img src={w.memberImages[0]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0 relative z-10" />
+                                ) : (
+                                  <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0 relative z-10" />
+                                )}
+                                {w.memberImages[1] ? (
+                                  <img src={w.memberImages[1]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0" />
+                                ) : (
+                                  <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0" />
+                                )}
+                              </div>
+                            ) : (
+                              <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                                <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+                              </div>
+                            )}
+                            <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
+                            <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
+                            <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.pwr}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {womenTagRankings.length > 0 && (
+                    <div>
+                      <div className="text-[9px] font-bold uppercase tracking-wider text-purple-400/60 mb-1.5">Women&apos;s</div>
+                      <div className="space-y-1.5">
+                        {womenTagRankings.map((w, i) => (
+                          <Link key={w.id} href="/tag-teams" className="flex items-center gap-2 group">
+                            <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : "text-muted-foreground/30"}`}>{i + 1}</span>
+                            {w.memberImages ? (
+                              <div className="flex -space-x-1.5 shrink-0">
+                                {w.memberImages[0] ? (
+                                  <img src={w.memberImages[0]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0 relative z-10" />
+                                ) : (
+                                  <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0 relative z-10" />
+                                )}
+                                {w.memberImages[1] ? (
+                                  <img src={w.memberImages[1]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0" />
+                                ) : (
+                                  <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0" />
+                                )}
+                              </div>
+                            ) : (
+                              <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                                <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+                              </div>
+                            )}
+                            <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
+                            <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
+                            <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.pwr}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {menTagRankings.length === 0 && womenTagRankings.length === 0 && (
                     <p className="text-xs text-muted-foreground/40 py-2">No tag team results yet</p>
                   )}
                 </CardContent>
@@ -877,15 +916,23 @@ export default async function DashboardPage() {
                         </div>
                       )}
                       {isTag ? (
-                        <Link href="/tag-teams" className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{aName}</Link>
+                        <Link href="/tag-teams" className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
+                          {aName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(aId ?? "") ?? 0}-{lossCounts.get(aId ?? "") ?? 0})</span>
+                        </Link>
                       ) : (
-                        <Link href={`/roster/${slugMap[aId ?? ""] ?? aId}`} className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{aName}</Link>
+                        <Link href={`/roster/${slugMap[aId ?? ""] ?? aId}`} className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
+                          {aName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(aId ?? "") ?? 0}-{lossCounts.get(aId ?? "") ?? 0})</span>
+                        </Link>
                       )}
                       <span className="text-[9px] text-muted-foreground/30 shrink-0">vs</span>
                       {isTag ? (
-                        <Link href="/tag-teams" className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{bName}</Link>
+                        <Link href="/tag-teams" className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
+                          {bName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(bId ?? "") ?? 0}-{lossCounts.get(bId ?? "") ?? 0})</span>
+                        </Link>
                       ) : (
-                        <Link href={`/roster/${slugMap[bId ?? ""] ?? bId}`} className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>{bName}</Link>
+                        <Link href={`/roster/${slugMap[bId ?? ""] ?? bId}`} className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
+                          {bName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(bId ?? "") ?? 0}-{lossCounts.get(bId ?? "") ?? 0})</span>
+                        </Link>
                       )}
                       {/* B photo */}
                       {bImgs ? (
