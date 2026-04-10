@@ -387,75 +387,53 @@ export default async function TierDetailPage({
 
       {activeSeason ? (
         <div className="space-y-8">
-          {/* Season + Progress */}
-          <div className="flex items-center gap-4">
-            <Badge variant="outline" className="text-xs">
-              Season {activeSeason.season_number}
-            </Badge>
-            <Badge variant="secondary" className="text-[10px] capitalize">
-              {activeSeason.status.replace("_", " ")}
-            </Badge>
-            <div className="flex items-center gap-2 flex-1">
-              <div className="h-1.5 flex-1 max-w-48 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gold transition-all duration-500"
-                  style={{ width: `${progressPct}%` }}
-                />
-              </div>
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {playedMatches}/{totalMatches} pool matches
-              </span>
-            </div>
-          </div>
-
           {/* Standings + Schedule side by side per pool */}
           {standingsByPool.map(({ pool, stats, clinchMap }) => {
             const schedule = scheduleByRound(pool);
+            const poolMatchList = poolPlayMatches.filter((m) => pool ? m.pool === pool : true);
+            const poolPlayed = poolMatchList.filter((m) => m.played_at).length;
+            const poolTotal = poolMatchList.length;
+            const leader = stats[0];
 
             return (
               <div key={pool ?? "all"}>
-                {pool ? (() => {
-                  const poolMatches = poolPlayMatches.filter((m) => m.pool === pool);
-                  const poolPlayed = poolMatches.filter((m) => m.played_at).length;
-                  const poolTotal = poolMatches.length;
-                  const leader = stats[0];
-                  return (
-                    <div className="mb-3 flex items-center gap-3 rounded-lg border border-border/30 bg-card/40 px-3 py-2">
-                      {tier.belt_image_url && (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={tier.belt_image_url} alt="" className="h-8 w-auto object-contain shrink-0 hidden sm:block" />
-                      )}
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-semibold">Pool {pool}</span>
-                        <span className="text-[10px] text-muted-foreground tabular-nums">{poolPlayed}/{poolTotal} played</span>
-                      </div>
-                      {leader && leader.matchesPlayed > 0 && (
-                        <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className="hidden sm:inline text-[10px] uppercase tracking-wider">Leader</span>
-                          {leader.memberImages ? (
-                            <span className="flex items-center -space-x-1 shrink-0">
-                              {leader.memberImages.map((img, mi) => (
-                                img ? (
-                                  /* eslint-disable-next-line @next/next/no-img-element */
-                                  <img key={mi} src={img} alt="" className="h-5 w-5 rounded-full object-cover ring-1 ring-background" />
-                                ) : (
-                                  <span key={mi} className="h-5 w-5 rounded-full bg-muted ring-1 ring-background" />
-                                )
-                              ))}
-                            </span>
-                          ) : leader.imageUrl ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img src={leader.imageUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
-                          ) : null}
-                          <span className="font-medium text-foreground truncate max-w-[100px]">{leader.name}</span>
-                          <span className="tabular-nums text-emerald-400">{leader.wins}-{leader.losses}</span>
-                        </div>
-                      )}
+                {/* Combined pool header with season info */}
+                <div className="mb-3 flex items-center gap-3 rounded-lg border border-border/30 bg-card/40 px-3 py-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge variant="outline" className="text-[9px] shrink-0">S{activeSeason.season_number}</Badge>
+                    <span className="text-sm font-semibold">{pool ? `Pool ${pool}` : "Standings"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-1">
+                    <div className="h-1.5 flex-1 max-w-24 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gold transition-all duration-500"
+                        style={{ width: `${poolTotal > 0 ? (poolPlayed / poolTotal) * 100 : 0}%` }}
+                      />
                     </div>
-                  );
-                })() : (
-                  <h2 className="mb-3 text-base font-semibold">Standings</h2>
-                )}
+                    <span className="text-[10px] tabular-nums text-muted-foreground">{poolPlayed}/{poolTotal}</span>
+                  </div>
+                  {leader && leader.matchesPlayed > 0 && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                      {leader.imageUrl ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={leader.imageUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
+                      ) : leader.memberImages ? (
+                        <span className="flex items-center -space-x-1 shrink-0">
+                          {leader.memberImages.map((img, mi) => (
+                            img ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img key={mi} src={img} alt="" className="h-5 w-5 rounded-full object-cover ring-1 ring-background" />
+                            ) : (
+                              <span key={mi} className="h-5 w-5 rounded-full bg-muted ring-1 ring-background" />
+                            )
+                          ))}
+                        </span>
+                      ) : null}
+                      <span className="font-medium text-foreground truncate max-w-[80px] hidden sm:inline">{leader.name}</span>
+                      <span className="tabular-nums text-emerald-400">{leader.wins}-{leader.losses}</span>
+                    </div>
+                  )}
+                </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
                   {/* Standings Table */}
