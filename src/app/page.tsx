@@ -589,131 +589,136 @@ export default async function DashboardPage() {
         {/* ── Milestones ──────────────────────────────────────────────── */}
         {milestones.length > 0 && <MilestonesBanner milestones={milestones} />}
 
-        {/* ── Up Next + Latest Result + Streaks Row ──────────────────── */}
-        <div className="grid gap-4 lg:grid-cols-[1fr_1fr]  xl:grid-cols-[2fr_1fr_1fr]">
-          {unplayedMatches.length > 0 && (
-            <UpNextCard
-              matches={unplayedMatches}
-              participantStats={upNextParticipantStats}
-              tiers={upNextTiers}
-              remainingCount={unplayedMatches.length}
-            />
-          )}
+        {/* ── Up Next + Latest Result | On Fire | Ice Cold ─────────── */}
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr]">
+          {/* Left: Up Next stacked with Latest Result */}
+          <div className="space-y-3">
+            {unplayedMatches.length > 0 && (
+              <UpNextCard
+                matches={unplayedMatches}
+                participantStats={upNextParticipantStats}
+                tiers={upNextTiers}
+                remainingCount={unplayedMatches.length}
+              />
+            )}
 
-          {featuredMatch && (
-            <div className="rounded-2xl border border-border/30 bg-gradient-to-r from-card via-card to-card overflow-hidden relative flex flex-col">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/[0.03] via-transparent to-purple-500/[0.03]" />
-              <div className="relative px-5 py-4 flex-1 flex flex-col justify-center">
-                <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground/40 mb-3">
-                  Latest Result
-                </div>
-                <div className="flex items-center justify-center gap-4">
-                  {(() => {
-                    const aId = featuredMatch.wrestler_a_id || featuredMatch.tag_team_a_id;
-                    const winnerId = featuredMatch.winner_wrestler_id || featuredMatch.winner_tag_team_id;
-                    const isWinner = winnerId === aId;
-                    const name = wrestlerMap[aId ?? ""] ?? "?";
-                    const img = imageMap[aId ?? ""];
-                    return (
-                      <div className={`flex flex-col items-center gap-1.5 flex-1 max-w-[140px] ${isWinner ? "" : "opacity-40"}`}>
-                        {img ? (
-                          <img src={img} alt={name} className={`h-14 w-14 rounded-full object-cover border-2 ${isWinner ? "border-gold" : "border-border/30"}`} />
-                        ) : (
-                          <div className={`h-14 w-14 rounded-full flex items-center justify-center text-lg font-bold ${isWinner ? "bg-gold/10 border-2 border-gold text-gold" : "bg-muted/20 border-2 border-border/30 text-muted-foreground/30"}`}>
-                            {name.charAt(0)}
-                          </div>
-                        )}
-                        <span className={`text-xs font-bold text-center leading-tight ${isWinner ? "text-gold" : "text-muted-foreground/50"}`}>
-                          {name}
-                        </span>
-                        {isWinner && <span className="text-[8px] font-bold uppercase tracking-widest text-gold/60">Winner</span>}
+            {featuredMatch && (() => {
+              const fAId = featuredMatch.wrestler_a_id || featuredMatch.tag_team_a_id;
+              const fBId = featuredMatch.wrestler_b_id || featuredMatch.tag_team_b_id;
+              const fWinnerId = featuredMatch.winner_wrestler_id || featuredMatch.winner_tag_team_id;
+              const fIsTag = !!featuredMatch.tag_team_a_id;
+              const fAName = wrestlerMap[fAId ?? ""] ?? "?";
+              const fBName = wrestlerMap[fBId ?? ""] ?? "?";
+              const fAWins = winCounts.get(fAId ?? "") ?? 0;
+              const fALosses = lossCounts.get(fAId ?? "") ?? 0;
+              const fBWins = winCounts.get(fBId ?? "") ?? 0;
+              const fBLosses = lossCounts.get(fBId ?? "") ?? 0;
+              const fAImg = imageMap[fAId ?? ""];
+              const fBImg = imageMap[fBId ?? ""];
+              const isAWinner = fWinnerId === fAId;
+              const aHref = fIsTag ? "/tag-teams" : `/roster/${slugMap[fAId ?? ""] ?? fAId}`;
+              const bHref = fIsTag ? "/tag-teams" : `/roster/${slugMap[fBId ?? ""] ?? fBId}`;
+
+              return (
+                <div className="rounded-xl border border-border/30 bg-card/50 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[8px] font-bold uppercase tracking-[0.15em] text-muted-foreground/40">Latest</span>
+                    {/* Winner */}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {fAImg ? (
+                        <img src={fAImg} alt="" className={`h-8 w-8 rounded-full object-cover border ${isAWinner ? "border-gold" : "border-border/20 opacity-50"} shrink-0`} />
+                      ) : (
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isAWinner ? "bg-gold/10 border border-gold text-gold" : "bg-muted/20 border border-border/20 text-muted-foreground/30 opacity-50"}`}>
+                          {fAName.charAt(0)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <Link href={aHref} className={`text-xs font-bold truncate block hover:underline ${isAWinner ? "text-gold" : "text-muted-foreground/50"}`}>
+                          {fAName}
+                        </Link>
+                        <span className="text-[9px] text-muted-foreground/40 tabular-nums">{fAWins}W-{fALosses}L</span>
                       </div>
-                    );
-                  })()}
-                  <div className="flex flex-col items-center gap-1 shrink-0">
-                    <span className="text-xl font-black text-muted-foreground/10">VS</span>
-                    {featuredMatch.match_time_seconds && (
-                      <span className="text-[10px] tabular-nums text-muted-foreground/40">{formatTime(featuredMatch.match_time_seconds)}</span>
-                    )}
+                    </div>
+                    {/* VS + Time */}
+                    <div className="text-center shrink-0">
+                      <span className="text-[9px] font-black text-muted-foreground/15">VS</span>
+                      {featuredMatch.match_time_seconds && (
+                        <div className="text-[9px] tabular-nums text-muted-foreground/30">{formatTime(featuredMatch.match_time_seconds)}</div>
+                      )}
+                    </div>
+                    {/* Loser */}
+                    <div className="flex items-center gap-2 flex-1 min-w-0 flex-row-reverse">
+                      {fBImg ? (
+                        <img src={fBImg} alt="" className={`h-8 w-8 rounded-full object-cover border ${!isAWinner ? "border-gold" : "border-border/20 opacity-50"} shrink-0`} />
+                      ) : (
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${!isAWinner ? "bg-gold/10 border border-gold text-gold" : "bg-muted/20 border border-border/20 text-muted-foreground/30 opacity-50"}`}>
+                          {fBName.charAt(0)}
+                        </div>
+                      )}
+                      <div className="min-w-0 text-right">
+                        <Link href={bHref} className={`text-xs font-bold truncate block hover:underline ${!isAWinner ? "text-gold" : "text-muted-foreground/50"}`}>
+                          {fBName}
+                        </Link>
+                        <span className="text-[9px] text-muted-foreground/40 tabular-nums">{fBWins}W-{fBLosses}L</span>
+                      </div>
+                    </div>
+                    {/* Undo */}
+                    <UndoMatchButton matchId={featuredMatch.id} winnerName={wrestlerMap[fWinnerId ?? ""] ?? "?"} />
                   </div>
-                  {(() => {
-                    const bId = featuredMatch.wrestler_b_id || featuredMatch.tag_team_b_id;
-                    const winnerId = featuredMatch.winner_wrestler_id || featuredMatch.winner_tag_team_id;
-                    const isWinner = winnerId === bId;
-                    const name = wrestlerMap[bId ?? ""] ?? "?";
-                    const img = imageMap[bId ?? ""];
-                    return (
-                      <div className={`flex flex-col items-center gap-1.5 flex-1 max-w-[140px] ${isWinner ? "" : "opacity-40"}`}>
-                        {img ? (
-                          <img src={img} alt={name} className={`h-14 w-14 rounded-full object-cover border-2 ${isWinner ? "border-gold" : "border-border/30"}`} />
-                        ) : (
-                          <div className={`h-14 w-14 rounded-full flex items-center justify-center text-lg font-bold ${isWinner ? "bg-gold/10 border-2 border-gold text-gold" : "bg-muted/20 border-2 border-border/30 text-muted-foreground/30"}`}>
-                            {name.charAt(0)}
-                          </div>
-                        )}
-                        <span className={`text-xs font-bold text-center leading-tight ${isWinner ? "text-gold" : "text-muted-foreground/50"}`}>
-                          {name}
-                        </span>
-                        {isWinner && <span className="text-[8px] font-bold uppercase tracking-widest text-gold/60">Winner</span>}
-                      </div>
-                    );
-                  })()}
                 </div>
+              );
+            })()}
+          </div>
+
+          {/* On Fire (own column) */}
+          {onFire.length > 0 && (
+            <div className="max-h-[400px] overflow-y-auto">
+              <h3 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2 flex items-center gap-1">
+                <span>🔥</span> On Fire
+              </h3>
+              <div className="space-y-1.5">
+                {onFire.slice(0, 8).map((w) => (
+                  <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-amber-500/10 bg-amber-500/[0.03] px-2 py-1.5 hover:border-amber-500/25 transition-all group">
+                    {w.image ? (
+                      <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-amber-500/20 shrink-0" />
+                    ) : (
+                      <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                        <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+                      </div>
+                    )}
+                    <span className="text-[11px] font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
+                    <span className="text-[9px] font-bold text-amber-400 shrink-0">
+                      {Array.from({ length: Math.min(w.streak, 3) }).map((_, i) => "🔥").join("")} {w.streak}
+                    </span>
+                  </Link>
+                ))}
               </div>
             </div>
           )}
 
-          {/* On Fire + Ice Cold (3rd column) */}
-          {(onFire.length > 0 || iceCold.length > 0) && (
-            <div className="space-y-4 max-h-[400px] overflow-y-auto">
-              {onFire.length > 0 && (
-                <div>
-                  <h3 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2 flex items-center gap-1">
-                    <span>🔥</span> On Fire
-                  </h3>
-                  <div className="space-y-1.5">
-                    {onFire.slice(0, 5).map((w) => (
-                      <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-amber-500/10 bg-amber-500/[0.03] px-2 py-1.5 hover:border-amber-500/25 transition-all group">
-                        {w.image ? (
-                          <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-amber-500/20 shrink-0" />
-                        ) : (
-                          <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
-                            <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
-                          </div>
-                        )}
-                        <span className="text-[11px] font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
-                        <span className="text-[9px] font-bold text-amber-400 shrink-0">
-                          {Array.from({ length: Math.min(w.streak, 3) }).map((_, i) => "🔥").join("")} {w.streak}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {iceCold.length > 0 && (
-                <div>
-                  <h3 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2 flex items-center gap-1">
-                    <span>🧊</span> Ice Cold
-                  </h3>
-                  <div className="space-y-1.5">
-                    {iceCold.slice(0, 5).map((w) => (
-                      <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-blue-500/10 bg-blue-500/[0.03] px-2 py-1.5 hover:border-blue-500/25 transition-all group">
-                        {w.image ? (
-                          <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-blue-500/20 grayscale-[30%] shrink-0" />
-                        ) : (
-                          <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
-                            <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
-                          </div>
-                        )}
-                        <span className="text-[11px] font-semibold truncate flex-1 group-hover:text-blue-400 transition-colors">{w.name}</span>
-                        <span className="text-[9px] font-bold text-blue-400 shrink-0">
-                          {Array.from({ length: Math.min(Math.abs(w.streak), 3) }).map((_, i) => "🧊").join("")} {Math.abs(w.streak)}L
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {/* Ice Cold (own column) */}
+          {iceCold.length > 0 && (
+            <div className="max-h-[400px] overflow-y-auto">
+              <h3 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2 flex items-center gap-1">
+                <span>🧊</span> Ice Cold
+              </h3>
+              <div className="space-y-1.5">
+                {iceCold.slice(0, 8).map((w) => (
+                  <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-blue-500/10 bg-blue-500/[0.03] px-2 py-1.5 hover:border-blue-500/25 transition-all group">
+                    {w.image ? (
+                      <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-blue-500/20 grayscale-[30%] shrink-0" />
+                    ) : (
+                      <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                        <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
+                      </div>
+                    )}
+                    <span className="text-[11px] font-semibold truncate flex-1 group-hover:text-blue-400 transition-colors">{w.name}</span>
+                    <span className="text-[9px] font-bold text-blue-400 shrink-0">
+                      {Array.from({ length: Math.min(Math.abs(w.streak), 3) }).map((_, i) => "🧊").join("")} {Math.abs(w.streak)}L
+                    </span>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
         </div>
