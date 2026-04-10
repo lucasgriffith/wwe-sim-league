@@ -21,6 +21,8 @@ export interface Standing {
   streak: string;
   trend: boolean[];
   linkHref: string | null;
+  imageUrl: string | null;
+  memberImages?: [string | null, string | null];
 }
 
 export interface TierStandings {
@@ -80,8 +82,8 @@ export default async function StandingsPage() {
       .select("tier_id, pool, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, match_time_seconds, match_phase, played_at")
       .eq("season_id", season.id)
       .eq("match_phase", "pool_play"),
-    supabase.from("wrestlers").select("id, name, slug"),
-    supabase.from("tag_teams").select("id, name"),
+    supabase.from("wrestlers").select("id, name, slug, image_url"),
+    supabase.from("tag_teams").select("id, name, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(image_url), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(image_url)"),
   ]);
 
   const wrestlerMap = Object.fromEntries(
@@ -90,9 +92,18 @@ export default async function StandingsPage() {
   const wrestlerSlugMap = Object.fromEntries(
     (wrestlers ?? []).filter((w) => w.slug).map((w) => [w.id, w.slug])
   );
+  const wrestlerImageMap = Object.fromEntries(
+    (wrestlers ?? []).filter((w) => w.image_url).map((w) => [w.id, w.image_url])
+  );
   const tagTeamMap = Object.fromEntries(
     (tagTeams ?? []).map((t) => [t.id, t.name])
   );
+  const tagMemberImages: Record<string, [string | null, string | null]> = {};
+  for (const t of tagTeams ?? []) {
+    const wa = t.wrestler_a as unknown as { image_url: string | null } | null;
+    const wb = t.wrestler_b as unknown as { image_url: string | null } | null;
+    tagMemberImages[t.id] = [wa?.image_url ?? null, wb?.image_url ?? null];
+  }
 
   const playedMatches = (matches ?? []).filter((m) => m.played_at);
 
@@ -185,6 +196,8 @@ export default async function StandingsPage() {
           streak,
           trend,
           linkHref: isTag ? "/tag-teams" : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
+          imageUrl: isTag ? null : (wrestlerImageMap[pid] ?? null),
+          ...(isTag && tagMemberImages[pid] ? { memberImages: tagMemberImages[pid] } : {}),
         };
       });
 

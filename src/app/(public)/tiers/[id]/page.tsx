@@ -19,7 +19,7 @@ import Link from "next/link";
 import { BracketView } from "@/components/playoffs/bracket-view";
 import { TierSchedule } from "@/components/tiers/tier-schedule";
 import { computeClinchStatus, type ClinchStatus } from "@/lib/standings/clinch";
-import { Sparkline } from "@/components/ui/sparkline";
+import { FormDots } from "@/components/ui/form-dots";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -62,7 +62,7 @@ export default async function TierDetailPage({
     const { data } = await supabase
       .from("tier_assignments")
       .select(
-        "id, pool, seed, wrestler_id, tag_team_id, wrestlers(id, name, slug), tag_teams(id, name)"
+        "id, pool, seed, wrestler_id, tag_team_id, wrestlers(id, name, slug, image_url), tag_teams(id, name, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(image_url), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(image_url))"
       )
       .eq("season_id", activeSeason.id)
       .eq("tier_id", tier.id)
@@ -137,6 +137,13 @@ export default async function TierDetailPage({
       const participantId = a.wrestler_id || a.tag_team_id;
       const name = a.wrestlers?.name || a.tag_teams?.name || "Unknown";
       const isTag = !!a.tag_team_id;
+      const imageUrl: string | null = a.wrestlers?.image_url ?? null;
+      const memberImages: [string | null, string | null] | undefined = isTag && a.tag_teams
+        ? [
+            (a.tag_teams.wrestler_a as unknown as { image_url: string | null } | null)?.image_url ?? null,
+            (a.tag_teams.wrestler_b as unknown as { image_url: string | null } | null)?.image_url ?? null,
+          ]
+        : undefined;
 
       const played = poolMatches.filter(
         (m) =>
@@ -204,6 +211,8 @@ export default async function TierDetailPage({
         streakLabel: streak > 0 ? `W${streak}` : streak < 0 ? `L${Math.abs(streak)}` : "—",
         trend,
         linkHref: isTag ? "/tag-teams" : `/roster/${wrestlerSlugMap[participantId!] ?? participantId}`,
+        imageUrl,
+        memberImages,
       };
     });
 
@@ -405,18 +414,48 @@ export default async function TierDetailPage({
 
             return (
               <div key={pool ?? "all"}>
-                <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
-                  {pool ? (
-                    <>
-                      Pool {pool}
-                      <span className="text-xs font-normal text-muted-foreground">
-                        {stats.length} participants
-                      </span>
-                    </>
-                  ) : (
-                    "Standings"
-                  )}
-                </h2>
+                {pool ? (() => {
+                  const poolMatches = poolPlayMatches.filter((m) => m.pool === pool);
+                  const poolPlayed = poolMatches.filter((m) => m.played_at).length;
+                  const poolTotal = poolMatches.length;
+                  const leader = stats[0];
+                  return (
+                    <div className="mb-3 flex items-center gap-3 rounded-lg border border-border/30 bg-card/40 px-3 py-2">
+                      {tier.belt_image_url && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={tier.belt_image_url} alt="" className="h-8 w-auto object-contain shrink-0 hidden sm:block" />
+                      )}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-semibold">Pool {pool}</span>
+                        <span className="text-[10px] text-muted-foreground tabular-nums">{poolPlayed}/{poolTotal} played</span>
+                      </div>
+                      {leader && leader.matchesPlayed > 0 && (
+                        <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="hidden sm:inline text-[10px] uppercase tracking-wider">Leader</span>
+                          {leader.memberImages ? (
+                            <span className="flex items-center -space-x-1 shrink-0">
+                              {leader.memberImages.map((img, mi) => (
+                                img ? (
+                                  /* eslint-disable-next-line @next/next/no-img-element */
+                                  <img key={mi} src={img} alt="" className="h-5 w-5 rounded-full object-cover ring-1 ring-background" />
+                                ) : (
+                                  <span key={mi} className="h-5 w-5 rounded-full bg-muted ring-1 ring-background" />
+                                )
+                              ))}
+                            </span>
+                          ) : leader.imageUrl ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={leader.imageUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
+                          ) : null}
+                          <span className="font-medium text-foreground truncate max-w-[100px]">{leader.name}</span>
+                          <span className="tabular-nums text-emerald-400">{leader.wins}-{leader.losses}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })() : (
+                  <h2 className="mb-3 text-base font-semibold">Standings</h2>
+                )}
 
                 <div className="grid gap-6 lg:grid-cols-2">
                   {/* Standings Table */}
@@ -440,7 +479,7 @@ export default async function TierDetailPage({
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-12 px-1 sm:px-4">Win%</TableHead>
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-10 px-1 sm:px-4">GB</TableHead>
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-10 px-1 sm:px-4 hidden sm:table-cell">Strk</TableHead>
-                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-12 px-1 sm:px-4 hidden sm:table-cell">Trend</TableHead>
+                          <TableHead className="text-center text-[10px] uppercase tracking-wider w-12 px-1 sm:px-4 hidden sm:table-cell">Form</TableHead>
                           <TableHead className="text-center text-[10px] uppercase tracking-wider w-14 px-1 sm:px-4 hidden sm:table-cell">Avg Time</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -534,6 +573,23 @@ export default async function TierDetailPage({
                                 </TableCell>
                                 <TableCell className="px-1 sm:px-4">
                                   <span className="flex items-center gap-1.5 font-medium">
+                                    {s.memberImages ? (
+                                      <span className="flex items-center -space-x-1.5 shrink-0">
+                                        {s.memberImages.map((img, mi) => (
+                                          img ? (
+                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                            <img key={mi} src={img} alt="" className="h-6 w-6 rounded-full object-cover ring-1 ring-background" />
+                                          ) : (
+                                            <span key={mi} className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[8px] text-muted-foreground ring-1 ring-background">?</span>
+                                          )
+                                        ))}
+                                      </span>
+                                    ) : s.imageUrl ? (
+                                      /* eslint-disable-next-line @next/next/no-img-element */
+                                      <img src={s.imageUrl} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
+                                    ) : (
+                                      <span className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[8px] text-muted-foreground shrink-0">?</span>
+                                    )}
                                     {s.linkHref ? (
                                       <Link href={s.linkHref} className="hover:text-gold transition-colors">
                                         {s.name}
@@ -576,7 +632,7 @@ export default async function TierDetailPage({
                                   {s.streakLabel}
                                 </TableCell>
                                 <TableCell className="text-center px-1 sm:px-4 hidden sm:table-cell">
-                                  {s.trend.length > 0 && <Sparkline results={s.trend} />}
+                                  {s.trend.length > 0 && <FormDots results={s.trend} />}
                                 </TableCell>
                                 <TableCell className="text-center tabular-nums text-xs text-muted-foreground hidden sm:table-cell px-1 sm:px-4" style={zoneRightStyle}>
                                   {s.avgTime > 0 ? formatTime(s.avgTime) : "-"}

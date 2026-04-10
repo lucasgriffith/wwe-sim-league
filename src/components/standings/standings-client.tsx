@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import type { Standing, TierStandings } from "@/app/(public)/standings/page";
-import { Sparkline } from "@/components/ui/sparkline";
+import { FormDots } from "@/components/ui/form-dots";
 import { ChampionBadge } from "@/components/ui/champion-badge";
 import type { ChampionInfo } from "@/lib/champions";
 
@@ -172,7 +172,7 @@ function StandingsTable({
             <th className="px-1 sm:px-3 py-2 text-right w-12">Win%</th>
             <th className="px-1 sm:px-3 py-2 text-center w-10 hidden sm:table-cell">GB</th>
             <th className="px-1 sm:px-3 py-2 text-center w-10">Strk</th>
-            <th className="px-1 sm:px-3 py-2 text-center w-12 hidden sm:table-cell">Trend</th>
+            <th className="px-1 sm:px-3 py-2 text-center w-12 hidden sm:table-cell">Form</th>
             <th className="px-1 sm:px-3 py-2 text-right w-14 hidden sm:table-cell">Avg Time</th>
           </tr>
         </thead>
@@ -262,6 +262,23 @@ function StandingsTable({
                   </td>
                   <td className="px-1 sm:px-3 py-2">
                     <span className="flex items-center gap-1.5 font-medium">
+                      {s.memberImages ? (
+                        <span className="flex items-center -space-x-1.5 shrink-0">
+                          {s.memberImages.map((img, mi) => (
+                            img ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img key={mi} src={img} alt="" className="h-6 w-6 rounded-full object-cover ring-1 ring-background" />
+                            ) : (
+                              <span key={mi} className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[8px] text-muted-foreground ring-1 ring-background">?</span>
+                            )
+                          ))}
+                        </span>
+                      ) : s.imageUrl ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={s.imageUrl} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <span className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[8px] text-muted-foreground shrink-0">?</span>
+                      )}
                       {s.linkHref ? (
                         <Link
                           href={s.linkHref}
@@ -307,7 +324,7 @@ function StandingsTable({
                     {s.streak}
                   </td>
                   <td className="px-1 sm:px-3 py-2 text-center hidden sm:table-cell">
-                    {s.trend.length > 0 && <Sparkline results={s.trend} />}
+                    {s.trend.length > 0 && <FormDots results={s.trend} />}
                   </td>
                   <td className="px-1 sm:px-3 py-2 text-right tabular-nums text-xs text-muted-foreground hidden sm:table-cell" style={zoneRightStyle}>
                     {s.avgTime > 0 ? formatTime(s.avgTime) : "—"}
