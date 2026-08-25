@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminUser } from "@/lib/auth/require-admin";
 
 export default async function AdminLayout({
   children,
@@ -13,6 +14,9 @@ export default async function AdminLayout({
 
   if (!user) {
     redirect("/login");
+  }
+  if (!isAdminUser(user)) {
+    redirect("/");
   }
 
   return <>{children}</>;
