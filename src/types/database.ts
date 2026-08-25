@@ -227,6 +227,8 @@ export interface Database {
           match_time_seconds: number | null;
           stipulation: string | null;
           notes: string | null;
+          bracket_key: string | null;
+          advances_to: string | null;
           played_at: string | null;
           created_at: string;
         };
@@ -246,6 +248,8 @@ export interface Database {
           match_time_seconds?: number | null;
           stipulation?: string | null;
           notes?: string | null;
+          bracket_key?: string | null;
+          advances_to?: string | null;
           played_at?: string | null;
           created_at?: string;
         };
@@ -253,11 +257,17 @@ export interface Database {
           round_number?: number | null;
           match_phase?: MatchPhase;
           pool?: PoolLabel | null;
+          wrestler_a_id?: string | null;
+          wrestler_b_id?: string | null;
+          tag_team_a_id?: string | null;
+          tag_team_b_id?: string | null;
           winner_wrestler_id?: string | null;
           winner_tag_team_id?: string | null;
           match_time_seconds?: number | null;
           stipulation?: string | null;
           notes?: string | null;
+          bracket_key?: string | null;
+          advances_to?: string | null;
           played_at?: string | null;
         };
       };

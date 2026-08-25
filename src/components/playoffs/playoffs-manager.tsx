@@ -15,12 +15,10 @@ import {
 } from "@/components/ui/select";
 import { computeStandings, type MatchResult } from "@/lib/standings/compute-standings";
 import { computePlayoffSeeds, computeTagPlayoffSeeds } from "@/lib/playoffs/seeding";
-import { generateBracket, type BracketMatch } from "@/lib/playoffs/bracket";
-import { assignStipulation } from "@/lib/stipulations/randomizer";
+import { generateBracket } from "@/lib/playoffs/bracket";
 import { BracketView } from "./bracket-view";
-import { bulkCreateMatches, recordMatchResult } from "@/app/actions";
+import { generatePlayoffBracketForTier, recordMatchResult } from "@/app/actions";
 import { toast } from "sonner";
-import type { MatchPhase } from "@/types/database";
 
 interface Props {
   season: { id: string; season_number: number };
@@ -46,6 +44,7 @@ interface Props {
     winner_tag_team_id: string | null;
     match_time_seconds: number | null;
     stipulation: string | null;
+    bracket_key?: string | null;
     played_at: string | null;
     round_number: number | null;
   }>;
@@ -163,37 +162,13 @@ export function PlayoffsManager({
   }
 
   async function handleGeneratePlayoffMatches() {
-    if (!tier || !bracket) return;
+    if (!tier) return;
     setLoading(true);
     try {
-      const usedStipulations: string[] = [];
-      const matchInserts = bracket.bracketMatches.map((bm) => {
-        const stip = assignStipulation(tier.fixed_stipulation, usedStipulations);
-        usedStipulations.push(stip);
-
-        const seedA = bm.seedA;
-        const seedB = bm.seedB;
-
-        return {
-          season_id: season.id,
-          tier_id: tier.id,
-          match_phase: bm.round as MatchPhase,
-          pool: null,
-          stipulation: stip,
-          ...(isTag
-            ? {
-                tag_team_a_id: seedA?.participantId ?? null,
-                tag_team_b_id: seedB?.participantId ?? null,
-              }
-            : {
-                wrestler_a_id: seedA?.participantId ?? null,
-                wrestler_b_id: seedB?.participantId ?? null,
-              }),
-        };
-      });
-
-      await bulkCreateMatches(matchInserts);
-      toast.success("Playoff matches created");
+      // Seeds and stipulations are computed server-side from fresh data, so
+      // the persisted bracket can't drift from a stale client snapshot
+      const result = await generatePlayoffBracketForTier(season.id, tier.id);
+      toast.success(`Playoff matches created (${result.matchesCreated})`);
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create matches");
@@ -415,6 +390,7 @@ function buildBracketViewData(
       winner_tag_team_id: string | null;
       match_time_seconds: number | null;
       stipulation: string | null;
+      bracket_key?: string | null;
       played_at: string | null;
       round_number: number | null;
     }>;
@@ -439,14 +415,13 @@ function buildBracketViewData(
     };
   }
 
-  // Map match_phase to matchKey
-  const phaseOrder = { quarterfinal: 0, semifinal: 0, final: 0 };
   const qfMatches = bracket.existingPlayoffMatches.filter((m) => m.match_phase === "quarterfinal");
   const sfMatches = bracket.existingPlayoffMatches.filter((m) => m.match_phase === "semifinal");
-  const finalMatches = bracket.existingPlayoffMatches.filter((m) => m.match_phase === "final");
 
-  // Assign matchKeys based on bracket structure
+  // Prefer the persisted bracket_key; fall back to phase + index for matches
+  // created before bracket keys existed
   function assignKey(m: (typeof bracket.existingPlayoffMatches)[0], idx: number, phase: string): string {
+    if (m.bracket_key) return m.bracket_key;
     if (phase === "quarterfinal") return `QF${idx + 1}`;
     if (phase === "semifinal") return `SF${idx + 1}`;
     return "Final";

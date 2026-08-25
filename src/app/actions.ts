@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { revalidatePath } from "next/cache";
 import type {
   Gender,
@@ -9,17 +10,6 @@ import type {
   PoolLabel,
   MatchPhase,
 } from "@/types/database";
-
-// ─── Auth helper ────────────────────────────────────────────────────────────
-
-async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  return user;
-}
 
 // ─── Wrestler actions ───────────────────────────────────────────────────────
 
@@ -68,6 +58,35 @@ export async function updateWrestler(
 export async function deleteWrestler(id: string) {
   await requireAdmin();
   const admin = createAdminClient();
+
+  // Deleting a wrestler with history would either fail on FK constraints or
+  // destroy match records — steer toward deactivation instead.
+  const { count: matchCount } = await admin
+    .from("matches")
+    .select("id", { count: "exact", head: true })
+    .or(`wrestler_a_id.eq.${id},wrestler_b_id.eq.${id}`);
+  if ((matchCount ?? 0) > 0) {
+    throw new Error(
+      "This wrestler has match history. Set them inactive instead of deleting."
+    );
+  }
+  const { count: teamCount } = await admin
+    .from("tag_teams")
+    .select("id", { count: "exact", head: true })
+    .or(`wrestler_a_id.eq.${id},wrestler_b_id.eq.${id}`);
+  if ((teamCount ?? 0) > 0) {
+    throw new Error(
+      "This wrestler belongs to a tag team. Remove or delete the team first."
+    );
+  }
+
+  // Setup-time tier assignments with no matches are safe to clear
+  const { error: assignErr } = await admin
+    .from("tier_assignments")
+    .delete()
+    .eq("wrestler_id", id);
+  if (assignErr) throw new Error(assignErr.message);
+
   const { error } = await admin.from("wrestlers").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/roster");
@@ -161,6 +180,27 @@ export async function startSeason(seasonId: string) {
   await requireAdmin();
   const admin = createAdminClient();
 
+  // Idempotency guard: only a season in setup with no matches can start.
+  // Prevents double-generating the round robin from a stale page or second tab.
+  const { data: season, error: seasonErr } = await admin
+    .from("seasons")
+    .select("status")
+    .eq("id", seasonId)
+    .single();
+  if (seasonErr) throw new Error(seasonErr.message);
+  if (season.status !== "setup") {
+    throw new Error(`Season already started (status: ${season.status})`);
+  }
+  const { count: existingCount } = await admin
+    .from("matches")
+    .select("id", { count: "exact", head: true })
+    .eq("season_id", seasonId);
+  if ((existingCount ?? 0) > 0) {
+    throw new Error(
+      "This season already has matches. Reset assignments first to regenerate."
+    );
+  }
+
   // Fetch fresh assignments from database (not stale props!)
   const { data: assignments, error: assignErr } = await admin
     .from("tier_assignments")
@@ -194,7 +234,10 @@ export async function startSeason(seasonId: string) {
     const tierAssigns = (assignments ?? []).filter((a) => a.tier_id === tier.id);
     if (tierAssigns.length < 2) continue;
 
-    const isTag = (tier.divisions as any)?.division_type === "tag";
+    // Supabase types single-row joins as arrays; at runtime this is one object
+    const isTag =
+      (tier.divisions as unknown as { division_type: string } | null)
+        ?.division_type === "tag";
 
     if (tier.has_pools) {
       for (const pool of ["A", "B"] as const) {
@@ -242,11 +285,11 @@ export async function startSeason(seasonId: string) {
     }
   }
 
-  // Advance season to pool_play
-  const { error: statusErr } = await admin
-    .from("seasons")
-    .update({ status: "pool_play" as SeasonStatus, started_at: new Date().toISOString() })
-    .eq("id", seasonId);
+  // Advance season to pool_play through the validated transition rpc
+  const { error: statusErr } = await admin.rpc("advance_season_status", {
+    p_season_id: seasonId,
+    p_new_status: "pool_play" as SeasonStatus,
+  });
   if (statusErr) throw new Error(statusErr.message);
 
   revalidatePath("/season");
@@ -296,14 +339,12 @@ export async function bulkAssignToTier(
 export async function clearTagTierAssignments(seasonId: string, tagTierIds: string[]) {
   await requireAdmin();
   const admin = createAdminClient();
-  for (const tierId of tagTierIds) {
-    const { error } = await admin
-      .from("tier_assignments")
-      .delete()
-      .eq("season_id", seasonId)
-      .eq("tier_id", tierId);
-    if (error) throw new Error(error.message);
-  }
+  const { error } = await admin
+    .from("tier_assignments")
+    .delete()
+    .eq("season_id", seasonId)
+    .in("tier_id", tagTierIds);
+  if (error) throw new Error(error.message);
   revalidatePath("/season/setup");
   revalidatePath("/tiers");
 }
@@ -343,6 +384,12 @@ export async function bulkCreateMatches(
   revalidatePath("/season");
 }
 
+/** Parse an `advances_to` value like "SF2:B" into its target key and slot. */
+function parseAdvancesTo(advancesTo: string): { key: string; slot: "A" | "B" } {
+  const [key, slot] = advancesTo.split(":");
+  return { key, slot: slot === "A" ? "A" : "B" };
+}
+
 export async function recordMatchResult(
   matchId: string,
   data: {
@@ -355,6 +402,42 @@ export async function recordMatchResult(
 ) {
   await requireAdmin();
   const admin = createAdminClient();
+
+  const { data: match, error: matchErr } = await admin
+    .from("matches")
+    .select("*")
+    .eq("id", matchId)
+    .single();
+  if (matchErr) throw new Error(matchErr.message);
+
+  // Validate: winner must be one of the match's participants
+  const isTag = !!match.tag_team_a_id;
+  const winnerId = isTag ? data.winner_tag_team_id : data.winner_wrestler_id;
+  const participantA = isTag ? match.tag_team_a_id : match.wrestler_a_id;
+  const participantB = isTag ? match.tag_team_b_id : match.wrestler_b_id;
+  if (!winnerId || (winnerId !== participantA && winnerId !== participantB)) {
+    throw new Error("Winner must be one of the match participants");
+  }
+  if (!Number.isFinite(data.match_time_seconds) || data.match_time_seconds <= 0) {
+    throw new Error("Match time must be a positive number of seconds");
+  }
+
+  // Changing an already-played playoff result whose winner has advanced into a
+  // played next-round match would corrupt the bracket — require undo first.
+  if (match.played_at && match.advances_to) {
+    const { key } = parseAdvancesTo(match.advances_to);
+    const { data: target } = await admin
+      .from("matches")
+      .select("id, played_at")
+      .eq("season_id", match.season_id)
+      .eq("tier_id", match.tier_id)
+      .eq("bracket_key", key)
+      .maybeSingle();
+    if (target?.played_at) {
+      throw new Error(`Undo the ${key} match first before changing this result`);
+    }
+  }
+
   const { error } = await admin
     .from("matches")
     .update({
@@ -363,13 +446,64 @@ export async function recordMatchResult(
     })
     .eq("id", matchId);
   if (error) throw new Error(error.message);
+
+  // Playoff advancement: push the winner into the next round's open slot
+  if (match.advances_to) {
+    const { key, slot } = parseAdvancesTo(match.advances_to);
+    const column = isTag
+      ? slot === "A" ? "tag_team_a_id" : "tag_team_b_id"
+      : slot === "A" ? "wrestler_a_id" : "wrestler_b_id";
+    const { error: advErr } = await admin
+      .from("matches")
+      .update({ [column]: winnerId })
+      .eq("season_id", match.season_id)
+      .eq("tier_id", match.tier_id)
+      .eq("bracket_key", key);
+    if (advErr) throw new Error(advErr.message);
+  }
+
   revalidatePath("/season");
+  revalidatePath("/season/playoffs");
   revalidatePath("/tiers");
 }
 
 export async function undoMatchResult(matchId: string) {
   await requireAdmin();
   const admin = createAdminClient();
+
+  const { data: match, error: matchErr } = await admin
+    .from("matches")
+    .select("*")
+    .eq("id", matchId)
+    .single();
+  if (matchErr) throw new Error(matchErr.message);
+
+  // If this playoff winner already advanced, clear (or refuse to clear) the slot
+  if (match.advances_to && match.played_at) {
+    const { key, slot } = parseAdvancesTo(match.advances_to);
+    const { data: target } = await admin
+      .from("matches")
+      .select("id, played_at")
+      .eq("season_id", match.season_id)
+      .eq("tier_id", match.tier_id)
+      .eq("bracket_key", key)
+      .maybeSingle();
+    if (target?.played_at) {
+      throw new Error(`Undo the ${key} match first — its result depends on this one`);
+    }
+    if (target) {
+      const isTag = !!match.tag_team_a_id;
+      const column = isTag
+        ? slot === "A" ? "tag_team_a_id" : "tag_team_b_id"
+        : slot === "A" ? "wrestler_a_id" : "wrestler_b_id";
+      const { error: clearErr } = await admin
+        .from("matches")
+        .update({ [column]: null })
+        .eq("id", target.id);
+      if (clearErr) throw new Error(clearErr.message);
+    }
+  }
+
   const { error } = await admin
     .from("matches")
     .update({
@@ -382,6 +516,7 @@ export async function undoMatchResult(matchId: string) {
     .eq("id", matchId);
   if (error) throw new Error(error.message);
   revalidatePath("/season");
+  revalidatePath("/season/playoffs");
   revalidatePath("/tiers");
 }
 
@@ -412,26 +547,24 @@ export async function resetSeasonAssignments(seasonId: string) {
   await requireAdmin();
   const admin = createAdminClient();
 
-  // Delete matches for this season
+  // Delete relegation events first — they can reference matches via match_id
+  const { error: relErr } = await admin
+    .from("relegation_events")
+    .delete()
+    .eq("season_id", seasonId);
+  if (relErr) throw new Error(relErr.message);
+
   const { error: matchErr } = await admin
     .from("matches")
     .delete()
     .eq("season_id", seasonId);
   if (matchErr) throw new Error(matchErr.message);
 
-  // Delete tier assignments for this season
   const { error: assignErr } = await admin
     .from("tier_assignments")
     .delete()
     .eq("season_id", seasonId);
   if (assignErr) throw new Error(assignErr.message);
-
-  // Delete relegation events for this season
-  const { error: relErr } = await admin
-    .from("relegation_events")
-    .delete()
-    .eq("season_id", seasonId);
-  if (relErr) throw new Error(relErr.message);
 
   // Reset season status to setup
   const { error: statusErr } = await admin
@@ -449,18 +582,19 @@ export async function resetSeasonComplete(seasonId: string) {
   await requireAdmin();
   const admin = createAdminClient();
 
-  // Delete in order: matches → relegation_events → tier_assignments → season
-  const { error: matchErr } = await admin
-    .from("matches")
-    .delete()
-    .eq("season_id", seasonId);
-  if (matchErr) throw new Error(matchErr.message);
-
+  // Delete in order: relegation_events (reference matches) → matches →
+  // tier_assignments → season
   const { error: relErr } = await admin
     .from("relegation_events")
     .delete()
     .eq("season_id", seasonId);
   if (relErr) throw new Error(relErr.message);
+
+  const { error: matchErr } = await admin
+    .from("matches")
+    .delete()
+    .eq("season_id", seasonId);
+  if (matchErr) throw new Error(matchErr.message);
 
   const { error: assignErr } = await admin
     .from("tier_assignments")
@@ -480,61 +614,147 @@ export async function resetSeasonComplete(seasonId: string) {
   revalidatePath("/dynasty");
 }
 
-// ─── Generate All Playoff Brackets ──────────────────────────────────────────
+// ─── Generate Playoff Brackets ──────────────────────────────────────────────
+
+interface PlayoffMatchInsert {
+  season_id: string;
+  tier_id: string;
+  match_phase: MatchPhase;
+  pool: null;
+  stipulation: string;
+  bracket_key: string;
+  advances_to: string | null;
+  wrestler_a_id?: string | null;
+  wrestler_b_id?: string | null;
+  tag_team_a_id?: string | null;
+  tag_team_b_id?: string | null;
+}
+
+/**
+ * Build the playoff match inserts for one tier from its pool-play results.
+ * Standings come from the shared computeStandings, and pool membership comes
+ * from each match's own `pool` column (not participant assignment, which
+ * double-counts matches when someone was moved between pools).
+ */
+async function buildTierPlayoffInserts(
+  seasonId: string,
+  tier: {
+    id: string;
+    has_pools: boolean;
+    fixed_stipulation: string | null;
+    divisions: { division_type: string } | null;
+  },
+  tierAssigns: Array<{
+    wrestler_id: string | null;
+    tag_team_id: string | null;
+    pool: string | null;
+  }>,
+  tierMatches: Array<{
+    id: string;
+    pool: string | null;
+    wrestler_a_id: string | null;
+    wrestler_b_id: string | null;
+    tag_team_a_id: string | null;
+    tag_team_b_id: string | null;
+    winner_wrestler_id: string | null;
+    winner_tag_team_id: string | null;
+    match_time_seconds: number | null;
+  }>
+): Promise<PlayoffMatchInsert[]> {
+  const { computeStandings } = await import("@/lib/standings/compute-standings");
+  const { computePlayoffSeeds, computeTagPlayoffSeeds } = await import("@/lib/playoffs/seeding");
+  const { generateBracket, computeAdvancesMap } = await import("@/lib/playoffs/bracket");
+  const { assignStipulation } = await import("@/lib/stipulations/randomizer");
+
+  const isTag = tier.divisions?.division_type === "tag";
+
+  const toResult = (m: (typeof tierMatches)[0]) => ({
+    id: m.id,
+    wrestlerAId: (m.wrestler_a_id || m.tag_team_a_id)!,
+    wrestlerBId: (m.wrestler_b_id || m.tag_team_b_id)!,
+    winnerId: (m.winner_wrestler_id || m.winner_tag_team_id)!,
+    matchTimeSeconds: m.match_time_seconds ?? 0,
+  });
+
+  let seeds;
+  if (tier.has_pools) {
+    const poolAAssigns = tierAssigns.filter((a) => a.pool === "A");
+    const poolBAssigns = tierAssigns.filter((a) => a.pool === "B");
+    const poolAStandings = computeStandings(
+      poolAAssigns.map((a) => ({ id: (a.wrestler_id || a.tag_team_id)!, name: "" })),
+      tierMatches.filter((m) => m.pool === "A").map(toResult)
+    );
+    const poolBStandings = computeStandings(
+      poolBAssigns.map((a) => ({ id: (a.wrestler_id || a.tag_team_id)!, name: "" })),
+      tierMatches.filter((m) => m.pool === "B").map(toResult)
+    );
+    seeds = computePlayoffSeeds(poolAStandings, poolBStandings);
+  } else {
+    const standings = computeStandings(
+      tierAssigns.map((a) => ({ id: (a.wrestler_id || a.tag_team_id)!, name: "" })),
+      tierMatches.map(toResult)
+    );
+    seeds = computeTagPlayoffSeeds(standings);
+  }
+
+  const bracketMatches = generateBracket(seeds);
+  const advancesMap = computeAdvancesMap(bracketMatches);
+  const usedStipulations: string[] = [];
+
+  return bracketMatches.map((bm) => {
+    const stip = assignStipulation(tier.fixed_stipulation, usedStipulations);
+    usedStipulations.push(stip);
+    return {
+      season_id: seasonId,
+      tier_id: tier.id,
+      match_phase: bm.round as MatchPhase,
+      pool: null,
+      stipulation: stip,
+      bracket_key: bm.matchKey,
+      advances_to: advancesMap[bm.matchKey] ?? null,
+      ...(isTag
+        ? {
+            tag_team_a_id: bm.seedA?.participantId ?? null,
+            tag_team_b_id: bm.seedB?.participantId ?? null,
+          }
+        : {
+            wrestler_a_id: bm.seedA?.participantId ?? null,
+            wrestler_b_id: bm.seedB?.participantId ?? null,
+          }),
+    };
+  });
+}
 
 export async function generateAllPlayoffBrackets(seasonId: string) {
   await requireAdmin();
   const admin = createAdminClient();
 
-  // Get all tiers with divisions
   const { data: tiers } = await admin
     .from("tiers")
     .select("*, divisions(name, gender, division_type)")
     .order("tier_number");
-
   if (!tiers) throw new Error("Failed to load tiers");
 
-  // Get all assignments for this season
   const { data: assignments } = await admin
     .from("tier_assignments")
     .select("tier_id, wrestler_id, tag_team_id, pool")
     .eq("season_id", seasonId);
-
   if (!assignments) throw new Error("Failed to load assignments");
 
-  // Get all matches for this season
   const { data: matches } = await admin
     .from("matches")
     .select("*")
     .eq("season_id", seasonId);
-
   if (!matches) throw new Error("Failed to load matches");
 
-  // Check which tiers already have playoff matches
+  // Skip tiers that already have playoff matches
   const tiersWithPlayoffs = new Set(
     matches
       .filter((m) => ["quarterfinal", "semifinal", "final"].includes(m.match_phase))
       .map((m) => m.tier_id)
   );
 
-  // Import playoff utilities dynamically
-  const { computeStandings } = await import("@/lib/standings/compute-standings");
-  const { computePlayoffSeeds, computeTagPlayoffSeeds } = await import("@/lib/playoffs/seeding");
-  const { generateBracket } = await import("@/lib/playoffs/bracket");
-  const { assignStipulation } = await import("@/lib/stipulations/randomizer");
-
-  const allInserts: Array<{
-    season_id: string;
-    tier_id: string;
-    match_phase: MatchPhase;
-    pool: null;
-    stipulation: string;
-    wrestler_a_id?: string | null;
-    wrestler_b_id?: string | null;
-    tag_team_a_id?: string | null;
-    tag_team_b_id?: string | null;
-  }> = [];
-
+  const allInserts: PlayoffMatchInsert[] = [];
   let generated = 0;
 
   for (const tier of tiers) {
@@ -543,78 +763,17 @@ export async function generateAllPlayoffBrackets(seasonId: string) {
     const tierAssigns = assignments.filter((a) => a.tier_id === tier.id);
     if (tierAssigns.length < 2) continue;
 
-    const isTag = tier.divisions?.division_type === "tag";
     const tierMatches = matches.filter(
       (m) => m.tier_id === tier.id && m.match_phase === "pool_play" && m.played_at
     );
 
-    // Build match results
-    const matchResults = tierMatches.map((m) => ({
-      id: m.id,
-      wrestlerAId: (m.wrestler_a_id || m.tag_team_a_id)!,
-      wrestlerBId: (m.wrestler_b_id || m.tag_team_b_id)!,
-      winnerId: (m.winner_wrestler_id || m.winner_tag_team_id)!,
-      matchTimeSeconds: m.match_time_seconds ?? 0,
-    }));
-
-    let seeds;
-    if (tier.has_pools) {
-      const poolAAssigns = tierAssigns.filter((a) => a.pool === "A");
-      const poolBAssigns = tierAssigns.filter((a) => a.pool === "B");
-      const poolAMatches = matchResults.filter((m) =>
-        poolAAssigns.some((a) => (a.wrestler_id || a.tag_team_id) === m.wrestlerAId || (a.wrestler_id || a.tag_team_id) === m.wrestlerBId)
-      );
-      const poolBMatches = matchResults.filter((m) =>
-        poolBAssigns.some((a) => (a.wrestler_id || a.tag_team_id) === m.wrestlerAId || (a.wrestler_id || a.tag_team_id) === m.wrestlerBId)
-      );
-
-      const getName = (id: string) => id; // Seeds don't need names for match creation
-      const poolAStandings = computeStandings(
-        poolAAssigns.map((a) => ({ id: (a.wrestler_id || a.tag_team_id)!, name: "" })),
-        poolAMatches
-      );
-      const poolBStandings = computeStandings(
-        poolBAssigns.map((a) => ({ id: (a.wrestler_id || a.tag_team_id)!, name: "" })),
-        poolBMatches
-      );
-      seeds = computePlayoffSeeds(poolAStandings, poolBStandings);
-    } else {
-      const standings = computeStandings(
-        tierAssigns.map((a) => ({ id: (a.wrestler_id || a.tag_team_id)!, name: "" })),
-        matchResults
-      );
-      seeds = computeTagPlayoffSeeds(standings);
-    }
-
-    const bracketMatches = generateBracket(seeds);
-    const usedStipulations: string[] = [];
-
-    for (const bm of bracketMatches) {
-      const stip = assignStipulation(tier.fixed_stipulation, usedStipulations);
-      usedStipulations.push(stip);
-
-      allInserts.push({
-        season_id: seasonId,
-        tier_id: tier.id,
-        match_phase: bm.round as MatchPhase,
-        pool: null,
-        stipulation: stip,
-        ...(isTag
-          ? {
-              tag_team_a_id: bm.seedA?.participantId ?? null,
-              tag_team_b_id: bm.seedB?.participantId ?? null,
-            }
-          : {
-              wrestler_a_id: bm.seedA?.participantId ?? null,
-              wrestler_b_id: bm.seedB?.participantId ?? null,
-            }),
-      });
-    }
+    allInserts.push(
+      ...(await buildTierPlayoffInserts(seasonId, tier, tierAssigns, tierMatches))
+    );
     generated++;
   }
 
   if (allInserts.length > 0) {
-    // Insert in batches
     for (let i = 0; i < allInserts.length; i += 500) {
       const { error } = await admin.from("matches").insert(allInserts.slice(i, i + 500));
       if (error) throw new Error(error.message);
@@ -626,6 +785,66 @@ export async function generateAllPlayoffBrackets(seasonId: string) {
   revalidatePath("/tiers");
 
   return { tiersGenerated: generated, matchesCreated: allInserts.length };
+}
+
+/**
+ * Generate the playoff bracket for a single tier. Seeds are computed
+ * server-side from fresh data, so the persisted bracket always matches what
+ * the standings say — never a stale client snapshot.
+ */
+export async function generatePlayoffBracketForTier(seasonId: string, tierId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: tier, error: tierErr } = await admin
+    .from("tiers")
+    .select("*, divisions(name, gender, division_type)")
+    .eq("id", tierId)
+    .single();
+  if (tierErr) throw new Error(tierErr.message);
+
+  const { count: existing } = await admin
+    .from("matches")
+    .select("id", { count: "exact", head: true })
+    .eq("season_id", seasonId)
+    .eq("tier_id", tierId)
+    .in("match_phase", ["quarterfinal", "semifinal", "final"]);
+  if ((existing ?? 0) > 0) {
+    throw new Error("This tier already has playoff matches");
+  }
+
+  const { data: tierAssigns } = await admin
+    .from("tier_assignments")
+    .select("wrestler_id, tag_team_id, pool")
+    .eq("season_id", seasonId)
+    .eq("tier_id", tierId);
+  if (!tierAssigns || tierAssigns.length < 2) {
+    throw new Error("Not enough participants in this tier");
+  }
+
+  const { data: tierMatches } = await admin
+    .from("matches")
+    .select("*")
+    .eq("season_id", seasonId)
+    .eq("tier_id", tierId)
+    .eq("match_phase", "pool_play")
+    .not("played_at", "is", null);
+
+  const inserts = await buildTierPlayoffInserts(
+    seasonId,
+    tier,
+    tierAssigns,
+    tierMatches ?? []
+  );
+
+  const { error } = await admin.from("matches").insert(inserts);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/season");
+  revalidatePath("/season/playoffs");
+  revalidatePath("/tiers");
+
+  return { matchesCreated: inserts.length };
 }
 
 // ─── Tier Actions ───────────────────────────────────────────────────────────
