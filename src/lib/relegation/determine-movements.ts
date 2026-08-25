@@ -50,8 +50,10 @@ export function determineMovements(
   const hLen = higherStandings.length;
   const lLen = lowerStandings.length;
 
-  // Auto-relegate: bottom 2 of higher tier go down
-  for (let i = hLen - 1; i >= Math.max(0, hLen - 2); i--) {
+  // Auto-relegate: bottom 2 of higher tier go down.
+  // The lower bound of 2 protects small tiers: the champion and runner-up
+  // (ranks 1-2) are never relegated no matter how small the field is.
+  for (let i = hLen - 1; i >= Math.max(2, hLen - 2); i--) {
     const s = higherStandings[i];
     movements.push({
       participantId: s.participantId,
@@ -83,7 +85,8 @@ export function determineMovements(
   ];
 
   for (const [higherIdx, lowerIdx] of playoffPairs) {
-    if (higherIdx >= 0 && higherIdx < hLen && lowerIdx < lLen) {
+    // higherIdx > 1: the top 2 of the higher tier never defend their spot
+    if (higherIdx > 1 && higherIdx < hLen && lowerIdx < lLen) {
       const higher = higherStandings[higherIdx];
       const lower = lowerStandings[lowerIdx];
 

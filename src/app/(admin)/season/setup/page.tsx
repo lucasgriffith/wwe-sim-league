@@ -76,11 +76,24 @@ export default async function SeasonSetupPage() {
   );
 
   if (lastCompletedSeason) {
-    const { data } = await supabase
-      .from("tier_assignments")
-      .select("wrestler_id, tag_team_id, tier_id, pool")
-      .eq("season_id", lastCompletedSeason.id);
-    previousAssignments = data ?? [];
+    const [{ data: prevAssigns }, { data: movementEvents }] = await Promise.all([
+      supabase
+        .from("tier_assignments")
+        .select("wrestler_id, tag_team_id, tier_id, pool")
+        .eq("season_id", lastCompletedSeason.id),
+      supabase
+        .from("relegation_events")
+        .select("wrestler_id, tag_team_id, movement_type, to_tier_id")
+        .eq("season_id", lastCompletedSeason.id),
+    ]);
+    // Carry-forward starts from last season's finish WITH promotions and
+    // relegations applied
+    const { applyMovements } = await import("@/lib/relegation/apply-movements");
+    previousAssignments = applyMovements(
+      prevAssigns ?? [],
+      movementEvents ?? [],
+      (tiers ?? []).map((t) => ({ id: t.id, has_pools: t.has_pools }))
+    );
   }
 
   // Show wizard when: no season exists, or season is in setup phase

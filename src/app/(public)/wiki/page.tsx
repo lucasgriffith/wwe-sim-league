@@ -71,7 +71,7 @@ export default function WikiPage() {
             <PhaseStep number={1} name="Setup" description="Wrestlers are assigned to tiers and split into pools (Pool A and Pool B). Schedules are generated automatically." />
             <PhaseStep number={2} name="Pool Play" description="Every wrestler plays every other wrestler in their pool exactly once (round robin). Standings are tracked live with wins, losses, and win percentage." />
             <PhaseStep number={3} name="Playoffs" description="The top performers from each pool qualify for a 6-person single-elimination playoff bracket. The winner is crowned champion of that tier." />
-            <PhaseStep number={4} name="Relegation" description="Last place in each pool drops a tier. 2nd-from-bottom plays a relegation playoff — losers face the tier below's promotion winners in a Steel Cage match." />
+            <PhaseStep number={4} name="Relegation" description="The bottom 2 of each tier drop down and the top 2 of the tier below move up automatically. The next 2 up defend their spots in Steel Cage matches against the tier below's next challengers." />
             <PhaseStep number={5} name="Completed" description="Season is archived. All results, champions, and movements are recorded for dynasty tracking. Next season begins." />
           </div>
         </Section>
@@ -162,44 +162,43 @@ export default function WikiPage() {
         {/* Relegation */}
         <Section title="Relegation &amp; Promotion">
           <p>
-            After playoffs are complete, final pool standings determine who
-            moves between tiers. Movement is based on <strong>per-pool
-            finishing position</strong>:
+            After playoffs are complete, <strong>tier-wide final standings</strong>
+            (both pools combined, with the playoff champion and runner-up
+            lifted to the top two spots) determine who moves between tiers:
           </p>
           <div className="mt-4 space-y-3">
             <MovementRule
               type="auto-relegate"
-              description="Last place in each pool automatically drops to the tier below"
+              description="The bottom 2 of the tier automatically drop to the tier below. The champion and runner-up can never be relegated."
               color="red"
               arrow="↓"
             />
             <MovementRule
               type="auto-promote"
-              description="1st place in each pool of the tier below automatically moves up (except Tier 1 has no promotion)"
+              description="The top 2 of the tier below automatically move up (Tier 1 has no tier above it)"
               color="emerald"
               arrow="↑"
             />
             <MovementRule
               type="relegation-playoff"
-              description="2nd-from-bottom in each pool plays each other. The loser then faces the promotion winner from the tier below in a Steel Cage match. Winner earns/keeps the higher tier spot."
+              description="3rd-from-bottom defends their spot against the tier below's 3rd place in a Steel Cage match; 4th-from-bottom defends against their 4th. Winner takes (or keeps) the higher tier spot, loser goes down."
               color="amber"
               arrow="⚔️"
             />
           </div>
-          <SubSection title="Example (Pool of 6)">
+          <SubSection title="Example (Tier of 10)">
             <ol>
-              <li><strong>1st-2nd</strong> — Qualify for playoffs</li>
-              <li><strong>3rd</strong> — Wild card contention for playoffs</li>
-              <li><strong>4th</strong> — Safe, no movement</li>
-              <li><strong>5th</strong> — Relegation playoff (plays other pool&apos;s 5th, loser faces Steel Cage)</li>
-              <li><strong>6th</strong> — Auto-relegated to tier below</li>
+              <li><strong>1st-2nd</strong> — Champion &amp; runner-up, locked into the tier</li>
+              <li><strong>3rd-6th</strong> — Safe, no movement</li>
+              <li><strong>7th-8th</strong> — Steel Cage relegation playoff vs the tier below&apos;s 4th and 3rd</li>
+              <li><strong>9th-10th</strong> — Auto-relegated to the tier below</li>
             </ol>
           </SubSection>
           <p className="mt-3">
-            Relegation Steel Cage matches are <em>always</em> Steel Cage — no
-            stipulation randomizer. After all matches are played, tier
-            assignments are finalized for the next season. The &quot;safe&quot;
-            zone in the middle grows as pool sizes increase.
+            Relegation matches are <em>always</em> Steel Cage — no stipulation
+            randomizer. After all matches are played the season can be
+            completed, and next season&apos;s carry-forward starts from these
+            standings with every promotion and relegation applied.
           </p>
         </Section>
 
@@ -209,9 +208,9 @@ export default function WikiPage() {
             Wrestlers can compete in both singles and tag team divisions
             simultaneously. A wrestler might be in Men&apos;s Singles Tier 5
             while also competing with a partner in Men&apos;s Tag Tier 1.
-            Tag team tiers use the same pool system as singles — two pools
-            with round-robin play, 6-person playoff brackets, and the same
-            promotion/relegation rules.
+            Tag team tiers run a single round robin (no pools) — the top two
+            teams meet directly in a championship final, and the same
+            promotion/relegation rules apply between tag tiers.
           </p>
         </Section>
 

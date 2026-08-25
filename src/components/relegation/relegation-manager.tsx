@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { advanceSeasonStatus, recordMatchResult, bulkCreateRelegationEvents } from "@/app/actions";
+import { advanceSeasonStatus, recordMatchResult } from "@/app/actions";
 import { toast } from "sonner";
 
 interface Props {
@@ -61,8 +61,16 @@ export function RelegationManager({
 }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [minutes, setMinutes] = useState("");
-  const [seconds, setSeconds] = useState("");
+  // Per-match time entry — multiple Steel Cage cards render at once, so a
+  // single shared minutes/seconds pair would apply one card's time to another
+  const [times, setTimes] = useState<Record<string, { min: string; sec: string }>>({});
+
+  function setTime(matchId: string, field: "min" | "sec", value: string) {
+    setTimes((t) => {
+      const current = t[matchId] ?? { min: "", sec: "" };
+      return { ...t, [matchId]: { ...current, [field]: value } };
+    });
+  }
 
   const wrestlerMap = Object.fromEntries(wrestlers.map((w) => [w.id, w.name]));
   const tagTeamMap = Object.fromEntries(tagTeams.map((t) => [t.id, t.name]));
@@ -89,8 +97,9 @@ export function RelegationManager({
   );
 
   async function handleRecordResult(matchId: string, winnerId: string, isTag: boolean) {
+    const t = times[matchId];
     const timeSeconds =
-      (parseInt(minutes) || 0) * 60 + (parseInt(seconds) || 0);
+      (parseInt(t?.min ?? "") || 0) * 60 + (parseInt(t?.sec ?? "") || 0);
     if (timeSeconds === 0) {
       toast.error("Enter match time");
       return;
@@ -104,8 +113,7 @@ export function RelegationManager({
         match_time_seconds: timeSeconds,
       });
       toast.success("Result recorded!");
-      setMinutes("");
-      setSeconds("");
+      setTimes((prev) => ({ ...prev, [matchId]: { min: "", sec: "" } }));
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
@@ -220,8 +228,8 @@ export function RelegationManager({
                       type="number"
                       placeholder="Min"
                       min={0}
-                      value={minutes}
-                      onChange={(e) => setMinutes(e.target.value)}
+                      value={times[m.id]?.min ?? ""}
+                      onChange={(e) => setTime(m.id, "min", e.target.value)}
                       className="w-16 text-center"
                     />
                     <span>:</span>
@@ -230,8 +238,8 @@ export function RelegationManager({
                       placeholder="Sec"
                       min={0}
                       max={59}
-                      value={seconds}
-                      onChange={(e) => setSeconds(e.target.value)}
+                      value={times[m.id]?.sec ?? ""}
+                      onChange={(e) => setTime(m.id, "sec", e.target.value)}
                       className="w-16 text-center"
                     />
                   </div>

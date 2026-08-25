@@ -462,6 +462,59 @@ export async function recordMatchResult(
     if (advErr) throw new Error(advErr.message);
   }
 
+  // Relegation match: record who survives/promotes/relegates as events.
+  // Match's tier_id is the higher tier (the defender's); the challenger's
+  // assignment gives the lower tier.
+  if (match.match_phase === "relegation") {
+    const loserId = winnerId === participantA ? participantB! : participantA!;
+    const idColumn = isTag ? "tag_team_id" : "wrestler_id";
+    const { data: assigns } = await admin
+      .from("tier_assignments")
+      .select("wrestler_id, tag_team_id, tier_id")
+      .eq("season_id", match.season_id)
+      .in(idColumn, [winnerId, loserId]);
+
+    const participants = new Map<string, { name: string; currentTierId: string }>();
+    for (const a of assigns ?? []) {
+      const pid = (a.wrestler_id || a.tag_team_id)!;
+      participants.set(pid, { name: "", currentTierId: a.tier_id });
+    }
+    const higherTierId = match.tier_id;
+    const lowerTierId =
+      [...participants.values()].find((p) => p.currentTierId !== higherTierId)
+        ?.currentTierId ?? higherTierId;
+
+    const { processRelegationMatchResult } = await import(
+      "@/lib/relegation/determine-movements"
+    );
+    const movements = processRelegationMatchResult(
+      winnerId,
+      loserId,
+      higherTierId,
+      lowerTierId,
+      participants
+    );
+
+    // Re-recording a played relegation match replaces its events
+    await admin.from("relegation_events").delete().eq("match_id", matchId);
+    if (movements.length > 0) {
+      const { error: evtErr } = await admin.from("relegation_events").insert(
+        movements.map((mv) => ({
+          season_id: match.season_id,
+          tier_id: mv.fromTierId,
+          wrestler_id: isTag ? null : mv.participantId,
+          tag_team_id: isTag ? mv.participantId : null,
+          movement_type: mv.movementType,
+          from_tier_id: mv.fromTierId,
+          to_tier_id: mv.toTierId,
+          match_id: matchId,
+        }))
+      );
+      if (evtErr) throw new Error(evtErr.message);
+    }
+    revalidatePath("/season/relegation");
+  }
+
   revalidatePath("/season");
   revalidatePath("/season/playoffs");
   revalidatePath("/tiers");
@@ -502,6 +555,16 @@ export async function undoMatchResult(matchId: string) {
         .eq("id", target.id);
       if (clearErr) throw new Error(clearErr.message);
     }
+  }
+
+  // Undoing a relegation match withdraws its movement events
+  if (match.match_phase === "relegation") {
+    const { error: evtErr } = await admin
+      .from("relegation_events")
+      .delete()
+      .eq("match_id", matchId);
+    if (evtErr) throw new Error(evtErr.message);
+    revalidatePath("/season/relegation");
   }
 
   const { error } = await admin
@@ -845,6 +908,204 @@ export async function generatePlayoffBracketForTier(seasonId: string, tierId: st
   revalidatePath("/tiers");
 
   return { matchesCreated: inserts.length };
+}
+
+// ─── Relegation Phase ───────────────────────────────────────────────────────
+
+/**
+ * Enter the relegation phase: for every adjacent tier pair in each division,
+ * determine the automatic promotions/relegations (recorded as events) and
+ * create the Steel Cage relegation playoff matches, then advance the season.
+ * Final tier standings = pool-play standings with the playoff champion and
+ * runner-up lifted to ranks 1-2.
+ */
+export async function generateRelegationPhase(seasonId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: season, error: seasonErr } = await admin
+    .from("seasons")
+    .select("status")
+    .eq("id", seasonId)
+    .single();
+  if (seasonErr) throw new Error(seasonErr.message);
+  if (season.status !== "playoffs") {
+    throw new Error(`Season must be in playoffs to enter relegation (status: ${season.status})`);
+  }
+
+  const { data: tiers } = await admin
+    .from("tiers")
+    .select("id, tier_number, division_id, divisions(division_type)")
+    .order("tier_number");
+  if (!tiers) throw new Error("Failed to load tiers");
+
+  const { data: assignments } = await admin
+    .from("tier_assignments")
+    .select("tier_id, wrestler_id, tag_team_id")
+    .eq("season_id", seasonId);
+  if (!assignments) throw new Error("Failed to load assignments");
+
+  const { data: matches } = await admin
+    .from("matches")
+    .select("tier_id, match_phase, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, match_time_seconds, played_at")
+    .eq("season_id", seasonId);
+  if (!matches) throw new Error("Failed to load matches");
+
+  // Every tier that has a playoff bracket must have crowned a champion
+  const unfinished = tiers.filter((t) => {
+    const finals = matches.filter(
+      (m) => m.tier_id === t.id && m.match_phase === "final"
+    );
+    return finals.length > 0 && finals.some((m) => !m.played_at);
+  });
+  if (unfinished.length > 0) {
+    throw new Error(
+      `${unfinished.length} tier(s) still have an unplayed championship final`
+    );
+  }
+
+  const { computeStandings } = await import("@/lib/standings/compute-standings");
+  const { determineMovements } = await import("@/lib/relegation/determine-movements");
+
+  // Final standings per tier: canonical pool-play order, champion & runner-up first
+  function finalStandingsFor(tierId: string) {
+    const tierAssigns = assignments!.filter((a) => a.tier_id === tierId);
+    const poolMatches = matches!.filter(
+      (m) => m.tier_id === tierId && m.match_phase === "pool_play" && m.played_at
+    );
+    const canonical = computeStandings(
+      tierAssigns.map((a) => ({ id: (a.wrestler_id || a.tag_team_id)!, name: "" })),
+      poolMatches.map((m) => ({
+        id: `${m.tier_id}`,
+        wrestlerAId: (m.wrestler_a_id || m.tag_team_a_id)!,
+        wrestlerBId: (m.wrestler_b_id || m.tag_team_b_id)!,
+        winnerId: (m.winner_wrestler_id || m.winner_tag_team_id)!,
+        matchTimeSeconds: m.match_time_seconds ?? 0,
+      }))
+    );
+
+    const final = matches!.find(
+      (m) => m.tier_id === tierId && m.match_phase === "final" && m.played_at
+    );
+    let order = canonical.map((r) => r.participantId);
+    if (final) {
+      const champion = (final.winner_wrestler_id || final.winner_tag_team_id)!;
+      const aId = (final.wrestler_a_id || final.tag_team_a_id)!;
+      const bId = (final.wrestler_b_id || final.tag_team_b_id)!;
+      const runnerUp = champion === aId ? bId : aId;
+      order = [
+        champion,
+        runnerUp,
+        ...order.filter((id) => id !== champion && id !== runnerUp),
+      ];
+    }
+    return order.map((participantId, i) => ({
+      participantId,
+      name: "",
+      finalRank: i + 1,
+    }));
+  }
+
+  const eventInserts: Array<{
+    season_id: string;
+    tier_id: string;
+    wrestler_id: string | null;
+    tag_team_id: string | null;
+    movement_type: "auto_promote" | "auto_relegate" | "playoff_promote" | "playoff_relegate" | "playoff_survive";
+    from_tier_id: string | null;
+    to_tier_id: string | null;
+  }> = [];
+  const matchInserts: Array<{
+    season_id: string;
+    tier_id: string;
+    match_phase: MatchPhase;
+    pool: null;
+    stipulation: string;
+    wrestler_a_id?: string | null;
+    wrestler_b_id?: string | null;
+    tag_team_a_id?: string | null;
+    tag_team_b_id?: string | null;
+  }> = [];
+
+  // Walk adjacent tier pairs within each division
+  const byDivision = new Map<string, typeof tiers>();
+  for (const t of tiers) {
+    if (!byDivision.has(t.division_id)) byDivision.set(t.division_id, []);
+    byDivision.get(t.division_id)!.push(t);
+  }
+
+  for (const divTiers of byDivision.values()) {
+    const sorted = [...divTiers].sort((a, b) => a.tier_number - b.tier_number);
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const higher = sorted[i];
+      const lower = sorted[i + 1];
+      // Only pair tiers that both had participants this season
+      const higherStandings = finalStandingsFor(higher.id);
+      const lowerStandings = finalStandingsFor(lower.id);
+      if (higherStandings.length === 0 || lowerStandings.length === 0) continue;
+
+      const isTag =
+        (higher.divisions as unknown as { division_type: string } | null)
+          ?.division_type === "tag";
+
+      const movements = determineMovements(
+        { tierId: higher.id, tierNumber: higher.tier_number, divisionId: higher.division_id },
+        { tierId: lower.id, tierNumber: lower.tier_number, divisionId: lower.division_id },
+        higherStandings,
+        lowerStandings
+      );
+
+      for (const mv of movements) {
+        if (mv.needsMatch && mv.opponentId) {
+          matchInserts.push({
+            season_id: seasonId,
+            tier_id: higher.id,
+            match_phase: "relegation",
+            pool: null,
+            stipulation: "Steel Cage",
+            ...(isTag
+              ? { tag_team_a_id: mv.participantId, tag_team_b_id: mv.opponentId }
+              : { wrestler_a_id: mv.participantId, wrestler_b_id: mv.opponentId }),
+          });
+        } else if (!mv.needsMatch) {
+          eventInserts.push({
+            season_id: seasonId,
+            tier_id: mv.fromTierId,
+            wrestler_id: isTag ? null : mv.participantId,
+            tag_team_id: isTag ? mv.participantId : null,
+            movement_type: mv.movementType,
+            from_tier_id: mv.fromTierId,
+            to_tier_id: mv.toTierId,
+          });
+        }
+      }
+    }
+  }
+
+  if (eventInserts.length > 0) {
+    const { error } = await admin.from("relegation_events").insert(eventInserts);
+    if (error) throw new Error(error.message);
+  }
+  if (matchInserts.length > 0) {
+    const { error } = await admin.from("matches").insert(matchInserts);
+    if (error) throw new Error(error.message);
+  }
+
+  const { error: statusErr } = await admin.rpc("advance_season_status", {
+    p_season_id: seasonId,
+    p_new_status: "relegation" as SeasonStatus,
+  });
+  if (statusErr) throw new Error(statusErr.message);
+
+  revalidatePath("/season");
+  revalidatePath("/season/relegation");
+  revalidatePath("/tiers");
+  revalidatePath("/");
+
+  return {
+    autoMovements: eventInserts.length,
+    relegationMatches: matchInserts.length,
+  };
 }
 
 // ─── Tier Actions ───────────────────────────────────────────────────────────

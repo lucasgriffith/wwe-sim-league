@@ -35,6 +35,7 @@ import {
   resetSeasonAssignments,
   resetSeasonComplete,
   generateAllPlayoffBrackets,
+  generateRelegationPhase,
   startSeason,
 } from "@/app/actions";
 import {
@@ -251,6 +252,16 @@ export function SeasonSetup({
         toast.success(
           `Generated brackets for ${result.tiersGenerated} tiers (${result.matchesCreated} matches)`
         );
+      }
+      if (next === "relegation") {
+        // Server determines movements, creates Steel Cage matches, and
+        // advances the season status itself
+        const result = await generateRelegationPhase(season.id);
+        toast.success(
+          `Relegation set: ${result.autoMovements} automatic movements, ${result.relegationMatches} Steel Cage matches`
+        );
+        router.refresh();
+        return;
       }
       await advanceSeasonStatus(season.id, next);
       toast.success(`Advanced to ${getStatusLabel(next)}`);
