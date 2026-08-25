@@ -20,6 +20,8 @@ import { BracketView } from "@/components/playoffs/bracket-view";
 import { TierSchedule } from "@/components/tiers/tier-schedule";
 import { computeClinchStatus, type ClinchStatus } from "@/lib/standings/clinch";
 import { computeStandings } from "@/lib/standings/compute-standings";
+import { computePlayoffSeeds, computeTagPlayoffSeeds } from "@/lib/playoffs/seeding";
+import { generateBracket } from "@/lib/playoffs/bracket";
 import { FormDots } from "@/components/ui/form-dots";
 
 function formatTime(seconds: number): string {
@@ -262,7 +264,7 @@ export default async function TierDetailPage({
       matchesPerParticipant
     );
 
-    return { pool, stats, clinchMap };
+    return { pool, stats, clinchMap, canonical };
   });
 
   const poolPlayMatches = matches.filter(
@@ -277,6 +279,26 @@ export default async function TierDetailPage({
   const playoffMatches = matches.filter((m) =>
     ["quarterfinal", "semifinal", "final"].includes(m.match_phase)
   );
+
+  // Projected playoff picture: seeds the bracket from current standings while
+  // pool play is running, so the tier page shows who'd be in if the season
+  // ended today. Uses the same seeding path the real bracket generation uses.
+  let projectedBracket: ReturnType<typeof generateBracket> | null = null;
+  if (
+    playoffMatches.length === 0 &&
+    activeSeason?.status === "pool_play" &&
+    poolPlayMatches.some((m) => m.played_at)
+  ) {
+    const projectedSeeds = tier.has_pools
+      ? computePlayoffSeeds(
+          standingsByPool.find((p) => p.pool === "A")?.canonical ?? [],
+          standingsByPool.find((p) => p.pool === "B")?.canonical ?? []
+        )
+      : computeTagPlayoffSeeds(standingsByPool[0]?.canonical ?? []);
+    if (projectedSeeds.length >= 2) {
+      projectedBracket = generateBracket(projectedSeeds);
+    }
+  }
 
   // Group schedule by round for display
   const scheduleByRound = (pool: string | null) => {
@@ -653,11 +675,13 @@ export default async function TierDetailPage({
                       : m.match_phase === "semifinal"
                         ? sfMatches.indexOf(m)
                         : 0;
-                    const matchKey = m.match_phase === "quarterfinal"
+                    // Prefer the persisted bracket_key; index fallback covers
+                    // matches created before bracket keys existed
+                    const matchKey = m.bracket_key ?? (m.match_phase === "quarterfinal"
                       ? `QF${idx + 1}`
                       : m.match_phase === "semifinal"
                         ? `SF${idx + 1}`
-                        : "Final";
+                        : "Final");
                     return {
                       id: m.id,
                       matchKey,
@@ -671,6 +695,40 @@ export default async function TierDetailPage({
                       isBye: false,
                     };
                   })}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Projected bracket from live standings during pool play */}
+          {projectedBracket && (
+            <div>
+              <h2 className="mb-1 flex items-center gap-2 text-base font-semibold">
+                <span className="text-gold">🏆</span> Projected Playoff Picture
+              </h2>
+              <p className="mb-3 text-xs text-muted-foreground">
+                If the season ended today — updates with every result.
+              </p>
+              <div className="rounded-lg border border-border/30 bg-card/30 p-4 overflow-x-auto">
+                <BracketView
+                  tierName={tier.short_name || tier.name}
+                  isTagFinal={!tier.has_pools}
+                  matches={projectedBracket.map((bm) => ({
+                    id: null,
+                    matchKey: bm.matchKey,
+                    round: bm.round,
+                    participantA: bm.seedA
+                      ? { id: bm.seedA.participantId, name: bm.seedA.name, seed: bm.seedA.seed }
+                      : null,
+                    participantB: bm.seedB
+                      ? { id: bm.seedB.participantId, name: bm.seedB.name, seed: bm.seedB.seed }
+                      : null,
+                    winnerId: null,
+                    stipulation: null,
+                    matchTime: null,
+                    isPlayed: false,
+                    isBye: false,
+                  }))}
                 />
               </div>
             </div>
