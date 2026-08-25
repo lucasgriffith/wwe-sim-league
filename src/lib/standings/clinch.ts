@@ -1,98 +1,56 @@
 /**
- * Compute clinch/elimination status for standings.
+ * Clinch/elimination status for pool standings — the single implementation
+ * used by both the standings page and tier pages.
  *
- * Clinched: Even if they lose all remaining matches, they'd still be in the top 2.
- * Wild Card Contender: Could qualify as a wild card.
- * Eliminated: Even if they win all remaining matches, they can't reach top 2.
- *
- * This is a simplified model — it doesn't account for complex H2H tiebreakers,
- * but gives good directional indicators for the user.
+ * Wins-based worst/best-case math (each participant plays `totalRounds`
+ * matches in a round robin):
+ * - Clinched (rows currently top 2): even losing out, no one outside the
+ *   top 2 can finish with more wins.
+ * - Eliminated (rows currently 3rd+): even winning out, can't reach the
+ *   current 2nd-place win total.
+ * Ties are treated as catchable, so "clinched" is conservative.
  */
 
 export type ClinchStatus =
   | "clinched" // Guaranteed top 2 in pool
-  | "contender" // Still alive for playoffs
+  | "contender" // Still alive for a top-2 finish
   | "eliminated" // Cannot reach top 2
-  | null; // Not enough data yet
+  | null;
 
 export function computeClinchStatus(
-  standings: Array<{
+  sortedStandings: Array<{
     participantId: string;
     wins: number;
     losses: number;
-    winPct: number;
   }>,
-  totalPoolMatches: number, // Total matches each participant will play in the pool
-  playedPoolMatches: number // How many pool play matches have been played total
+  totalRounds: number // Matches each participant plays (pool size - 1)
 ): Map<string, ClinchStatus> {
   const result = new Map<string, ClinchStatus>();
+  const count = sortedStandings.length;
+  if (count < 3 || totalRounds <= 0) return result;
 
-  if (standings.length < 3 || totalPoolMatches === 0) {
-    // Can't clinch/eliminate with 2 or fewer participants
-    return result;
+  let maxRivalBest = 0;
+  for (let j = 2; j < count; j++) {
+    const rival = sortedStandings[j];
+    const remaining = Math.max(0, totalRounds - rival.wins - rival.losses);
+    maxRivalBest = Math.max(maxRivalBest, rival.wins + remaining);
   }
 
-  const matchesPerParticipant = totalPoolMatches; // In a round robin, each plays N-1 matches
-  const minMatchesForCalc = Math.ceil(matchesPerParticipant * 0.4);
-
-  for (const player of standings) {
-    const matchesPlayed = player.wins + player.losses;
-
-    if (matchesPlayed < minMatchesForCalc) {
-      result.set(player.participantId, null);
-      continue;
+  for (let idx = 0; idx < count; idx++) {
+    const p = sortedStandings[idx];
+    if (idx < 2) {
+      result.set(
+        p.participantId,
+        p.wins > maxRivalBest ? "clinched" : "contender"
+      );
+    } else {
+      const remaining = Math.max(0, totalRounds - p.wins - p.losses);
+      const bestCase = p.wins + remaining;
+      result.set(
+        p.participantId,
+        bestCase < sortedStandings[1].wins ? "eliminated" : "contender"
+      );
     }
-
-    const remainingMatches = matchesPerParticipant - matchesPlayed;
-
-    // Best case: win all remaining
-    const bestWins = player.wins + remainingMatches;
-    const bestPct = bestWins / matchesPerParticipant;
-
-    // Worst case: lose all remaining
-    const worstWins = player.wins;
-    const worstPct = worstWins / matchesPerParticipant;
-
-    // Check against the #2 position threshold
-    // The 2nd place finisher needs at most their current wins
-    const sorted = [...standings].sort((a, b) => b.winPct - a.winPct);
-    const secondPlaceIdx = Math.min(1, sorted.length - 1);
-    const thirdPlaceIdx = Math.min(2, sorted.length - 1);
-
-    const currentRank = sorted.findIndex(
-      (s) => s.participantId === player.participantId
-    );
-
-    // Clinched: even in worst case, no one below can catch up
-    if (currentRank <= 1) {
-      // Check if 3rd place can catch up even winning all remaining
-      const thirdPlace = sorted[thirdPlaceIdx];
-      if (thirdPlace) {
-        const thirdBestWins =
-          thirdPlace.wins +
-          (matchesPerParticipant - thirdPlace.wins - thirdPlace.losses);
-        const thirdBestPct = thirdBestWins / matchesPerParticipant;
-        if (worstPct > thirdBestPct) {
-          result.set(player.participantId, "clinched");
-          continue;
-        }
-      }
-    }
-
-    // Eliminated: even in best case, can't reach 2nd place
-    if (currentRank >= 2) {
-      const secondPlace = sorted[secondPlaceIdx];
-      if (secondPlace && secondPlace.participantId !== player.participantId) {
-        const secondWorstWins = secondPlace.wins; // if they lose everything remaining
-        const secondWorstPct = secondWorstWins / matchesPerParticipant;
-        if (bestPct < secondWorstPct) {
-          result.set(player.participantId, "eliminated");
-          continue;
-        }
-      }
-    }
-
-    result.set(player.participantId, "contender");
   }
 
   return result;

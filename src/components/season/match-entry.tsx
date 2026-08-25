@@ -222,7 +222,10 @@ export function MatchEntry({
         minutesRef.current?.select();
       }
     },
-    [loading, currentMatch, idA, idB, lastMatchId]
+    // minutes/seconds/notes must be deps: handleWinner closes over them, and a
+    // stale closure submits shortcut results with empty or outdated times
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loading, currentMatch, idA, idB, lastMatchId, minutes, seconds, notes]
   );
 
   useEffect(() => {

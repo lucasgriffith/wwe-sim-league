@@ -46,6 +46,9 @@ interface Props {
   participantStats: Record<string, ParticipantStats>;
   tiers: TierInfo[];
   remainingCount: number;
+  // Chosen server-side: a render-time Math.random() here picks different
+  // matches on server and client, breaking hydration
+  initialIndex: number;
 }
 
 function ParticipantPhoto({ stats, size = "lg" }: { stats: ParticipantStats; size?: "lg" | "sm" }) {
@@ -87,11 +90,9 @@ function ParticipantPhoto({ stats, size = "lg" }: { stats: ParticipantStats; siz
   );
 }
 
-export function UpNextCard({ matches, participantStats, tiers, remainingCount }: Props) {
+export function UpNextCard({ matches, participantStats, tiers, remainingCount, initialIndex }: Props) {
   const router = useRouter();
-  const [currentIdx, setCurrentIdx] = useState(() =>
-    Math.floor(Math.random() * matches.length)
-  );
+  const [currentIdx, setCurrentIdx] = useState(initialIndex);
   const [minutes, setMinutes] = useState("");
   const [seconds, setSeconds] = useState("");
   const [isPending, startTransition] = useTransition();

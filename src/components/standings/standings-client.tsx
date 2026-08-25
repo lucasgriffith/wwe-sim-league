@@ -7,6 +7,7 @@ import type { Standing, TierStandings } from "@/app/(public)/standings/page";
 import { FormDots } from "@/components/ui/form-dots";
 import { ChampionBadge } from "@/components/ui/champion-badge";
 import type { ChampionInfo } from "@/lib/champions";
+import { computeClinchStatus } from "@/lib/standings/clinch";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -126,31 +127,23 @@ function StandingsTable({
   champions?: Record<string, ChampionInfo>;
 }) {
   const count = standings.length;
-  const relegationPlayoffStart = Math.max(0, count - 4);
-  const autoRelegateStart = Math.max(0, count - 2);
   const totalRounds = count > 1 ? count - 1 : 0;
 
+  const clinchMap = computeClinchStatus(
+    standings.map((s) => ({
+      participantId: s.id,
+      wins: s.wins,
+      losses: s.losses,
+    })),
+    totalRounds
+  );
+
   function hasClinched(idx: number): boolean {
-    if (idx >= 2) return false;
-    if (count < 3) return standings[idx].wins > 0;
-    const myWins = standings[idx].wins;
-    let maxRivalBest = 0;
-    for (let j = 2; j < count; j++) {
-      const rivalPlayed = standings[j].wins + standings[j].losses;
-      const rivalRemaining = totalRounds - rivalPlayed;
-      const rivalBest = standings[j].wins + rivalRemaining;
-      maxRivalBest = Math.max(maxRivalBest, rivalBest);
-    }
-    return myWins > maxRivalBest;
+    return clinchMap.get(standings[idx].id) === "clinched";
   }
 
   function isEliminated(idx: number): boolean {
-    if (idx < 2) return false;
-    const gamesPlayed = standings[idx].wins + standings[idx].losses;
-    const remaining = totalRounds - gamesPlayed;
-    const myBestCase = standings[idx].wins + remaining;
-    if (count >= 2 && myBestCase < standings[1].wins) return true;
-    return false;
+    return clinchMap.get(standings[idx].id) === "eliminated";
   }
 
   return (

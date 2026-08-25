@@ -12,22 +12,27 @@ export interface StandingsRow {
   wins: number;
   losses: number;
   winPct: number;
+  matchesPlayed: number;
   totalMatchTime: number;
+  avgMatchTime: number;
   rank: number;
 }
 
 /**
- * Compute standings from match results with tiebreakers:
+ * THE canonical standings order, used by every surface (standings page, tier
+ * page, playoff seeding). Official tiebreak order:
+ *
  * 1. Win percentage (descending)
- * 2. Head-to-head record
- * 3. Faster total match time (ascending — less time = more dominant)
- * 4. Deterministic random (hash-based)
+ * 2. Head-to-head record among the tied group (mini-league: only matches
+ *    between tied participants count) — transitive by construction, so a
+ *    circular head-to-head can't make the order depend on input order
+ * 3. Average match time (ascending — quicker matches = more dominant)
+ * 4. Deterministic hash of participant id (stable across renders)
  */
 export function computeStandings(
   participants: { id: string; name: string }[],
   matches: MatchResult[]
 ): StandingsRow[] {
-  // Build stat map
   const stats = new Map<
     string,
     { name: string; wins: number; losses: number; totalTime: number }
@@ -53,66 +58,81 @@ export function computeStandings(
     }
   }
 
-  // Build H2H lookup
-  const h2h = new Map<string, Map<string, number>>();
-  for (const m of matches) {
-    if (!h2h.has(m.wrestlerAId)) h2h.set(m.wrestlerAId, new Map());
-    if (!h2h.has(m.wrestlerBId)) h2h.set(m.wrestlerBId, new Map());
-
-    if (m.winnerId === m.wrestlerAId) {
-      h2h
-        .get(m.wrestlerAId)!
-        .set(
-          m.wrestlerBId,
-          (h2h.get(m.wrestlerAId)!.get(m.wrestlerBId) ?? 0) + 1
-        );
-    } else {
-      h2h
-        .get(m.wrestlerBId)!
-        .set(
-          m.wrestlerAId,
-          (h2h.get(m.wrestlerBId)!.get(m.wrestlerAId) ?? 0) + 1
-        );
-    }
-  }
-
-  // Convert to array and sort
-  const rows: StandingsRow[] = Array.from(stats.entries()).map(
-    ([id, s]) => ({
+  const rows: StandingsRow[] = Array.from(stats.entries()).map(([id, s]) => {
+    const played = s.wins + s.losses;
+    return {
       participantId: id,
       name: s.name,
       wins: s.wins,
       losses: s.losses,
-      winPct:
-        s.wins + s.losses > 0 ? s.wins / (s.wins + s.losses) : 0,
+      winPct: played > 0 ? s.wins / played : 0,
+      matchesPlayed: played,
       totalMatchTime: s.totalTime,
+      avgMatchTime: played > 0 ? Math.round(s.totalTime / played) : 0,
       rank: 0,
-    })
-  );
+    };
+  });
 
-  rows.sort((a, b) => {
-    // 1. Win percentage
-    if (a.winPct !== b.winPct) return b.winPct - a.winPct;
+  // Sort by win% into tied groups, then break each group as a unit
+  rows.sort((a, b) => b.winPct - a.winPct);
 
-    // 2. Head-to-head
-    const aWinsVsB = h2h.get(a.participantId)?.get(b.participantId) ?? 0;
-    const bWinsVsA = h2h.get(b.participantId)?.get(a.participantId) ?? 0;
-    if (aWinsVsB !== bWinsVsA) return bWinsVsA - aWinsVsB; // More H2H wins = higher rank
+  const ordered: StandingsRow[] = [];
+  let i = 0;
+  while (i < rows.length) {
+    let j = i;
+    while (j < rows.length && rows[j].winPct === rows[i].winPct) j++;
+    ordered.push(...orderTiedGroup(rows.slice(i, j), matches));
+    i = j;
+  }
 
-    // 3. Faster total match time
-    if (a.totalMatchTime !== b.totalMatchTime)
-      return a.totalMatchTime - b.totalMatchTime;
+  ordered.forEach((row, idx) => {
+    row.rank = idx + 1;
+  });
 
-    // 4. Deterministic tie-break by ID hash
+  return ordered;
+}
+
+/** Break a win%-tied group: mini-league record → avg time → hash. */
+function orderTiedGroup(
+  group: StandingsRow[],
+  matches: MatchResult[]
+): StandingsRow[] {
+  if (group.length === 1) return group;
+
+  const ids = new Set(group.map((r) => r.participantId));
+  const miniWins = new Map<string, number>();
+  const miniPlayed = new Map<string, number>();
+  for (const id of ids) {
+    miniWins.set(id, 0);
+    miniPlayed.set(id, 0);
+  }
+
+  for (const m of matches) {
+    if (!ids.has(m.wrestlerAId) || !ids.has(m.wrestlerBId)) continue;
+    miniPlayed.set(m.wrestlerAId, miniPlayed.get(m.wrestlerAId)! + 1);
+    miniPlayed.set(m.wrestlerBId, miniPlayed.get(m.wrestlerBId)! + 1);
+    if (ids.has(m.winnerId)) {
+      miniWins.set(m.winnerId, (miniWins.get(m.winnerId) ?? 0) + 1);
+    }
+  }
+
+  const miniPct = (id: string) => {
+    const played = miniPlayed.get(id) ?? 0;
+    return played > 0 ? (miniWins.get(id) ?? 0) / played : 0;
+  };
+
+  return [...group].sort((a, b) => {
+    const aMini = miniPct(a.participantId);
+    const bMini = miniPct(b.participantId);
+    if (aMini !== bMini) return bMini - aMini;
+    if (a.avgMatchTime !== b.avgMatchTime) {
+      // Unplayed participants (avg 0) sort below anyone with an avg
+      if (a.avgMatchTime === 0) return 1;
+      if (b.avgMatchTime === 0) return -1;
+      return a.avgMatchTime - b.avgMatchTime;
+    }
     return simpleHash(a.participantId) - simpleHash(b.participantId);
   });
-
-  // Assign ranks
-  rows.forEach((row, i) => {
-    row.rank = i + 1;
-  });
-
-  return rows;
 }
 
 /** Simple numeric hash for deterministic tiebreaking */

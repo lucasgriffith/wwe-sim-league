@@ -95,10 +95,15 @@ export default function WikiPage() {
           <SubSection title="Sort Order &amp; Tiebreakers">
             <p>Standings are sorted by:</p>
             <ol>
-              <li><strong>Games Back (GB)</strong> — primary sort, lower is better</li>
-              <li><strong>Win percentage</strong> — secondary tiebreak</li>
-              <li><strong>Average match time</strong> — for wrestlers above .500, shorter avg time is better (dominant wins). Below .500, longer avg time is better (put up more of a fight)</li>
+              <li><strong>Win percentage</strong> — primary sort</li>
+              <li><strong>Head-to-head record</strong> — among tied wrestlers, only matches between them count (a mini-league among the tied group)</li>
+              <li><strong>Average match time</strong> — shorter is better (quick wins are dominant wins)</li>
             </ol>
+            <p>
+              The same order is used everywhere: the standings page, tier pages,
+              and playoff seeding. GB is shown for reference but doesn&apos;t
+              affect the sort.
+            </p>
           </SubSection>
         </Section>
 

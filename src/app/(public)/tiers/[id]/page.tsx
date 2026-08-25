@@ -19,6 +19,7 @@ import Link from "next/link";
 import { BracketView } from "@/components/playoffs/bracket-view";
 import { TierSchedule } from "@/components/tiers/tier-schedule";
 import { computeClinchStatus, type ClinchStatus } from "@/lib/standings/clinch";
+import { computeStandings } from "@/lib/standings/compute-standings";
 import { FormDots } from "@/components/ui/form-dots";
 
 function formatTime(seconds: number): string {
@@ -231,51 +232,24 @@ export default async function TierDetailPage({
       });
     }
 
-    // Head-to-head lookup: given two participant IDs, who won?
-    // Returns 1 if a won more h2h, -1 if b won more, 0 if tied/no matches
-    const completedPoolMatches = poolMatches.filter((m) => m.played_at);
-    function h2hCompare(aId: string, bId: string): number {
-      const h2hMatches = completedPoolMatches.filter((m) => {
-        const mA = m.wrestler_a_id || m.tag_team_a_id;
-        const mB = m.wrestler_b_id || m.tag_team_b_id;
-        return (mA === aId && mB === bId) || (mA === bId && mB === aId);
-      });
-      if (h2hMatches.length === 0) return 0;
-      const aWins = h2hMatches.filter((m) => {
-        const winner = m.winner_wrestler_id || m.winner_tag_team_id;
-        return winner === aId;
-      }).length;
-      const bWins = h2hMatches.length - aWins;
-      if (aWins > bWins) return -1; // a is better (sort a first)
-      if (bWins > aWins) return 1;  // b is better
-      return 0;
-    }
-
-    // Sort: GB asc → head-to-head (2-way ties only) → avg time tiebreak
-    stats.sort((a, b) => {
-      // Primary: GB (lower = better)
-      const gbA = a.gbNum ?? 999;
-      const gbB = b.gbNum ?? 999;
-      if (gbA !== gbB) return gbA - gbB;
-      // Secondary: win% (for teams with same GB but different games played)
-      if (b.winPct !== a.winPct) return b.winPct - a.winPct;
-      // Head-to-head — only for 2-way ties (skip for 3+ way ties)
-      const tiedCount = stats.filter(
-        (s) => s.gbNum === gbA && s.winPct === a.winPct
-      ).length;
-      if (tiedCount === 2) {
-        const h2h = h2hCompare(a.id, b.id);
-        if (h2h !== 0) return h2h;
-      }
-      // Tertiary: avg time tiebreak
-      if (a.avgTime && b.avgTime) {
-        const aAbove500 = a.winPct >= 0.5;
-        const bAbove500 = b.winPct >= 0.5;
-        if (aAbove500 && bAbove500) return a.avgTime - b.avgTime;
-        if (!aAbove500 && !bAbove500) return b.avgTime - a.avgTime;
-      }
-      return 0;
-    });
+    // Order by the canonical standings comparator (same one playoff seeding
+    // and the standings page use)
+    const completedPoolMatches = poolMatches.filter(
+      (m) => m.played_at && (m.winner_wrestler_id || m.winner_tag_team_id)
+    );
+    const orderResults = completedPoolMatches.map((m) => ({
+      id: m.id,
+      wrestlerAId: (m.wrestler_a_id || m.tag_team_a_id)!,
+      wrestlerBId: (m.wrestler_b_id || m.tag_team_b_id)!,
+      winnerId: (m.winner_wrestler_id || m.winner_tag_team_id)!,
+      matchTimeSeconds: m.match_time_seconds ?? 0,
+    }));
+    const canonical = computeStandings(
+      stats.map((s) => ({ id: s.id, name: s.name })),
+      orderResults
+    );
+    const rankOf = new Map(canonical.map((r) => [r.participantId, r.rank]));
+    stats.sort((a, b) => (rankOf.get(a.id) ?? 999) - (rankOf.get(b.id) ?? 999));
 
     // Compute clinch status
     const matchesPerParticipant = stats.length > 1 ? stats.length - 1 : 0;
@@ -284,10 +258,8 @@ export default async function TierDetailPage({
         participantId: s.id,
         wins: s.wins,
         losses: s.losses,
-        winPct: s.winPct,
       })),
-      matchesPerParticipant,
-      poolMatches.filter((m) => m.played_at).length
+      matchesPerParticipant
     );
 
     return { pool, stats, clinchMap };

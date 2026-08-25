@@ -92,7 +92,7 @@ export default async function DashboardPage() {
     const [{ data: allMatches }, { data: tiers }, { data: tagTeamNames }, { data: tierAssignments }] = await Promise.all([
       supabase
         .from("matches")
-        .select("id, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, stipulation, match_phase, match_time_seconds, tier_id, played_at")
+        .select("id, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, stipulation, match_phase, match_time_seconds, tier_id, pool, played_at")
         .eq("season_id", season.id)
         .order("played_at", { ascending: false }),
       supabase
@@ -603,6 +603,7 @@ export default async function DashboardPage() {
                 participantStats={upNextParticipantStats}
                 tiers={upNextTiers}
                 remainingCount={unplayedMatches.length}
+                initialIndex={Math.floor(Math.random() * unplayedMatches.length)}
               />
             )}
 
