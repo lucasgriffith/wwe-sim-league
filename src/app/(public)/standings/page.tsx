@@ -1,9 +1,16 @@
-import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { StandingsClient } from "@/components/standings/standings-client";
-import { getCurrentChampions } from "@/lib/champions";
 import { computeStandings } from "@/lib/standings/compute-standings";
+import {
+  getActivePlaySeason,
+  getChampions,
+  getSeasonAssignments,
+  getSeasonMatches,
+  getTagTeams,
+  getTiers,
+  getWrestlers,
+} from "@/lib/data/cached";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -42,15 +49,7 @@ export interface TierStandings {
 }
 
 export default async function StandingsPage() {
-  const supabase = await createClient();
-
-  const { data: season } = await supabase
-    .from("seasons")
-    .select("*")
-    .in("status", ["pool_play", "playoffs", "relegation"])
-    .order("season_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const season = await getActivePlaySeason();
 
   if (!season) {
     return (
@@ -63,29 +62,16 @@ export default async function StandingsPage() {
     );
   }
 
-  const [
-    { data: tiers },
-    { data: assignments },
-    { data: matches },
-    { data: wrestlers },
-    { data: tagTeams },
-  ] = await Promise.all([
-    supabase
-      .from("tiers")
-      .select("*, divisions(name, gender, division_type)")
-      .order("tier_number"),
-    supabase
-      .from("tier_assignments")
-      .select("tier_id, wrestler_id, tag_team_id, pool")
-      .eq("season_id", season.id),
-    supabase
-      .from("matches")
-      .select("tier_id, pool, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, match_time_seconds, match_phase, played_at")
-      .eq("season_id", season.id)
-      .eq("match_phase", "pool_play"),
-    supabase.from("wrestlers").select("id, name, slug, image_url"),
-    supabase.from("tag_teams").select("id, name, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(image_url), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(image_url)"),
-  ]);
+  const [tiers, assignments, seasonMatches, wrestlers, tagTeams, champions] =
+    await Promise.all([
+      getTiers(),
+      getSeasonAssignments(season.id),
+      getSeasonMatches(season.id),
+      getWrestlers(),
+      getTagTeams(),
+      getChampions(),
+    ]);
+  const matches = seasonMatches.filter((m) => m.match_phase === "pool_play");
 
   const wrestlerMap = Object.fromEntries(
     (wrestlers ?? []).map((w) => [w.id, w.name])
@@ -273,9 +259,6 @@ export default async function StandingsPage() {
       pools,
     });
   }
-
-  // Get current champions
-  const champions = await getCurrentChampions(supabase);
 
   const divisions = divisionOrder
     .map((name) => ({

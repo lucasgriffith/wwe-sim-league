@@ -1,4 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
+import {
+  getCurrentSeason,
+  getCompletedSeasons,
+  getWrestlers,
+  getTagTeams,
+  getTiers,
+  getSeasonMatches,
+  getSeasonAssignments,
+} from "@/lib/data/cached";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +19,7 @@ import { MilestonesBanner } from "@/components/dashboard/milestones";
 import { UndoMatchButton } from "@/components/dashboard/undo-match-button";
 import { computeMilestones } from "@/lib/milestones";
 import { LiveFeed } from "@/components/dashboard/live-feed";
+import { SmartImage } from "@/components/ui/smart-image";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -19,36 +28,17 @@ function formatTime(seconds: number): string {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
+  const [season, completedSeasonList, wrestlers, allTagTeams] =
+    await Promise.all([
+      getCurrentSeason(),
+      getCompletedSeasons(),
+      getWrestlers(),
+      getTagTeams(),
+    ]);
 
-  const [
-    { data: season },
-    { count: wrestlerCount },
-    { count: tagTeamCount },
-    { count: completedSeasons },
-    { data: wrestlers },
-  ] = await Promise.all([
-    supabase
-      .from("seasons")
-      .select("*")
-      .neq("status", "completed")
-      .order("season_number", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("wrestlers")
-      .select("id", { count: "exact", head: true })
-      .eq("is_active", true),
-    supabase
-      .from("tag_teams")
-      .select("id", { count: "exact", head: true })
-      .eq("is_active", true),
-    supabase
-      .from("seasons")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "completed"),
-    supabase.from("wrestlers").select("id, name, image_url, overall_rating, slug, gender"),
-  ]);
+  const wrestlerCount = wrestlers.filter((w) => w.is_active).length;
+  const tagTeamCount = allTagTeams.filter((t) => t.is_active).length;
+  const completedSeasons = completedSeasonList.length;
 
   const wrestlerMap = Object.fromEntries(
     (wrestlers ?? []).map((w) => [w.id, w.name])
@@ -89,25 +79,23 @@ export default async function DashboardPage() {
   let tiersData: any[] = [];
 
   if (season) {
-    const [{ data: allMatches }, { data: tiers }, { data: tagTeamNames }, { data: tierAssignments }] = await Promise.all([
-      supabase
-        .from("matches")
-        .select("id, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, stipulation, match_phase, match_time_seconds, tier_id, pool, played_at")
-        .eq("season_id", season.id)
-        .order("played_at", { ascending: false }),
-      supabase
-        .from("tiers")
-        .select("id, tier_number, name, short_name, color, belt_image_url, slug, divisions(name, gender)")
-        .order("tier_number"),
-      supabase.from("tag_teams").select("id, name, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(image_url, gender), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(image_url, gender)"),
-      supabase.from("tier_assignments").select("tier_id, wrestler_id, tag_team_id, pool").eq("season_id", season.id),
+    const [seasonMatches, tiers, tierAssignments] = await Promise.all([
+      getSeasonMatches(season.id),
+      getTiers(),
+      getSeasonAssignments(season.id),
     ]);
 
-    allMatchData = allMatches ?? [];
-    tiersData = tiers ?? [];
-    tierAssignmentsData = tierAssignments ?? [];
+    // Match the old query's ordering: played_at desc, nulls (unplayed) first
+    allMatchData = [...seasonMatches].sort((a, b) => {
+      if (!a.played_at && !b.played_at) return 0;
+      if (!a.played_at) return -1;
+      if (!b.played_at) return 1;
+      return new Date(b.played_at).getTime() - new Date(a.played_at).getTime();
+    });
+    tiersData = tiers;
+    tierAssignmentsData = tierAssignments;
 
-    for (const t of tagTeamNames ?? []) {
+    for (const t of allTagTeams) {
       wrestlerMap[t.id] = t.name;
       const wa = t.wrestler_a as unknown as { image_url: string | null; gender: string | null } | null;
       const wb = t.wrestler_b as unknown as { image_url: string | null; gender: string | null } | null;
@@ -126,7 +114,7 @@ export default async function DashboardPage() {
       if (m.played_at) entry.played++;
     }
 
-    tierProgress = (tiers ?? [])
+    tierProgress = tiers
       .filter((t) => matchesByTier.has(t.id))
       .map((t) => {
         const { played, total } = matchesByTier.get(t.id)!;
@@ -156,29 +144,19 @@ export default async function DashboardPage() {
     beltImageUrl: string | null;
   }> = [];
 
-  const { data: lastCompleted } = await supabase
-    .from("seasons")
-    .select("id")
-    .eq("status", "completed")
-    .order("season_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const lastCompleted = completedSeasonList[0];
 
   if (lastCompleted) {
-    const { data: finals } = await supabase
-      .from("matches")
-      .select("tier_id, winner_wrestler_id, winner_tag_team_id")
-      .eq("season_id", lastCompleted.id)
-      .eq("match_phase", "final")
-      .not("played_at", "is", null);
+    const [lastSeasonMatches, tierNames] = await Promise.all([
+      getSeasonMatches(lastCompleted.id),
+      getTiers(),
+    ]);
+    const finals = lastSeasonMatches.filter(
+      (m) => m.match_phase === "final" && m.played_at
+    );
 
-    const { data: tierNames } = await supabase
-      .from("tiers")
-      .select("id, short_name, name, tier_number, belt_image_url")
-      .order("tier_number");
-
-    champions = (finals ?? []).map((f) => {
-      const tier = (tierNames ?? []).find((t) => t.id === f.tier_id);
+    champions = finals.map((f) => {
+      const tier = tierNames.find((t) => t.id === f.tier_id);
       const holderId = f.winner_wrestler_id ?? f.winner_tag_team_id ?? "";
       return {
         tierName: tier?.short_name || tier?.name || "?",
@@ -631,7 +609,7 @@ export default async function DashboardPage() {
                     {/* Winner */}
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       {fAImg ? (
-                        <img src={fAImg} alt="" className={`h-8 w-8 rounded-full object-cover border ${isAWinner ? "border-gold" : "border-border/20 opacity-50"} shrink-0`} />
+                        <SmartImage src={fAImg} alt="" width={64} height={64} className={`h-8 w-8 rounded-full object-cover border ${isAWinner ? "border-gold" : "border-border/20 opacity-50"} shrink-0`} />
                       ) : (
                         <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isAWinner ? "bg-gold/10 border border-gold text-gold" : "bg-muted/20 border border-border/20 text-muted-foreground/30 opacity-50"}`}>
                           {fAName.charAt(0)}
@@ -654,7 +632,7 @@ export default async function DashboardPage() {
                     {/* Loser */}
                     <div className="flex items-center gap-2 flex-1 min-w-0 flex-row-reverse">
                       {fBImg ? (
-                        <img src={fBImg} alt="" className={`h-8 w-8 rounded-full object-cover border ${!isAWinner ? "border-gold" : "border-border/20 opacity-50"} shrink-0`} />
+                        <SmartImage src={fBImg} alt="" width={64} height={64} className={`h-8 w-8 rounded-full object-cover border ${!isAWinner ? "border-gold" : "border-border/20 opacity-50"} shrink-0`} />
                       ) : (
                         <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${!isAWinner ? "bg-gold/10 border border-gold text-gold" : "bg-muted/20 border border-border/20 text-muted-foreground/30 opacity-50"}`}>
                           {fBName.charAt(0)}
@@ -685,7 +663,7 @@ export default async function DashboardPage() {
                 {onFire.slice(0, 8).map((w) => (
                   <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-amber-500/10 bg-amber-500/[0.03] px-2 py-1.5 hover:border-amber-500/25 transition-all group">
                     {w.image ? (
-                      <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-amber-500/20 shrink-0" />
+                      <SmartImage src={w.image} alt="" width={56} height={56} className="h-7 w-7 rounded-full object-cover border border-amber-500/20 shrink-0" />
                     ) : (
                       <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
                         <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
@@ -711,7 +689,7 @@ export default async function DashboardPage() {
                 {iceCold.slice(0, 8).map((w) => (
                   <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-blue-500/10 bg-blue-500/[0.03] px-2 py-1.5 hover:border-blue-500/25 transition-all group">
                     {w.image ? (
-                      <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-blue-500/20 grayscale-[30%] shrink-0" />
+                      <SmartImage src={w.image} alt="" width={56} height={56} className="h-7 w-7 rounded-full object-cover border border-blue-500/20 grayscale-[30%] shrink-0" />
                     ) : (
                       <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
                         <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
@@ -754,7 +732,7 @@ export default async function DashboardPage() {
                       <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 group">
                         <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : i < 3 ? "text-foreground/60" : "text-muted-foreground/30"}`}>{i + 1}</span>
                         {w.image ? (
-                          <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-border/20 shrink-0" />
+                          <SmartImage src={w.image} alt="" width={56} height={56} className="h-7 w-7 rounded-full object-cover border border-border/20 shrink-0" />
                         ) : (
                           <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
                             <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
@@ -789,7 +767,7 @@ export default async function DashboardPage() {
                       <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 group">
                         <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : i < 3 ? "text-foreground/60" : "text-muted-foreground/30"}`}>{i + 1}</span>
                         {w.image ? (
-                          <img src={w.image} alt="" className="h-7 w-7 rounded-full object-cover border border-border/20 shrink-0" />
+                          <SmartImage src={w.image} alt="" width={56} height={56} className="h-7 w-7 rounded-full object-cover border border-border/20 shrink-0" />
                         ) : (
                           <div className="h-7 w-7 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
                             <span className="text-[9px] font-bold text-muted-foreground/30">{w.name.charAt(0)}</span>
@@ -821,12 +799,12 @@ export default async function DashboardPage() {
                             {w.memberImages ? (
                               <div className="flex -space-x-1.5 shrink-0">
                                 {w.memberImages[0] ? (
-                                  <img src={w.memberImages[0]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0 relative z-10" />
+                                  <SmartImage src={w.memberImages[0]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background shrink-0 relative z-10" />
                                 ) : (
                                   <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0 relative z-10" />
                                 )}
                                 {w.memberImages[1] ? (
-                                  <img src={w.memberImages[1]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0" />
+                                  <SmartImage src={w.memberImages[1]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background shrink-0" />
                                 ) : (
                                   <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0" />
                                 )}
@@ -854,12 +832,12 @@ export default async function DashboardPage() {
                             {w.memberImages ? (
                               <div className="flex -space-x-1.5 shrink-0">
                                 {w.memberImages[0] ? (
-                                  <img src={w.memberImages[0]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0 relative z-10" />
+                                  <SmartImage src={w.memberImages[0]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background shrink-0 relative z-10" />
                                 ) : (
                                   <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0 relative z-10" />
                                 )}
                                 {w.memberImages[1] ? (
-                                  <img src={w.memberImages[1]} alt="" className="h-6 w-6 rounded-full object-cover border border-background shrink-0" />
+                                  <SmartImage src={w.memberImages[1]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background shrink-0" />
                                 ) : (
                                   <div className="h-6 w-6 rounded-full bg-muted/30 border border-background shrink-0" />
                                 )}
@@ -915,11 +893,11 @@ export default async function DashboardPage() {
                       {/* A photo */}
                       {aImgs ? (
                         <div className="flex -space-x-1.5 shrink-0">
-                          {aImgs[0] ? <img src={aImgs[0]} alt="" className="h-6 w-6 rounded-full object-cover border border-background relative z-10" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background relative z-10" />}
-                          {aImgs[1] ? <img src={aImgs[1]} alt="" className="h-6 w-6 rounded-full object-cover border border-background" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background" />}
+                          {aImgs[0] ? <SmartImage src={aImgs[0]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background relative z-10" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background relative z-10" />}
+                          {aImgs[1] ? <SmartImage src={aImgs[1]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background" />}
                         </div>
                       ) : aImg ? (
-                        <img src={aImg} alt="" className="h-6 w-6 rounded-full object-cover border border-border/20 shrink-0" />
+                        <SmartImage src={aImg} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-border/20 shrink-0" />
                       ) : (
                         <div className="h-6 w-6 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
                           <span className="text-[8px] font-bold text-muted-foreground/30">{aName.charAt(0)}</span>
@@ -947,11 +925,11 @@ export default async function DashboardPage() {
                       {/* B photo */}
                       {bImgs ? (
                         <div className="flex -space-x-1.5 shrink-0">
-                          {bImgs[0] ? <img src={bImgs[0]} alt="" className="h-6 w-6 rounded-full object-cover border border-background relative z-10" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background relative z-10" />}
-                          {bImgs[1] ? <img src={bImgs[1]} alt="" className="h-6 w-6 rounded-full object-cover border border-background" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background" />}
+                          {bImgs[0] ? <SmartImage src={bImgs[0]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background relative z-10" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background relative z-10" />}
+                          {bImgs[1] ? <SmartImage src={bImgs[1]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background" />}
                         </div>
                       ) : bImg ? (
-                        <img src={bImg} alt="" className="h-6 w-6 rounded-full object-cover border border-border/20 shrink-0" />
+                        <SmartImage src={bImg} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-border/20 shrink-0" />
                       ) : (
                         <div className="h-6 w-6 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
                           <span className="text-[8px] font-bold text-muted-foreground/30">{bName.charAt(0)}</span>
@@ -1054,7 +1032,7 @@ export default async function DashboardPage() {
               {champions.sort((a, b) => a.tierNumber - b.tierNumber).map((c) => (
                 <div key={c.tierName} className="group rounded-xl border border-border/30 bg-gradient-to-b from-card to-muted/5 p-3 hover:border-gold/30 hover:shadow-lg hover:shadow-gold/5 transition-all text-center">
                   {c.beltImageUrl ? (
-                    <img src={c.beltImageUrl} alt={c.tierName} className="h-12 w-full object-contain mx-auto mb-2 opacity-80 group-hover:opacity-100 transition-opacity" />
+                    <SmartImage src={c.beltImageUrl} alt={c.tierName} width={240} height={96} className="h-12 w-full object-contain mx-auto mb-2 opacity-80 group-hover:opacity-100 transition-opacity" />
                   ) : (
                     <div className="h-12 flex items-center justify-center mb-2">
                       <span className="text-2xl opacity-30 group-hover:opacity-60 transition-opacity">🏆</span>
@@ -1063,7 +1041,7 @@ export default async function DashboardPage() {
                   <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/40 truncate">{c.tierName}</p>
                   <div className="mt-1 flex items-center justify-center gap-1.5">
                     {imageMap[c.holderId] ? (
-                      <img src={imageMap[c.holderId]} alt="" className="h-5 w-5 rounded-full object-cover border border-border/20" />
+                      <SmartImage src={imageMap[c.holderId]} alt="" width={40} height={40} className="h-5 w-5 rounded-full object-cover border border-border/20" />
                     ) : null}
                     <p className="text-xs font-bold truncate text-gold">{c.holderName}</p>
                   </div>

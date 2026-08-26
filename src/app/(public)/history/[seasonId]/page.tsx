@@ -1,5 +1,11 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import {
+  getAllMatches,
+  getSeasonById,
+  getSeasonRelegationEvents,
+  getTagTeams,
+  getWrestlers,
+} from "@/lib/data/cached";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -10,30 +16,22 @@ export default async function SeasonDetailPage({
   params: Promise<{ seasonId: string }>;
 }) {
   const { seasonId } = await params;
-  const supabase = await createClient();
 
-  const { data: season } = await supabase
-    .from("seasons")
-    .select("*")
-    .eq("id", seasonId)
-    .single();
+  const [season, allMatchRows, wrestlers, tagTeams, relegationEvents] =
+    await Promise.all([
+      getSeasonById(seasonId),
+      getAllMatches(),
+      getWrestlers(),
+      getTagTeams(),
+      getSeasonRelegationEvents(seasonId),
+    ]);
 
   if (!season) notFound();
 
-  const { data: finals } = await supabase
-    .from("matches")
-    .select("*, tiers(name, short_name, tier_number, divisions(name))")
-    .eq("season_id", seasonId)
-    .eq("match_phase", "final")
-    .not("played_at", "is", null);
-
-  const { data: wrestlers } = await supabase
-    .from("wrestlers")
-    .select("id, name");
-
-  const { data: tagTeams } = await supabase
-    .from("tag_teams")
-    .select("id, name");
+  const finals = allMatchRows.filter(
+    (m) =>
+      m.season_id === seasonId && m.match_phase === "final" && m.played_at
+  );
 
   const wrestlerMap = Object.fromEntries(
     (wrestlers ?? []).map((w) => [w.id, w.name])
@@ -47,11 +45,6 @@ export default async function SeasonDetailPage({
     if (m.winner_tag_team_id) return tagTeamMap[m.winner_tag_team_id] ?? "?";
     return "?";
   }
-
-  const { data: relegationEvents } = await supabase
-    .from("relegation_events")
-    .select("*, tiers(name, tier_number)")
-    .eq("season_id", seasonId);
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">

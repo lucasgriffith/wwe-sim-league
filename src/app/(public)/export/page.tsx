@@ -51,7 +51,9 @@ export default async function ExportPage() {
               <CardDescription className="text-xs">{exp.description}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href={exp.href} download>
+              {/* Plain anchor: Link would prefetch the CSV generation and
+                  download is unreliable through client navigation */}
+              <a href={exp.href} download>
                 <Button variant="outline" size="sm" className="text-xs gap-1.5">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -60,7 +62,7 @@ export default async function ExportPage() {
                   </svg>
                   Download CSV
                 </Button>
-              </Link>
+              </a>
             </CardContent>
           </Card>
         ))}
@@ -83,7 +85,7 @@ export default async function ExportPage() {
                       ({s.status.replace("_", " ")})
                     </span>
                   </span>
-                  <Link href={`/api/export/matches?season=${s.id}`} download>
+                  <a href={`/api/export/matches?season=${s.id}`} download>
                     <Button variant="ghost" size="sm" className="text-xs gap-1.5 text-muted-foreground hover:text-foreground">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -92,7 +94,7 @@ export default async function ExportPage() {
                       </svg>
                       CSV
                     </Button>
-                  </Link>
+                  </a>
                 </div>
               ))}
             </div>

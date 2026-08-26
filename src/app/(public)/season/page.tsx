@@ -1,4 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import {
+  getCurrentSeason,
+  getSeasonMatches,
+  getTagTeams,
+  getTiers,
+  getWrestlers,
+} from "@/lib/data/cached";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -10,13 +17,13 @@ const statusSteps = ["setup", "pool_play", "playoffs", "relegation", "completed"
 export default async function SeasonPage() {
   const supabase = await createClient();
 
-  const { data: season } = await supabase
-    .from("seasons")
-    .select("*")
-    .neq("status", "completed")
-    .order("season_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const [season, tiers, wrestlers, tagTeams, userResult] = await Promise.all([
+    getCurrentSeason(),
+    getTiers(),
+    getWrestlers(),
+    getTagTeams(),
+    supabase.auth.getUser(),
+  ]);
 
   if (!season) {
     return (
@@ -37,53 +44,43 @@ export default async function SeasonPage() {
   }
 
   // Check if user is admin
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = userResult.data.user;
   const isAdmin = !!user;
 
-  const { data: matches } = await supabase
-    .from("matches")
-    .select("id, tier_id, played_at, match_phase")
-    .eq("season_id", season.id);
+  const seasonMatches = await getSeasonMatches(season.id);
+  const matches = seasonMatches;
 
-  const { data: tiers } = await supabase
-    .from("tiers")
-    .select("id, tier_number, name, short_name, division_id, divisions(name, division_type)")
-    .order("tier_number");
+  // Decorate cached match rows with the participant-name shape the
+  // components expect (previously done with relational joins)
+  const wrestlerNames = Object.fromEntries(wrestlers.map((w) => [w.id, w.name]));
+  const tagTeamNames = Object.fromEntries(tagTeams.map((t) => [t.id, t.name]));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const withNames = (m: any) => ({
+    ...m,
+    wrestlers_a: m.wrestler_a_id ? { name: wrestlerNames[m.wrestler_a_id] ?? "?" } : null,
+    wrestlers_b: m.wrestler_b_id ? { name: wrestlerNames[m.wrestler_b_id] ?? "?" } : null,
+    tag_teams_a: m.tag_team_a_id ? { name: tagTeamNames[m.tag_team_a_id] ?? "?" } : null,
+    tag_teams_b: m.tag_team_b_id ? { name: tagTeamNames[m.tag_team_b_id] ?? "?" } : null,
+  });
 
-  // Get recent played matches with wrestler AND tag team names
-  const { data: recentMatches } = await supabase
-    .from("matches")
-    .select(`
-      id, tier_id, match_phase, pool, stipulation, played_at, match_time_seconds,
-      wrestler_a_id, wrestler_b_id, winner_wrestler_id,
-      tag_team_a_id, tag_team_b_id, winner_tag_team_id,
-      wrestlers_a:wrestlers!matches_wrestler_a_id_fkey(name),
-      wrestlers_b:wrestlers!matches_wrestler_b_id_fkey(name),
-      tag_teams_a:tag_teams!matches_tag_team_a_id_fkey(name),
-      tag_teams_b:tag_teams!matches_tag_team_b_id_fkey(name)
-    `)
-    .eq("season_id", season.id)
-    .not("played_at", "is", null)
-    .order("played_at", { ascending: false })
-    .limit(10);
+  const recentMatches = seasonMatches
+    .filter((m) => m.played_at)
+    .sort(
+      (a, b) =>
+        new Date(b.played_at!).getTime() - new Date(a.played_at!).getTime()
+    )
+    .slice(0, 10)
+    .map(withNames);
 
-  // Get upcoming unplayed matches (for inline entry)
-  const { data: upcomingMatches } = await supabase
-    .from("matches")
-    .select(`
-      id, tier_id, match_phase, pool, round_number, stipulation,
-      wrestler_a_id, wrestler_b_id,
-      tag_team_a_id, tag_team_b_id,
-      wrestlers_a:wrestlers!matches_wrestler_a_id_fkey(name),
-      wrestlers_b:wrestlers!matches_wrestler_b_id_fkey(name),
-      tag_teams_a:tag_teams!matches_tag_team_a_id_fkey(name),
-      tag_teams_b:tag_teams!matches_tag_team_b_id_fkey(name)
-    `)
-    .eq("season_id", season.id)
-    .is("played_at", null)
-    .order("tier_id")
-    .order("round_number")
-    .limit(50);
+  const upcomingMatches = seasonMatches
+    .filter((m) => !m.played_at)
+    .sort(
+      (a, b) =>
+        a.tier_id.localeCompare(b.tier_id) ||
+        (a.round_number ?? Infinity) - (b.round_number ?? Infinity)
+    )
+    .slice(0, 50)
+    .map(withNames);
 
   const tierMap = Object.fromEntries(
     (tiers ?? []).map((t) => [t.id, t])

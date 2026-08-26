@@ -1,25 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
+import { getTagTeams, getWrestlers } from "@/lib/data/cached";
 import { TagTeamList } from "@/components/tag-teams/tag-team-list";
 import { sortByName } from "@/lib/utils/sort-name";
 
 export default async function TagTeamsPage() {
   const supabase = await createClient();
 
-  const [{ data: tagTeams }, { data: wrestlers }, { data: { user } }] =
-    await Promise.all([
-      supabase
-        .from("tag_teams")
-        .select(
-          "*, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(id, name, gender, image_url), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(id, name, gender, image_url)"
-        )
-        .order("name"),
-      supabase
-        .from("wrestlers")
-        .select("id, name, gender")
-        .eq("is_active", true)
-        .order("name"),
-      supabase.auth.getUser(),
-    ]);
+  const [tagTeams, allWrestlers, { data: { user } }] = await Promise.all([
+    getTagTeams(),
+    getWrestlers(),
+    supabase.auth.getUser(),
+  ]);
+  const wrestlers = allWrestlers.filter((w) => w.is_active);
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">

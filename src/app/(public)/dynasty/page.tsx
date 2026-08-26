@@ -1,47 +1,45 @@
-import { createClient } from "@/lib/supabase/server";
+import {
+  getAllAssignments,
+  getAllMatches,
+  getAllSeasons,
+  getTagTeams,
+  getTiers,
+  getWrestlers,
+} from "@/lib/data/cached";
 import { DynastyTabs } from "@/components/dynasty/dynasty-tabs";
 
 export default async function DynastyPage() {
-  const supabase = await createClient();
+  const [allWrestlers, tagTeams, allMatchRows, assignmentRows, tiers, seasons] =
+    await Promise.all([
+      getWrestlers(),
+      getTagTeams(),
+      getAllMatches(),
+      getAllAssignments(),
+      getTiers(),
+      getAllSeasons(),
+    ]);
 
-  const [
-    { data: wrestlers },
-    { data: tagTeams },
-    { data: allMatches },
-    { data: tierAssignments },
-    { data: tiers },
-    { data: seasons },
-  ] = await Promise.all([
-    supabase
-      .from("wrestlers")
-      .select("id, name, slug, gender, overall_rating")
-      .eq("is_active", true)
-      .order("name"),
-    supabase
-      .from("tag_teams")
-      .select(
-        "id, name, is_active, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(id, name, gender), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(id, name, gender)"
-      )
-      .order("name"),
-    supabase
-      .from("matches")
-      .select(
-        "id, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, match_phase, tier_id, season_id, match_time_seconds"
-      )
-      .not("played_at", "is", null),
-    supabase
-      .from("tier_assignments")
-      .select("wrestler_id, tag_team_id, tier_id, season_id")
-      .order("created_at"),
-    supabase
-      .from("tiers")
-      .select("id, name, short_name, tier_number, division_id, divisions(name, gender, division_type)")
-      .order("tier_number"),
-    supabase
-      .from("seasons")
-      .select("id, season_number, status")
-      .order("season_number", { ascending: false }),
-  ]);
+  const wrestlers = allWrestlers.filter((w) => w.is_active);
+  const allMatches = allMatchRows.filter((m) => m.played_at);
+  const tierAssignments = [...assignmentRows].sort(
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  // Bucket matches by participant once — the per-wrestler filters below were
+  // O(wrestlers x matches) and grew every season
+  const matchesByParticipant = new Map<string, typeof allMatches>();
+  const bucket = (pid: string | null, m: (typeof allMatches)[0]) => {
+    if (!pid) return;
+    if (!matchesByParticipant.has(pid)) matchesByParticipant.set(pid, []);
+    matchesByParticipant.get(pid)!.push(m);
+  };
+  for (const m of allMatches) {
+    bucket(m.wrestler_a_id, m);
+    bucket(m.wrestler_b_id, m);
+    bucket(m.tag_team_a_id, m);
+    bucket(m.tag_team_b_id, m);
+  }
 
   const tierMap = Object.fromEntries(
     (tiers ?? []).map((t) => [
@@ -95,9 +93,7 @@ export default async function DynastyPage() {
 
   // ── Wrestler stats ─────────────────────────────────────────────────
   const wrestlerStats = (wrestlers ?? []).map((w) => {
-    const matches = (allMatches ?? []).filter(
-      (m) => m.wrestler_a_id === w.id || m.wrestler_b_id === w.id
-    );
+    const matches = matchesByParticipant.get(w.id) ?? [];
     const wins = matches.filter((m) => m.winner_wrestler_id === w.id).length;
     const losses = matches.length - wins;
     const championships = matches.filter(
@@ -203,9 +199,7 @@ export default async function DynastyPage() {
           : "female"
         : "mixed";
 
-    const matches = (allMatches ?? []).filter(
-      (m) => m.tag_team_a_id === t.id || m.tag_team_b_id === t.id
-    );
+    const matches = matchesByParticipant.get(t.id) ?? [];
     const wins = matches.filter((m) => m.winner_tag_team_id === t.id).length;
     const losses = matches.length - wins;
     const championships = matches.filter(

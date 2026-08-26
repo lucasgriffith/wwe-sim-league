@@ -1,40 +1,34 @@
-import { createClient } from "@/lib/supabase/server";
+import {
+  getAllMatches,
+  getCompletedSeasons,
+  getTagTeams,
+  getTiers,
+  getWrestlers,
+} from "@/lib/data/cached";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
 export default async function HistoryPage() {
-  const supabase = await createClient();
-
-  const { data: seasons } = await supabase
-    .from("seasons")
-    .select("*")
-    .eq("status", "completed")
-    .order("season_number", { ascending: false });
+  const seasons = await getCompletedSeasons();
 
   // Get champions for each completed season
   const seasonIds = (seasons ?? []).map((s) => s.id);
-  let championsMap: Record<string, Array<{ tierName: string; holderName: string; tierNumber: number }>> = {};
-  let matchCountMap: Record<string, number> = {};
+  const championsMap: Record<string, Array<{ tierName: string; holderName: string; tierNumber: number }>> = {};
+  const matchCountMap: Record<string, number> = {};
 
   if (seasonIds.length > 0) {
-    const [{ data: finals }, { data: allMatches }, { data: tiers }, { data: wrestlers }, { data: tagTeams }] =
-      await Promise.all([
-        supabase
-          .from("matches")
-          .select("season_id, tier_id, winner_wrestler_id, winner_tag_team_id")
-          .in("season_id", seasonIds)
-          .eq("match_phase", "final")
-          .not("played_at", "is", null),
-        supabase
-          .from("matches")
-          .select("season_id")
-          .in("season_id", seasonIds)
-          .not("played_at", "is", null),
-        supabase.from("tiers").select("id, name, short_name, tier_number").order("tier_number"),
-        supabase.from("wrestlers").select("id, name"),
-        supabase.from("tag_teams").select("id, name"),
-      ]);
+    const [allMatchRows, tiers, wrestlers, tagTeams] = await Promise.all([
+      getAllMatches(),
+      getTiers(),
+      getWrestlers(),
+      getTagTeams(),
+    ]);
+    const seasonIdSet = new Set(seasonIds);
+    const allMatches = allMatchRows.filter(
+      (m) => m.played_at && seasonIdSet.has(m.season_id)
+    );
+    const finals = allMatches.filter((m) => m.match_phase === "final");
 
     const tierMap = Object.fromEntries(
       (tiers ?? []).map((t) => [t.id, { name: t.short_name || t.name, number: t.tier_number }])

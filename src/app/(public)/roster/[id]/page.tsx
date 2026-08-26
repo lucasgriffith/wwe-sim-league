@@ -3,8 +3,17 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
-import { getCurrentChampions } from "@/lib/champions";
 import { ProfileImageUpload } from "@/components/roster/profile-image-upload";
+import { SmartImage } from "@/components/ui/smart-image";
+import {
+  getAllAssignments,
+  getAllMatches,
+  getChampions,
+  getCurrentSeason,
+  getTagTeams,
+  getTiers,
+  getWrestlers,
+} from "@/lib/data/cached";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -31,87 +40,53 @@ export default async function WrestlerProfilePage({
   const { id: rawId } = await params;
   const supabase = await createClient();
 
+  // Everything in one round: cached data + the auth check
+  const [
+    wrestlers,
+    currentSeason,
+    allMatchRows,
+    allAssignRows,
+    tiers,
+    allTagTeams,
+    userResult,
+    currentChampions,
+  ] = await Promise.all([
+    getWrestlers(),
+    getCurrentSeason(),
+    getAllMatches(),
+    getAllAssignments(),
+    getTiers(),
+    getTagTeams(),
+    supabase.auth.getUser(),
+    getChampions(),
+  ]);
+  const user = userResult.data.user;
+
   // Resolve slug to UUID if needed
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
-  let id = rawId;
-  if (!isUuid) {
-    const { data: found } = await supabase
-      .from("wrestlers")
-      .select("id")
-      .eq("slug", rawId)
-      .single();
-    if (!found) notFound();
-    id = found.id;
-  }
-
-  // Fetch current season for upcoming matches
-  const { data: currentSeason } = await supabase
-    .from("seasons")
-    .select("id")
-    .neq("status", "completed")
-    .order("season_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  // Fetch everything in parallel
-  const [
-    { data: wrestler },
-    { data: assignments },
-    { data: matchesAsA },
-    { data: matchesAsB },
-    { data: tiers },
-    { data: wrestlers },
-    { data: tagTeamMemberships },
-    { data: { user } },
-    { data: upcomingAsA },
-    { data: upcomingAsB },
-  ] = await Promise.all([
-    supabase.from("wrestlers").select("*").eq("id", id).single(),
-    supabase
-      .from("tier_assignments")
-      .select("*, tiers(id, name, short_name, tier_number), seasons(season_number, status)")
-      .eq("wrestler_id", id)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("matches")
-      .select("*, tiers(name, short_name, tier_number, belt_image_url), seasons(season_number)")
-      .eq("wrestler_a_id", id)
-      .order("played_at", { ascending: false }),
-    supabase
-      .from("matches")
-      .select("*, tiers(name, short_name, tier_number, belt_image_url), seasons(season_number)")
-      .eq("wrestler_b_id", id)
-      .order("played_at", { ascending: false }),
-    supabase
-      .from("tiers")
-      .select("id, name, short_name, tier_number, belt_image_url")
-      .order("tier_number"),
-    supabase.from("wrestlers").select("id, name, slug").order("name"),
-    supabase
-      .from("tag_teams")
-      .select("id, name, wrestler_a_id, wrestler_b_id, is_active")
-      .or(`wrestler_a_id.eq.${id},wrestler_b_id.eq.${id}`),
-    supabase.auth.getUser(),
-    // Upcoming matches: unplayed matches for this wrestler in current season
-    currentSeason
-      ? supabase
-          .from("matches")
-          .select("id, wrestler_a_id, wrestler_b_id, tier_id, match_phase, tiers(name, short_name, tier_number)")
-          .eq("season_id", currentSeason.id)
-          .eq("wrestler_a_id", id)
-          .is("played_at", null)
-      : Promise.resolve({ data: [] }),
-    currentSeason
-      ? supabase
-          .from("matches")
-          .select("id, wrestler_a_id, wrestler_b_id, tier_id, match_phase, tiers(name, short_name, tier_number)")
-          .eq("season_id", currentSeason.id)
-          .eq("wrestler_b_id", id)
-          .is("played_at", null)
-      : Promise.resolve({ data: [] }),
-  ]);
-
+  const wrestler = wrestlers.find((w) =>
+    isUuid ? w.id === rawId : w.slug === rawId
+  );
   if (!wrestler) notFound();
+  const id = wrestler.id;
+
+  const assignments = allAssignRows
+    .filter((a) => a.wrestler_id === id)
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  const matchesAsA = allMatchRows.filter((m) => m.wrestler_a_id === id);
+  const matchesAsB = allMatchRows.filter((m) => m.wrestler_b_id === id);
+  const tagTeamMemberships = allTagTeams.filter(
+    (t) => t.wrestler_a_id === id || t.wrestler_b_id === id
+  );
+  const upcomingAsA = currentSeason
+    ? matchesAsA.filter((m) => m.season_id === currentSeason.id && !m.played_at)
+    : [];
+  const upcomingAsB = currentSeason
+    ? matchesAsB.filter((m) => m.season_id === currentSeason.id && !m.played_at)
+    : [];
 
   const wrestlerMap = Object.fromEntries(
     (wrestlers ?? []).map((w) => [w.id, w.name])
@@ -156,8 +131,6 @@ export default async function WrestlerProfilePage({
   const losses = allMatches.length - wins;
   const winPct = allMatches.length > 0 ? ((wins / allMatches.length) * 100).toFixed(1) : null;
 
-  // Get current champions
-  const currentChampions = await getCurrentChampions(supabase);
   const isCurrentChampion = !!currentChampions[id];
 
   // Championships (finals won)
@@ -278,10 +251,11 @@ export default async function WrestlerProfilePage({
       <div className="mt-6 mb-8 flex items-start gap-5">
         <div className="shrink-0">
           {wrestler.image_url ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
+            <SmartImage
               src={wrestler.image_url}
               alt={wrestler.name}
+              width={160}
+              height={160}
               className="h-20 w-20 rounded-xl object-cover border-2 border-border/30 shadow-lg"
             />
           ) : (
@@ -378,10 +352,11 @@ export default async function WrestlerProfilePage({
                     </div>
                   )}
                   {t.beltImageUrl ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
+                    <SmartImage
                       src={t.beltImageUrl}
                       alt={`${t.tierName} belt`}
+                      width={200}
+                      height={96}
                       className="h-12 w-auto object-contain mx-auto mb-2"
                     />
                   ) : (

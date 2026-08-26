@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getAllMatches, getWrestlers } from "@/lib/data/cached";
 import { CompareView } from "@/components/compare/compare-view";
 import { sortByName } from "@/lib/utils/sort-name";
 
@@ -7,50 +7,29 @@ export default async function ComparePage({
 }: {
   searchParams: Promise<{ a?: string; b?: string }>;
 }) {
-  const { a, b } = await searchParams;
-  const supabase = await createClient();
+  const [{ a, b }, wrestlers, allMatchRows] = await Promise.all([
+    searchParams,
+    getWrestlers(),
+    getAllMatches(),
+  ]);
 
-  const { data: wrestlers } = await supabase
-    .from("wrestlers")
-    .select("id, name, gender, overall_rating")
-    .order("name");
+  const playedMatches = allMatchRows.filter((m) => m.played_at);
+  const involves = (m: (typeof playedMatches)[0], id: string) =>
+    m.wrestler_a_id === id || m.wrestler_b_id === id;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let matches: any[] = [];
-  if (a && b) {
-    const { data } = await supabase
-      .from("matches")
-      .select("*, seasons(season_number)")
-      .or(
-        `and(wrestler_a_id.eq.${a},wrestler_b_id.eq.${b}),and(wrestler_a_id.eq.${b},wrestler_b_id.eq.${a})`
-      )
-      .not("played_at", "is", null)
-      .order("played_at", { ascending: false });
-    matches = data ?? [];
-  }
+  const matches =
+    a && b
+      ? playedMatches
+          .filter((m) => involves(m, a) && involves(m, b))
+          .sort(
+            (x, y) =>
+              new Date(y.played_at!).getTime() -
+              new Date(x.played_at!).getTime()
+          )
+      : [];
 
-  // Get career stats for both wrestlers
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let allMatchesA: any[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let allMatchesB: any[] = [];
-
-  if (a) {
-    const { data } = await supabase
-      .from("matches")
-      .select("winner_wrestler_id")
-      .or(`wrestler_a_id.eq.${a},wrestler_b_id.eq.${a}`)
-      .not("played_at", "is", null);
-    allMatchesA = data ?? [];
-  }
-  if (b) {
-    const { data } = await supabase
-      .from("matches")
-      .select("winner_wrestler_id")
-      .or(`wrestler_a_id.eq.${b},wrestler_b_id.eq.${b}`)
-      .not("played_at", "is", null);
-    allMatchesB = data ?? [];
-  }
+  const allMatchesA = a ? playedMatches.filter((m) => involves(m, a)) : [];
+  const allMatchesB = b ? playedMatches.filter((m) => involves(m, b)) : [];
 
   const wrestlerA = wrestlers?.find((w) => w.id === a);
   const wrestlerB = wrestlers?.find((w) => w.id === b);

@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { getDivisions, getTiers } from "@/lib/data/cached";
+import { SmartImage } from "@/components/ui/smart-image";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 /* eslint-disable @next/next/no-img-element */
@@ -25,17 +26,7 @@ const divisionBorderHover: Record<string, string> = {
 };
 
 export default async function TiersPage() {
-  const supabase = await createClient();
-
-  const { data: divisions } = await supabase
-    .from("divisions")
-    .select("*")
-    .order("display_order");
-
-  const { data: tiers } = await supabase
-    .from("tiers")
-    .select("*")
-    .order("tier_number");
+  const [divisions, tiers] = await Promise.all([getDivisions(), getTiers()]);
 
   const tiersByDivision = (divisions ?? []).map((div) => ({
     ...div,
@@ -92,9 +83,12 @@ export default async function TiersPage() {
                           </span>
                         )}
                       </div>
-                      <img
+                      <SmartImage
                         src={tier.belt_image_url}
                         alt=""
+                        width={480}
+                        height={280}
+                        sizes="(max-width: 640px) 50vw, 280px"
                         className="absolute -inset-5 w-[calc(100%+2.5rem)] h-[calc(100%+2.5rem)] object-contain pb-8 transition-transform group-hover:scale-105"
                       />
                       {/* Bottom overlay with text */}

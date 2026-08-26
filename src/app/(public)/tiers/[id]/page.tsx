@@ -5,7 +5,13 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { BeltImageEditor } from "@/components/tiers/belt-image-editor";
-import { getCurrentChampions } from "@/lib/champions";
+import {
+  getChampions,
+  getCurrentSeason,
+  getSeasonAssignments,
+  getSeasonMatches,
+  getTiers,
+} from "@/lib/data/cached";
 import { ChampionBadge } from "@/components/ui/champion-badge";
 import {
   Table,
@@ -23,6 +29,7 @@ import { computeStandings } from "@/lib/standings/compute-standings";
 import { computePlayoffSeeds, computeTagPlayoffSeeds } from "@/lib/playoffs/seeding";
 import { generateBracket } from "@/lib/playoffs/bracket";
 import { FormDots } from "@/components/ui/form-dots";
+import { SmartImage } from "@/components/ui/smart-image";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -38,58 +45,46 @@ export default async function TierDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
+  // Cached data + auth in one round of parallel awaits
+  const [tiers, userResult, activeSeason, champions] = await Promise.all([
+    getTiers(),
+    supabase.auth.getUser(),
+    getCurrentSeason(),
+    getChampions(),
+  ]);
+  const user = userResult.data.user;
+
   // Try slug first, fall back to UUID for backwards compatibility
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-  const { data: tier } = await supabase
-    .from("tiers")
-    .select("*, divisions(name, gender, division_type)")
-    .eq(isUuid ? "id" : "slug", id)
-    .single();
+  const tier = tiers.find((t) => (isUuid ? t.id === id : t.slug === id));
 
   if (!tier) notFound();
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { data: activeSeason } = await supabase
-    .from("seasons")
-    .select("*")
-    .neq("status", "completed")
-    .order("season_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let assignments: any[] = [];
-
-  if (activeSeason) {
-    const { data } = await supabase
-      .from("tier_assignments")
-      .select(
-        "id, pool, seed, wrestler_id, tag_team_id, wrestlers(id, name, slug, image_url), tag_teams(id, name, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(image_url), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(image_url))"
-      )
-      .eq("season_id", activeSeason.id)
-      .eq("tier_id", tier.id)
-      .order("pool")
-      .order("seed");
-    assignments = data ?? [];
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let matches: any[] = [];
 
   if (activeSeason) {
-    const { data } = await supabase
-      .from("matches")
-      .select("*")
-      .eq("season_id", activeSeason.id)
-      .eq("tier_id", tier.id)
-      .order("round_number")
-      .order("pool");
-    matches = data ?? [];
+    const [seasonAssignments, seasonMatches] = await Promise.all([
+      getSeasonAssignments(activeSeason.id),
+      getSeasonMatches(activeSeason.id),
+    ]);
+    assignments = seasonAssignments
+      .filter((a) => a.tier_id === tier.id)
+      .sort(
+        (a, b) =>
+          (a.pool ?? "Z").localeCompare(b.pool ?? "Z") ||
+          (a.seed ?? Infinity) - (b.seed ?? Infinity)
+      );
+    matches = seasonMatches
+      .filter((m) => m.tier_id === tier.id)
+      .sort(
+        (a, b) =>
+          (a.round_number ?? Infinity) - (b.round_number ?? Infinity) ||
+          (a.pool ?? "Z").localeCompare(b.pool ?? "Z")
+      );
   }
-
-  // Get current champions
-  const champions = await getCurrentChampions(supabase);
 
   // Get all wrestler/tag names for match display
   const allIds = new Set<string>();
@@ -357,10 +352,12 @@ export default async function TierDetailPage({
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold sm:text-3xl">{tier.name}</h1>
             {tier.belt_image_url && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
+              <SmartImage
                 src={tier.belt_image_url}
                 alt={`${tier.name} belt`}
+                width={480}
+                height={240}
+                sizes="480px"
                 className="h-48 sm:h-60 w-auto object-contain shrink-0 -my-16 sm:-my-20"
               />
             )}

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getWrestlers } from "@/lib/data/cached";
 import { WrestlerTable } from "@/components/roster/wrestler-table";
 import { FetchImagesButton } from "@/components/roster/fetch-images-button";
 import { sortByName } from "@/lib/utils/sort-name";
@@ -6,8 +7,8 @@ import { sortByName } from "@/lib/utils/sort-name";
 export default async function RosterPage() {
   const supabase = await createClient();
 
-  const [{ data: wrestlers }, { data: { user } }] = await Promise.all([
-    supabase.from("wrestlers").select("*").order("name"),
+  const [wrestlers, { data: { user } }] = await Promise.all([
+    getWrestlers(),
     supabase.auth.getUser(),
   ]);
 
