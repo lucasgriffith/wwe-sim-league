@@ -3,13 +3,25 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
-import { revalidatePath } from "next/cache";
+import {
+  revalidatePath as nextRevalidatePath,
+  updateTag,
+} from "next/cache";
+import { LEAGUE_TAG } from "@/lib/data/cached";
 import type {
   Gender,
   SeasonStatus,
   PoolLabel,
   MatchPhase,
 } from "@/types/database";
+
+// Every mutation in this file calls revalidatePath at least once; routing it
+// through this wrapper also busts the shared cached-data layer (LEAGUE_TAG)
+// with read-your-writes semantics, so the admin sees their change immediately.
+function revalidatePath(path: string) {
+  updateTag(LEAGUE_TAG);
+  nextRevalidatePath(path);
+}
 
 // ─── Wrestler actions ───────────────────────────────────────────────────────
 
