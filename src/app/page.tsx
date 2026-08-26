@@ -607,8 +607,8 @@ export default async function DashboardPage() {
               const fAImg = imageMap[fAId ?? ""];
               const fBImg = imageMap[fBId ?? ""];
               const isAWinner = fWinnerId === fAId;
-              const aHref = fIsTag ? "/tag-teams" : `/roster/${slugMap[fAId ?? ""] ?? fAId}`;
-              const bHref = fIsTag ? "/tag-teams" : `/roster/${slugMap[fBId ?? ""] ?? fBId}`;
+              const aHref = fIsTag ? `/tag-teams/${fAId}` : `/roster/${slugMap[fAId ?? ""] ?? fAId}`;
+              const bHref = fIsTag ? `/tag-teams/${fBId}` : `/roster/${slugMap[fBId ?? ""] ?? fBId}`;
 
               return (
                 <div className="rounded-xl border border-border/30 bg-card/50 px-4 py-3">
@@ -802,7 +802,7 @@ export default async function DashboardPage() {
                       <div className="text-[9px] font-bold uppercase tracking-wider text-blue-400/60 mb-1.5">Men&apos;s</div>
                       <div className="space-y-1.5">
                         {menTagRankings.map((w, i) => (
-                          <Link key={w.id} href="/tag-teams" className="flex items-center gap-2 group">
+                          <Link key={w.id} href={`/tag-teams/${w.id}`} className="flex items-center gap-2 group">
                             <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : "text-muted-foreground/30"}`}>{i + 1}</span>
                             {w.memberImages ? (
                               <div className="flex -space-x-1.5 shrink-0">
@@ -835,7 +835,7 @@ export default async function DashboardPage() {
                       <div className="text-[9px] font-bold uppercase tracking-wider text-purple-400/60 mb-1.5">Women&apos;s</div>
                       <div className="space-y-1.5">
                         {womenTagRankings.map((w, i) => (
-                          <Link key={w.id} href="/tag-teams" className="flex items-center gap-2 group">
+                          <Link key={w.id} href={`/tag-teams/${w.id}`} className="flex items-center gap-2 group">
                             <span className={`text-sm font-black tabular-nums w-5 text-right ${i === 0 ? "text-gold" : "text-muted-foreground/30"}`}>{i + 1}</span>
                             {w.memberImages ? (
                               <div className="flex -space-x-1.5 shrink-0">
@@ -912,7 +912,7 @@ export default async function DashboardPage() {
                         </div>
                       )}
                       {isTag ? (
-                        <Link href="/tag-teams" className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
+                        <Link href={`/tag-teams/${aId}`} className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
                           {aName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(aId ?? "") ?? 0}-{lossCounts.get(aId ?? "") ?? 0})</span>
                         </Link>
                       ) : (
@@ -922,7 +922,7 @@ export default async function DashboardPage() {
                       )}
                       <span className="text-[9px] text-muted-foreground/30 shrink-0">vs</span>
                       {isTag ? (
-                        <Link href="/tag-teams" className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
+                        <Link href={`/tag-teams/${bId}`} className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
                           {bName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(bId ?? "") ?? 0}-{lossCounts.get(bId ?? "") ?? 0})</span>
                         </Link>
                       ) : (

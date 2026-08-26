@@ -345,7 +345,7 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
             <div className="min-w-0 flex-1">
               <div className="font-bold text-xs sm:text-sm leading-tight break-words">
                 {isTag ? (
-                  <Link href="/tag-teams" className="hover:text-gold transition-colors">{a.name}</Link>
+                  <Link href={`/tag-teams/${aId}`} className="hover:text-gold transition-colors">{a.name}</Link>
                 ) : (
                   <Link href={`/roster/${a.slug ?? aId}`} className="hover:text-gold transition-colors">{a.name}</Link>
                 )}
@@ -378,7 +378,7 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
             <div className="min-w-0 flex-1 text-right">
               <div className="font-bold text-xs sm:text-sm leading-tight break-words">
                 {isTag ? (
-                  <Link href="/tag-teams" className="hover:text-gold transition-colors">{b.name}</Link>
+                  <Link href={`/tag-teams/${bId}`} className="hover:text-gold transition-colors">{b.name}</Link>
                 ) : (
                   <Link href={`/roster/${b.slug ?? bId}`} className="hover:text-gold transition-colors">{b.name}</Link>
                 )}

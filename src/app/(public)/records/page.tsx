@@ -30,7 +30,7 @@ export default async function RecordsPage() {
   for (const t of tagTeams) {
     participants.set(t.id, {
       name: t.name,
-      href: "/tag-teams",
+      href: `/tag-teams/${t.id}`,
       imageUrl: null,
       isTag: true,
     });

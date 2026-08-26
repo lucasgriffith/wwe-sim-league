@@ -185,7 +185,7 @@ export default async function StandingsPage() {
           streak,
           trend,
           zone: "safe" as StandingZone,
-          linkHref: isTag ? "/tag-teams" : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
+          linkHref: isTag ? `/tag-teams/${pid}` : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
           imageUrl: isTag ? null : (wrestlerImageMap[pid] ?? null),
           ...(isTag && tagMemberImages[pid] ? { memberImages: tagMemberImages[pid] } : {}),
         };

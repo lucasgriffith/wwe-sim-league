@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -273,7 +275,14 @@ export function TagTeamList({
           >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{team.name}</CardTitle>
+                <CardTitle className="text-base">
+                  <Link
+                    href={`/tag-teams/${team.id}`}
+                    className="hover:text-gold transition-colors"
+                  >
+                    {team.name}
+                  </Link>
+                </CardTitle>
                 <div className="flex items-center gap-1.5">
                   <Badge
                     variant="outline"

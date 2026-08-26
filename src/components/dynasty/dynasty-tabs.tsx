@@ -390,7 +390,12 @@ export function DynastyTabs({
                         {i + 1}
                       </TableCell>
                       <TableCell>
-                        <span className="font-medium">{s.name}</span>
+                        <Link
+                          href={`/tag-teams/${s.id}`}
+                          className="font-medium hover:text-gold transition-colors"
+                        >
+                          {s.name}
+                        </Link>
                         <Badge
                           variant="outline"
                           className={`ml-2 text-[9px] ${genderColor}`}

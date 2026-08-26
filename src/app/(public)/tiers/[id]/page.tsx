@@ -210,7 +210,7 @@ export default async function TierDetailPage({
         streakLabel: streak > 0 ? `W${streak}` : streak < 0 ? `L${Math.abs(streak)}` : "—",
         trend,
         zone: "safe" as StandingZone,
-        linkHref: isTag ? "/tag-teams" : `/roster/${wrestlerSlugMap[participantId!] ?? participantId}`,
+        linkHref: isTag ? `/tag-teams/${participantId}` : `/roster/${wrestlerSlugMap[participantId!] ?? participantId}`,
         imageUrl,
         memberImages,
       };

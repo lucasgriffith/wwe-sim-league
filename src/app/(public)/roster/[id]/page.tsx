@@ -305,7 +305,18 @@ export default async function WrestlerProfilePage({
           </div>
           {tagTeams.length > 0 && (
             <span className="text-xs text-muted-foreground">
-              · Tag: {tagTeams.map((t) => t.name).join(", ")}
+              · Tag:{" "}
+              {tagTeams.map((t, i) => (
+                <span key={t.id}>
+                  {i > 0 && ", "}
+                  <Link
+                    href={`/tag-teams/${t.id}`}
+                    className="hover:text-gold transition-colors underline-offset-2 hover:underline"
+                  >
+                    {t.name}
+                  </Link>
+                </span>
+              ))}
             </span>
           )}
         </div>
