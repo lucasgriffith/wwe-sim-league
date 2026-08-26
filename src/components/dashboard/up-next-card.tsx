@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useTransition, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -91,7 +90,6 @@ function ParticipantPhoto({ stats, size = "lg" }: { stats: ParticipantStats; siz
 }
 
 export function UpNextCard({ matches, participantStats, tiers, remainingCount, initialIndex }: Props) {
-  const router = useRouter();
   const [currentIdx, setCurrentIdx] = useState(initialIndex);
   const [minutes, setMinutes] = useState("");
   const [seconds, setSeconds] = useState("");
@@ -177,6 +175,10 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
         // Show celebration for 3 seconds
         setCelebration({ winnerName, winnerId, matchTime: timeSeconds });
 
+        // No router.refresh() needed: the server action revalidates "/" and
+        // its response already carries the fresh page data. The old deferred
+        // refresh here could even trigger a full page reload (version-skew
+        // protection after a deploy), wiping the milestone toasts.
         celebrationTimer.current = setTimeout(() => {
           setCelebration(null);
           setMinutes("");
@@ -189,7 +191,6 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
             } while (newIdx === currentIdx);
             setCurrentIdx(newIdx);
           }
-          router.refresh();
         }, 3000);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to record result");
