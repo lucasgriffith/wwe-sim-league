@@ -96,6 +96,7 @@ export default function WikiPage() {
             <p>Standings are sorted by:</p>
             <ol>
               <li><strong>Win percentage</strong> — primary sort</li>
+              <li><strong>Total wins</strong> — among equal win%, more wins ranks higher (only matters mid-season while match counts differ)</li>
               <li><strong>Head-to-head record</strong> — among tied wrestlers, only matches between them count (a mini-league among the tied group)</li>
               <li><strong>Average match time</strong> — shorter is better (quick wins are dominant wins)</li>
             </ol>

@@ -23,11 +23,14 @@ export interface StandingsRow {
  * page, playoff seeding). Official tiebreak order:
  *
  * 1. Win percentage (descending)
- * 2. Head-to-head record among the tied group (mini-league: only matches
+ * 2. Total wins (descending) — only separates rows mid-season when match
+ *    counts differ (3-0 ranks above 1-0); once everyone has played the same
+ *    schedule, equal win% implies equal wins and this is a no-op
+ * 3. Head-to-head record among the tied group (mini-league: only matches
  *    between tied participants count) — transitive by construction, so a
  *    circular head-to-head can't make the order depend on input order
- * 3. Average match time (ascending — quicker matches = more dominant)
- * 4. Deterministic hash of participant id (stable across renders)
+ * 4. Average match time (ascending — quicker matches = more dominant)
+ * 5. Deterministic hash of participant id (stable across renders)
  */
 export function computeStandings(
   participants: { id: string; name: string }[],
@@ -73,14 +76,21 @@ export function computeStandings(
     };
   });
 
-  // Sort by win% into tied groups, then break each group as a unit
-  rows.sort((a, b) => b.winPct - a.winPct);
+  // Sort by win% then total wins into tied groups, then break each group
+  // as a unit
+  rows.sort((a, b) => b.winPct - a.winPct || b.wins - a.wins);
 
   const ordered: StandingsRow[] = [];
   let i = 0;
   while (i < rows.length) {
     let j = i;
-    while (j < rows.length && rows[j].winPct === rows[i].winPct) j++;
+    while (
+      j < rows.length &&
+      rows[j].winPct === rows[i].winPct &&
+      rows[j].wins === rows[i].wins
+    ) {
+      j++;
+    }
     ordered.push(...orderTiedGroup(rows.slice(i, j), matches));
     i = j;
   }
