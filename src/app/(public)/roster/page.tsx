@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWrestlers } from "@/lib/data/cached";
 import { WrestlerTable } from "@/components/roster/wrestler-table";
 import { FetchImagesButton } from "@/components/roster/fetch-images-button";
+import { AuditImagesButton } from "@/components/roster/audit-images-button";
 import { sortByName } from "@/lib/utils/sort-name";
 
 export default async function RosterPage() {
@@ -26,7 +27,12 @@ export default async function RosterPage() {
             )}
           </p>
         </div>
-        {!!user && withoutImages > 0 && <FetchImagesButton />}
+        {!!user && (
+          <div className="flex items-center gap-2">
+            <AuditImagesButton />
+            {withoutImages > 0 && <FetchImagesButton />}
+          </div>
+        )}
       </div>
       <WrestlerTable wrestlers={sortByName(wrestlers ?? [])} isAdmin={!!user} />
     </div>

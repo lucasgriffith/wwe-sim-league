@@ -123,13 +123,17 @@ export function MatchEntry({
 
     setLoading(true);
     try {
-      await recordMatchResult(currentMatch.id, {
+      const result = await recordMatchResult(currentMatch.id, {
         ...(isTag
           ? { winner_tag_team_id: winnerId }
           : { winner_wrestler_id: winnerId }),
         match_time_seconds: timeSeconds,
         notes: notes || undefined,
       });
+      for (const ms of result?.milestones ?? []) {
+        const fn = ms.type === "success" ? toast.success : ms.type === "warning" ? toast.warning : toast.info;
+        fn(`${ms.emoji} ${ms.message}`, { duration: 5000 });
+      }
 
       const winnerName = winnerId === idA ? nameA : nameB;
       const loserName = winnerId === idA ? nameB : nameA;

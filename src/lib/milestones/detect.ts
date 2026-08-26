@@ -4,6 +4,7 @@
  */
 
 interface MatchData {
+  matchId: string;
   winnerId: string;
   loserId: string;
   winnerName: string;
@@ -16,6 +17,7 @@ interface MatchData {
 interface SeasonContext {
   // All played matches in the season (including the one just recorded)
   allMatches: Array<{
+    id: string;
     winner_id: string;
     loser_id: string;
     match_time_seconds: number;
@@ -80,13 +82,15 @@ export function detectMilestones(
 
   // ── Fastest Match ─────────────────────────────────────────────
   if (match.matchTimeSeconds > 0) {
+    // Compare against every OTHER match, strictly — merely tying the
+    // record isn't setting it
     const allTimes = context.allMatches
-      .filter((m) => m.match_time_seconds > 0 && m.played_at)
+      .filter((m) => m.id !== match.matchId && m.match_time_seconds > 0 && m.played_at)
       .map((m) => m.match_time_seconds);
 
-    if (allTimes.length > 1) {
+    if (allTimes.length > 0) {
       const minTime = Math.min(...allTimes);
-      if (match.matchTimeSeconds <= minTime) {
+      if (match.matchTimeSeconds < minTime) {
         const mins = Math.floor(match.matchTimeSeconds / 60);
         const secs = match.matchTimeSeconds % 60;
         milestones.push({

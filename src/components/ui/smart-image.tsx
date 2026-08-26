@@ -15,7 +15,7 @@ import { createHash } from "crypto";
 // Wikimedia only generates thumbs at these widths (returns 400 otherwise)
 const WIKIMEDIA_THUMB_SIZES = [120, 250, 330, 500, 960];
 
-function extractWikimediaFilename(url: URL): string | null {
+export function extractWikimediaFilename(url: URL): string | null {
   if (url.hostname === "commons.wikimedia.org") {
     if (url.pathname.startsWith("/wiki/Special:FilePath/")) {
       return decodeURIComponent(

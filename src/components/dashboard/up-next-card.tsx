@@ -162,12 +162,16 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
     }
     startTransition(async () => {
       try {
-        await recordMatchResult(match.id, {
+        const result = await recordMatchResult(match.id, {
           ...(isTag
             ? { winner_tag_team_id: winnerId }
             : { winner_wrestler_id: winnerId }),
           match_time_seconds: timeSeconds,
         });
+        for (const ms of result?.milestones ?? []) {
+          const fn = ms.type === "success" ? toast.success : ms.type === "warning" ? toast.warning : toast.info;
+          fn(`${ms.emoji} ${ms.message}`, { duration: 5000 });
+        }
         const winnerName = winnerId === aId ? a.name : b.name;
 
         // Show celebration for 3 seconds

@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
 import {
+  getAllAssignments,
   getAllMatches,
   getSeasonById,
   getSeasonRelegationEvents,
   getTagTeams,
+  getTiers,
   getWrestlers,
 } from "@/lib/data/cached";
+import { generateRecapSections } from "@/lib/recap/generate-recap";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -17,13 +20,15 @@ export default async function SeasonDetailPage({
 }) {
   const { seasonId } = await params;
 
-  const [season, allMatchRows, wrestlers, tagTeams, relegationEvents] =
+  const [season, allMatchRows, wrestlers, tagTeams, relegationEvents, tiers, allAssignments] =
     await Promise.all([
       getSeasonById(seasonId),
       getAllMatches(),
       getWrestlers(),
       getTagTeams(),
       getSeasonRelegationEvents(seasonId),
+      getTiers(),
+      getAllAssignments(),
     ]);
 
   if (!season) notFound();
@@ -45,6 +50,122 @@ export default async function SeasonDetailPage({
     if (m.winner_tag_team_id) return tagTeamMap[m.winner_tag_team_id] ?? "?";
     return "?";
   }
+
+  // ── Season recap ──────────────────────────────────────────────────────────
+  const nameOf = (id: string | null) =>
+    (id && (wrestlerMap[id] ?? tagTeamMap[id])) || "?";
+  const seasonPlayed = allMatchRows.filter(
+    (m) =>
+      m.season_id === seasonId &&
+      m.played_at &&
+      (m.winner_wrestler_id || m.winner_tag_team_id)
+  );
+  const tierNumberOf = new Map(tiers.map((t) => [t.id, t.tier_number]));
+
+  // Per-participant pool-play records for MVP / best record / most matches
+  const records = new Map<string, { wins: number; losses: number }>();
+  for (const m of seasonPlayed.filter((x) => x.match_phase === "pool_play")) {
+    const winner = (m.winner_wrestler_id || m.winner_tag_team_id)!;
+    const a = (m.wrestler_a_id || m.tag_team_a_id)!;
+    const b = (m.wrestler_b_id || m.tag_team_b_id)!;
+    const loser = winner === a ? b : a;
+    if (!records.has(winner)) records.set(winner, { wins: 0, losses: 0 });
+    if (!records.has(loser)) records.set(loser, { wins: 0, losses: 0 });
+    records.get(winner)!.wins++;
+    records.get(loser)!.losses++;
+  }
+  const rankedRecords = [...records.entries()]
+    .map(([id, r]) => ({
+      id,
+      ...r,
+      total: r.wins + r.losses,
+      winPct: r.wins + r.losses > 0 ? r.wins / (r.wins + r.losses) : 0,
+    }))
+    .filter((r) => r.total >= 3)
+    .sort((a, b) => b.winPct - a.winPct || b.wins - a.wins);
+  const mvpEntry = rankedRecords[0] ?? null;
+  const mvpAssignment = mvpEntry
+    ? allAssignments.find(
+        (a) =>
+          a.season_id === seasonId &&
+          (a.wrestler_id === mvpEntry.id || a.tag_team_id === mvpEntry.id)
+      )
+    : null;
+
+  const timedMatches = seasonPlayed.filter((m) => (m.match_time_seconds ?? 0) > 0);
+  const toRecordMatch = (m: (typeof timedMatches)[0]) => {
+    const winner = (m.winner_wrestler_id || m.winner_tag_team_id)!;
+    const a = (m.wrestler_a_id || m.tag_team_a_id)!;
+    const b = (m.wrestler_b_id || m.tag_team_b_id)!;
+    return {
+      time: m.match_time_seconds!,
+      winnerName: nameOf(winner),
+      loserName: nameOf(winner === a ? b : a),
+      tierName: m.tiers?.short_name || m.tiers?.name || "?",
+    };
+  };
+  const fastest = timedMatches.length
+    ? toRecordMatch(timedMatches.reduce((min, m) => (m.match_time_seconds! < min.match_time_seconds! ? m : min)))
+    : null;
+  const longest = timedMatches.length
+    ? toRecordMatch(timedMatches.reduce((max, m) => (m.match_time_seconds! > max.match_time_seconds! ? m : max)))
+    : null;
+  const mostMatchesEntry = [...records.entries()].sort(
+    (a, b) => b[1].wins + b[1].losses - (a[1].wins + a[1].losses)
+  )[0];
+
+  const recapSections = generateRecapSections({
+    seasonNumber: season.season_number,
+    champions: finals.map((f) => {
+      const winner = (f.winner_wrestler_id || f.winner_tag_team_id)!;
+      const a = (f.wrestler_a_id || f.tag_team_a_id)!;
+      const b = (f.wrestler_b_id || f.tag_team_b_id)!;
+      return {
+        tierName: f.tiers?.short_name || f.tiers?.name || "?",
+        tierNumber: f.tiers?.tier_number ?? 99,
+        divisionName: f.tiers?.divisions?.name ?? "",
+        winnerName: nameOf(winner),
+        runnerUpName: nameOf(winner === a ? b : a),
+        finalStipulation: f.stipulation,
+        finalTime: f.match_time_seconds,
+      };
+    }),
+    mvp: mvpEntry
+      ? {
+          name: nameOf(mvpEntry.id),
+          wins: mvpEntry.wins,
+          losses: mvpEntry.losses,
+          winPct: mvpEntry.winPct,
+          tierName:
+            mvpAssignment?.tiers?.short_name || mvpAssignment?.tiers?.name || "their tier",
+        }
+      : null,
+    records: {
+      fastestMatch: fastest,
+      longestMatch: longest,
+      bestRecord: mvpEntry
+        ? { name: nameOf(mvpEntry.id), wins: mvpEntry.wins, losses: mvpEntry.losses, winPct: mvpEntry.winPct }
+        : null,
+      mostMatches: mostMatchesEntry
+        ? { name: nameOf(mostMatchesEntry[0]), count: mostMatchesEntry[1].wins + mostMatchesEntry[1].losses }
+        : null,
+    },
+    totalMatches: seasonPlayed.length,
+    biggestMovers: relegationEvents
+      .filter((e) => e.from_tier_id && e.to_tier_id)
+      .map((e) => {
+        const from = tierNumberOf.get(e.from_tier_id!) ?? 0;
+        const to = tierNumberOf.get(e.to_tier_id!) ?? 0;
+        return {
+          name: nameOf(e.wrestler_id || e.tag_team_id),
+          fromTier: from,
+          toTier: to,
+          direction: (to < from ? "up" : "down") as "up" | "down",
+          change: Math.abs(from - to),
+        };
+      })
+      .sort((a, b) => b.change - a.change),
+  });
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
@@ -69,6 +190,27 @@ export default async function SeasonDetailPage({
           </p>
         )}
       </div>
+
+      {/* Season Recap */}
+      {recapSections.length > 0 && (
+        <div className="mb-10">
+          <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Season Recap
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 stagger-children">
+            {recapSections.map((section) => (
+              <Card key={section.title} className="border-border/40 bg-card/50">
+                <CardContent className="py-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    {section.emoji} {section.title}
+                  </p>
+                  <p className="mt-1.5 text-sm leading-relaxed">{section.content}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Champions */}
       <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">

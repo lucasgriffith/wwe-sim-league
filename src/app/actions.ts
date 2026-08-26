@@ -530,6 +530,99 @@ export async function recordMatchResult(
   revalidatePath("/season");
   revalidatePath("/season/playoffs");
   revalidatePath("/tiers");
+
+  // Detect fun milestones (streaks, records, pool completion) for the entry
+  // UI to toast. Pool play only — playoff drama speaks for itself.
+  if (match.match_phase === "pool_play") {
+    try {
+      return { milestones: await detectMilestonesForMatch(admin, match, winnerId) };
+    } catch {
+      return { milestones: [] };
+    }
+  }
+  return { milestones: [] };
+}
+
+async function detectMilestonesForMatch(
+  admin: ReturnType<typeof createAdminClient>,
+  match: {
+    id: string;
+    season_id: string;
+    tier_id: string;
+    pool: string | null;
+    tag_team_a_id: string | null;
+    wrestler_a_id: string | null;
+    wrestler_b_id: string | null;
+    tag_team_b_id: string | null;
+  },
+  winnerId: string
+) {
+  const isTag = !!match.tag_team_a_id;
+  const participantA = (isTag ? match.tag_team_a_id : match.wrestler_a_id)!;
+  const participantB = (isTag ? match.tag_team_b_id : match.wrestler_b_id)!;
+  const loserId = winnerId === participantA ? participantB : participantA;
+
+  const [{ data: seasonMatches }, { data: tier }, { data: names }] =
+    await Promise.all([
+      admin
+        .from("matches")
+        .select(
+          "id, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, match_time_seconds, tier_id, pool, match_phase, played_at"
+        )
+        .eq("season_id", match.season_id),
+      admin.from("tiers").select("name, short_name").eq("id", match.tier_id).single(),
+      isTag
+        ? admin.from("tag_teams").select("id, name").in("id", [winnerId, loserId])
+        : admin.from("wrestlers").select("id, name").in("id", [winnerId, loserId]),
+    ]);
+
+  const nameOf = (id: string) =>
+    (names ?? []).find((n) => n.id === id)?.name ?? "?";
+
+  const played = (seasonMatches ?? []).filter(
+    (m) => m.played_at && (m.winner_wrestler_id || m.winner_tag_team_id)
+  );
+  const contextMatches = played.map((m) => {
+    const winner = (m.winner_wrestler_id || m.winner_tag_team_id)!;
+    const a = (m.wrestler_a_id || m.tag_team_a_id)!;
+    const b = (m.wrestler_b_id || m.tag_team_b_id)!;
+    return {
+      id: m.id,
+      winner_id: winner,
+      loser_id: winner === a ? b : a,
+      match_time_seconds: m.match_time_seconds ?? 0,
+      tier_id: m.tier_id,
+      pool: m.pool,
+      played_at: m.played_at,
+    };
+  });
+
+  const tierPool = (seasonMatches ?? []).filter(
+    (m) => m.tier_id === match.tier_id && m.match_phase === "pool_play"
+  );
+  const poolMatches = tierPool.filter((m) => m.pool === match.pool);
+  const recorded = played.find((m) => m.id === match.id);
+
+  const { detectMilestones } = await import("@/lib/milestones/detect");
+  return detectMilestones(
+    {
+      matchId: match.id,
+      winnerId,
+      loserId,
+      winnerName: nameOf(winnerId),
+      loserName: nameOf(loserId),
+      matchTimeSeconds: recorded?.match_time_seconds ?? 0,
+      tierName: tier?.short_name || tier?.name || "?",
+      pool: match.pool,
+    },
+    {
+      allMatches: contextMatches,
+      tierTotalMatches: tierPool.length,
+      tierPlayedMatches: tierPool.filter((m) => m.played_at).length,
+      poolTotalMatches: poolMatches.length,
+      poolPlayedMatches: poolMatches.filter((m) => m.played_at).length,
+    }
+  );
 }
 
 export async function undoMatchResult(matchId: string) {
@@ -1185,6 +1278,84 @@ export async function fetchAllWrestlerImages() {
 
   revalidatePath("/roster");
   return { updated, total: wrestlers.length };
+}
+
+/**
+ * Audit wrestler photos: clear image_urls whose Wikimedia file no longer
+ * exists (deleted/renamed on Commons) or that aren't a usable photo format
+ * (Wikidata occasionally matches a name to a map or document). Cleared
+ * wrestlers can then be re-fetched with "Fetch Images".
+ */
+export async function auditWrestlerImages() {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: wrestlers } = await admin
+    .from("wrestlers")
+    .select("id, name, image_url")
+    .not("image_url", "is", null);
+  if (!wrestlers || wrestlers.length === 0) return { checked: 0, cleared: [] };
+
+  const { extractWikimediaFilename } = await import("@/components/ui/smart-image");
+
+  const BAD_EXTENSIONS = /\.(tiff?|pdf|djvu|ogv|webm|stl|xcf)$/i;
+  const badIds: string[] = [];
+  const clearedNames: string[] = [];
+  const toVerify: Array<{ id: string; name: string; file: string }> = [];
+
+  for (const w of wrestlers) {
+    let file: string | null = null;
+    try {
+      file = extractWikimediaFilename(new URL(w.image_url!));
+    } catch {
+      continue; // unparseable URL: leave it alone, it may be a manual upload
+    }
+    if (!file) continue; // not a Wikimedia URL
+    const normalized = file.replace(/_/g, " ");
+    if (BAD_EXTENSIONS.test(normalized)) {
+      badIds.push(w.id);
+      clearedNames.push(w.name);
+    } else {
+      toVerify.push({ id: w.id, name: w.name, file: normalized });
+    }
+  }
+
+  // Commons API accepts up to 50 titles per query
+  for (let i = 0; i < toVerify.length; i += 50) {
+    const batch = toVerify.slice(i, i + 50);
+    const titles = batch.map((b) => `File:${b.file}`).join("|");
+    const res = await fetch(
+      `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(titles)}&format=json&formatversion=2`,
+      { headers: { "User-Agent": "wwe-sim-league image audit" } }
+    );
+    if (!res.ok) continue; // API hiccup: skip batch rather than clearing good images
+    const json = await res.json();
+    const pages: Array<{ title: string; missing?: boolean }> =
+      json?.query?.pages ?? [];
+    for (const page of pages) {
+      if (!page.missing) continue;
+      const pageFile = page.title.replace(/^File:/, "");
+      const match = batch.find(
+        (b) => b.file.toLowerCase() === pageFile.toLowerCase()
+      );
+      if (match) {
+        badIds.push(match.id);
+        clearedNames.push(match.name);
+      }
+    }
+  }
+
+  if (badIds.length > 0) {
+    const { error } = await admin
+      .from("wrestlers")
+      .update({ image_url: null })
+      .in("id", badIds);
+    if (error) throw new Error(error.message);
+    revalidatePath("/roster");
+    revalidatePath("/");
+  }
+
+  return { checked: wrestlers.length, cleared: clearedNames };
 }
 
 // ─── Mid-Season Expansion ──────────────────────────────────────────────────
