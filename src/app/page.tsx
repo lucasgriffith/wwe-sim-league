@@ -6,7 +6,9 @@ import {
   getTiers,
   getSeasonMatches,
   getSeasonAssignments,
+  getAllMatches,
 } from "@/lib/data/cached";
+import { computeElo, eloOf } from "@/lib/elo/compute-elo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,13 +30,17 @@ function formatTime(seconds: number): string {
 }
 
 export default async function DashboardPage() {
-  const [season, completedSeasonList, wrestlers, allTagTeams] =
+  const [season, completedSeasonList, wrestlers, allTagTeams, careerMatches] =
     await Promise.all([
       getCurrentSeason(),
       getCompletedSeasons(),
       getWrestlers(),
       getTagTeams(),
+      getAllMatches(),
     ]);
+
+  // Career Elo across all seasons — powers the rankings below
+  const eloRatings = computeElo(careerMatches);
 
   const wrestlerCount = wrestlers.filter((w) => w.is_active).length;
   const tagTeamCount = allTagTeams.filter((t) => t.is_active).length;
@@ -378,10 +384,12 @@ export default async function DashboardPage() {
           losses,
           winPct,
           pwr,
+          elo: eloOf(eloRatings, id),
           streak,
         };
       })
-      .sort((a, b) => b.pwr - a.pwr || b.winPct - a.winPct)
+      // Ranked by career Elo — opponent-strength aware, unlike the PWR composite
+      .sort((a, b) => b.elo - a.elo || b.winPct - a.winPct)
       .slice(0, limit);
   }
 
@@ -725,7 +733,7 @@ export default async function DashboardPage() {
                       <span className="w-7" />
                       <span className="flex-1" />
                       <span className="text-[8px] uppercase tracking-wider text-muted-foreground/30 font-bold">W-L</span>
-                      <span className="text-[8px] uppercase tracking-wider text-gold/30 font-bold w-8 text-right">PWR</span>
+                      <span className="text-[8px] uppercase tracking-wider text-gold/30 font-bold w-8 text-right">ELO</span>
                     </div>
                     <div className="space-y-1.5">
                     {menRankings.map((w, i) => (
@@ -740,7 +748,7 @@ export default async function DashboardPage() {
                         )}
                         <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
                         <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
-                        <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.pwr}</span>
+                        <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.elo}</span>
                       </Link>
                     ))}
                     </div>
@@ -760,7 +768,7 @@ export default async function DashboardPage() {
                       <span className="w-7" />
                       <span className="flex-1" />
                       <span className="text-[8px] uppercase tracking-wider text-muted-foreground/30 font-bold">W-L</span>
-                      <span className="text-[8px] uppercase tracking-wider text-gold/30 font-bold w-8 text-right">PWR</span>
+                      <span className="text-[8px] uppercase tracking-wider text-gold/30 font-bold w-8 text-right">ELO</span>
                     </div>
                     <div className="space-y-1.5">
                     {womenRankings.map((w, i) => (
@@ -775,7 +783,7 @@ export default async function DashboardPage() {
                         )}
                         <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
                         <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
-                        <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.pwr}</span>
+                        <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.elo}</span>
                       </Link>
                     ))}
                     </div>
@@ -816,7 +824,7 @@ export default async function DashboardPage() {
                             )}
                             <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
                             <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
-                            <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.pwr}</span>
+                            <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.elo}</span>
                           </Link>
                         ))}
                       </div>
@@ -849,7 +857,7 @@ export default async function DashboardPage() {
                             )}
                             <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
                             <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
-                            <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.pwr}</span>
+                            <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.elo}</span>
                           </Link>
                         ))}
                       </div>

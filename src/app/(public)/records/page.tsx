@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAllMatches, getTagTeams, getWrestlers } from "@/lib/data/cached";
 import { computeRecordBook, type RecordParticipant } from "@/lib/records/compute-records";
+import { computeElo } from "@/lib/elo/compute-elo";
 import { Card, CardContent } from "@/components/ui/card";
 import { SmartImage } from "@/components/ui/smart-image";
 
@@ -44,7 +45,27 @@ export default async function RecordsPage() {
   const p = (id: string): RecordParticipant =>
     participants.get(id) ?? { name: "?", href: null, imageUrl: null, isTag: false };
 
+  // Elo leaders (min 5 matches so provisional ratings don't top the board)
+  const eloRatings = computeElo(matches);
+  const eloRows = [...eloRatings.entries()].filter(([, e]) => e.matches >= 5);
+  const topElo = [...eloRows].sort((a, b) => b[1].rating - a[1].rating)[0];
+  const topPeak = [...eloRows].sort((a, b) => b[1].peak - a[1].peak)[0];
+
   const leaderCards = [
+    {
+      label: "Highest Elo",
+      emoji: "📈",
+      record: topElo
+        ? { participantId: topElo[0], value: `${Math.round(topElo[1].rating)}`, detail: "current rating (min 5 matches)" }
+        : null,
+    },
+    {
+      label: "Peak Elo",
+      emoji: "🏔️",
+      record: topPeak
+        ? { participantId: topPeak[0], value: `${Math.round(topPeak[1].peak)}`, detail: "all-time high" }
+        : null,
+    },
     { label: "Most Wins", emoji: "👑", record: book.leaders.mostWins },
     { label: "Best Win %", emoji: "🎯", record: book.leaders.bestWinPct },
     { label: "Most Matches", emoji: "🛠️", record: book.leaders.mostMatches },

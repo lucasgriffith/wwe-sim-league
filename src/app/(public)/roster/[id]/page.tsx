@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { ProfileImageUpload } from "@/components/roster/profile-image-upload";
 import { SmartImage } from "@/components/ui/smart-image";
+import { RatingSparkline } from "@/components/ui/rating-sparkline";
+import { computeElo } from "@/lib/elo/compute-elo";
 import {
   getAllAssignments,
   getAllMatches,
@@ -132,6 +134,19 @@ export default async function WrestlerProfilePage({
   const winPct = allMatches.length > 0 ? ((wins / allMatches.length) * 100).toFixed(1) : null;
 
   const isCurrentChampion = !!currentChampions[id];
+
+  // Career Elo + rank within their division
+  const eloRatings = computeElo(allMatchRows);
+  const eloEntry = eloRatings.get(id) ?? null;
+  const eloRank = eloEntry
+    ? 1 +
+      wrestlers.filter(
+        (w) =>
+          w.id !== id &&
+          w.gender === wrestler.gender &&
+          (eloRatings.get(w.id)?.rating ?? -Infinity) > eloEntry.rating
+      ).length
+    : null;
 
   // Championships (finals won)
   const titlesWon = allMatches
@@ -325,6 +340,34 @@ export default async function WrestlerProfilePage({
           gradient="from-purple-500/5"
         />
       </div>
+
+      {/* Elo rating + trajectory */}
+      {eloEntry && eloEntry.history.length >= 2 && (
+        <div className="mt-3 rounded-xl border border-border/40 bg-gradient-to-br from-gold/5 to-transparent p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="shrink-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                Elo Rating
+              </p>
+              <p className="text-3xl font-bold tabular-nums text-gold">
+                {Math.round(eloEntry.rating)}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                peak {Math.round(eloEntry.peak)}
+                {eloRank != null && <> · #{eloRank} {wrestler.gender === "female" ? "women's" : "men's"} division</>}
+              </p>
+            </div>
+            <div className="flex-1 min-w-0 text-muted-foreground">
+              <RatingSparkline
+                points={eloEntry.history.map((h) => ({
+                  rating: h.rating,
+                  label: `${h.rating} — ${h.won ? "def." : "lost to"} ${wrestlerMap[h.opponentId] ?? "?"}${h.seasonNumber ? ` (S${h.seasonNumber})` : ""}`,
+                }))}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Titles Won */}
       {titlesWon.length > 0 && (
