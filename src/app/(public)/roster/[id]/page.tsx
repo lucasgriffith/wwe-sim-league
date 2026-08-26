@@ -361,6 +361,7 @@ export default async function WrestlerProfilePage({
               <RatingSparkline
                 points={eloEntry.history.map((h) => ({
                   rating: h.rating,
+                  won: h.won,
                   label: `${h.rating} — ${h.won ? "def." : "lost to"} ${wrestlerMap[h.opponentId] ?? "?"}${h.seasonNumber ? ` (S${h.seasonNumber})` : ""}`,
                 }))}
               />
