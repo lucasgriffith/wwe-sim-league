@@ -216,12 +216,12 @@ export default async function TierDetailPage({
       };
     });
 
-    // Compute GB values (relative to best record)
-    // First find the leader by raw wins desc, losses asc
-    const preSorted = [...stats].sort((a, b) => {
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      return a.losses - b.losses;
-    });
+    // Compute GB values (relative to best record). The reference must be the
+    // row with the best win-loss DIFFERENTIAL — picking by most wins alone
+    // made GB negative when a 1-0 row was measured against a 2-2 "leader"
+    const preSorted = [...stats].sort(
+      (a, b) => b.wins - b.losses - (a.wins - a.losses)
+    );
     if (preSorted.length > 0) {
       const leader = preSorted[0];
       stats.forEach((s) => {

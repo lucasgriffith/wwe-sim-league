@@ -191,11 +191,13 @@ export default async function StandingsPage() {
         };
       });
 
-    // Compute GB from best record
-    const preSorted = [...rows].sort((a, b) => {
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      return a.losses - b.losses;
-    });
+    // Compute GB from best record. The reference must be the row with the
+    // best win-loss DIFFERENTIAL (games back is (leaderDiff - diff) / 2) —
+    // picking by most wins alone made GB negative when e.g. a 1-0 row was
+    // measured against a 2-2 "leader"
+    const preSorted = [...rows].sort(
+      (a, b) => b.wins - b.losses - (a.wins - a.losses)
+    );
     const gbNums = new Map<string, number>();
     if (preSorted.length > 0) {
       const leader = preSorted[0];
