@@ -22,9 +22,11 @@ const navLinks = [
   { href: "/standings", label: "Standings" },
   { href: "/tag-teams", label: "Tag Teams" },
   { href: "/dynasty", label: "Dynasty" },
+  { href: "/records", label: "Records" },
   { href: "/history", label: "History" },
   { href: "/compare", label: "H2H" },
   { href: "/wiki", label: "Wiki" },
+  { href: "/export", label: "Export" },
 ];
 
 function isActive(pathname: string, href: string) {
