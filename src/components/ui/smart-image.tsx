@@ -50,6 +50,20 @@ function wikimediaThumbUrl(url: URL, intrinsicWidth: number): string | null {
   return /\.svg$/i.test(name) ? `${base}.png` : base;
 }
 
+/**
+ * Resolve a stored image URL to its lightweight displayable form: Wikimedia
+ * URLs become CDN thumb URLs, anything else passes through. For server
+ * components that need a plain src string (e.g. to hand to client charts).
+ */
+export function displaySrc(src: string, width: number): string {
+  try {
+    const url = new URL(src);
+    return wikimediaThumbUrl(url, width) ?? src;
+  } catch {
+    return src;
+  }
+}
+
 export function SmartImage({
   src,
   alt,

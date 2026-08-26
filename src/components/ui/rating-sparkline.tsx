@@ -1,17 +1,23 @@
 "use client";
 
 import { useRef, useState } from "react";
+/* eslint-disable @next/next/no-img-element */
 
 /**
  * Rating trajectory — accent-colored line over a dashed 1200 baseline, a
- * win/loss dot at every match, and a crosshair + tooltip that follows the
- * pointer (mouse or touch).
+ * win/loss dot at every match, and a crosshair + tooltip (with the
+ * opponent's photo) that follows the pointer.
+ *
+ * The line's SVG stretches to the container (preserveAspectRatio none),
+ * which would squash circles into ovals — so the dots and tooltip are HTML
+ * overlays positioned in percent/pixels, immune to the stretch.
  */
 
 interface Point {
   rating: number;
   label: string; // tooltip text, e.g. "1234 — def. Mosh (S1)"
   won: boolean;
+  opponentImage?: string | null;
 }
 
 const W = 280;
@@ -35,7 +41,9 @@ export function RatingSparkline({
   const span = Math.max(max - min, 20);
 
   const x = (i: number) => PAD + (i / (points.length - 1)) * (W - PAD * 2);
+  // viewBox height maps 1:1 to CSS pixels, so y works for HTML overlays too
   const y = (r: number) => PAD + (1 - (r - min) / span) * (height - PAD * 2);
+  const pct = (i: number) => (x(i) / W) * 100;
 
   const path = points
     .map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.rating).toFixed(1)}`)
@@ -51,10 +59,6 @@ export function RatingSparkline({
     setHovered(Math.max(0, Math.min(points.length - 1, idx)));
   }
 
-  // The SVG stretches to the container (preserveAspectRatio none), so convert
-  // viewBox x back to a % for positioning the HTML tooltip/crosshair
-  const pct = (i: number) => (x(i) / W) * 100;
-
   return (
     <div
       ref={containerRef}
@@ -65,7 +69,7 @@ export function RatingSparkline({
       {/* Tooltip */}
       {hovered != null && (
         <div
-          className="pointer-events-none absolute -top-9 z-10 whitespace-nowrap rounded-md border border-border/60 bg-card px-2 py-1 text-[11px] shadow-lg"
+          className="pointer-events-none absolute -top-10 z-10 flex items-center gap-1.5 whitespace-nowrap rounded-md border border-border/60 bg-card px-2 py-1 text-[11px] shadow-lg"
           style={{
             left: `${pct(hovered)}%`,
             transform: `translateX(${
@@ -73,7 +77,14 @@ export function RatingSparkline({
             })`,
           }}
         >
-          {points[hovered].label}
+          {points[hovered].opponentImage && (
+            <img
+              src={points[hovered].opponentImage!}
+              alt=""
+              className="h-[18px] w-[18px] rounded-full object-cover border border-border/40"
+            />
+          )}
+          <span>{points[hovered].label}</span>
         </div>
       )}
 
@@ -119,19 +130,25 @@ export function RatingSparkline({
           strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
         />
-        {/* Win/loss dot at every match; hovered point enlarged */}
-        {points.map((p, i) => (
-          <circle
-            key={i}
-            cx={x(i)}
-            cy={y(p.rating)}
-            r={hovered === i ? 4 : 2.5}
-            fill={p.won ? "#10b981" : "#ef4444"}
-            stroke="var(--background, #000)"
-            strokeWidth={hovered === i ? 1.5 : 0.75}
-          />
-        ))}
       </svg>
+
+      {/* Win/loss dots as HTML overlays — true circles, unaffected by the
+          SVG's horizontal stretch */}
+      {points.map((p, i) => (
+        <span
+          key={i}
+          className={`pointer-events-none absolute rounded-full ring-2 ring-background transition-[width,height] ${
+            p.won ? "bg-emerald-500" : "bg-red-500"
+          }`}
+          style={{
+            left: `${pct(i)}%`,
+            top: y(p.rating),
+            width: hovered === i ? 10 : 6,
+            height: hovered === i ? 10 : 6,
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+      ))}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ProfileImageUpload } from "@/components/roster/profile-image-upload";
 import { SmartImage } from "@/components/ui/smart-image";
 import { RatingSparkline } from "@/components/ui/rating-sparkline";
+import { displaySrc } from "@/components/ui/smart-image";
 import { computeElo } from "@/lib/elo/compute-elo";
 import {
   getAllAssignments,
@@ -359,11 +360,17 @@ export default async function WrestlerProfilePage({
             </div>
             <div className="flex-1 min-w-0 text-muted-foreground">
               <RatingSparkline
-                points={eloEntry.history.map((h) => ({
-                  rating: h.rating,
-                  won: h.won,
-                  label: `${h.rating} — ${h.won ? "def." : "lost to"} ${wrestlerMap[h.opponentId] ?? "?"}${h.seasonNumber ? ` (S${h.seasonNumber})` : ""}`,
-                }))}
+                points={eloEntry.history.map((h) => {
+                  const opponent = wrestlers.find((w) => w.id === h.opponentId);
+                  return {
+                    rating: h.rating,
+                    won: h.won,
+                    opponentImage: opponent?.image_url
+                      ? displaySrc(opponent.image_url, 40)
+                      : null,
+                    label: `${h.rating} — ${h.won ? "def." : "lost to"} ${opponent?.name ?? "?"}${h.seasonNumber ? ` (S${h.seasonNumber})` : ""}`,
+                  };
+                })}
               />
             </div>
           </div>
