@@ -60,11 +60,11 @@ export function StandingsClient({ divisions, champions = {} }: Props) {
       {/* Legend */}
       <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-border/30 bg-card/30 px-3 py-2">
         <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/40">Legend</span>
-        <span className="text-[9px] text-emerald-400 font-medium">● Playoff (Top 2)</span>
-        <span className="text-[9px] text-blue-400 font-medium">● Wild Card (3rd)</span>
+        <span className="text-[9px] text-emerald-400 font-medium">● Playoff (pool top 2)</span>
+        <span className="text-[9px] text-blue-400 font-medium">● Wild Card (best 2 remaining, both pools)</span>
         <span className="text-[9px] text-foreground/30 font-medium">● Safe</span>
-        <span className="text-[9px] text-orange-400 font-medium">● Relegation Playoff ⚔ (2nd from bottom)</span>
-        <span className="text-[9px] text-red-400 font-medium">● Auto-Relegate ↓ (Last)</span>
+        <span className="text-[9px] text-orange-400 font-medium">● Relegation Playoff ⚔ (3rd-4th from bottom, tier-wide)</span>
+        <span className="text-[9px] text-red-400 font-medium">● Auto-Relegate ↓ (tier bottom 2)</span>
       </div>
 
       {/* Tier standings */}
@@ -171,14 +171,13 @@ function StandingsTable({
         </thead>
         <tbody>
           {standings.map((s, i) => {
-            // Per-pool zone logic:
-            // Top 2 = Playoff, 3rd = Wild Card, 2nd from bottom = Relegation Playoff, Last = Auto-Relegate
-            // Everything in between = Safe
-            const isPlayoff = i < 2;
-            const isWildCard = i === 2 && count > 3;
-            const isAutoRelegate = i === count - 1 && count > 2;
-            const isRelegationPlayoff = i === count - 2 && count > 3 && !isPlayoff && !isWildCard;
-            const isSafe = !isPlayoff && !isWildCard && !isAutoRelegate && !isRelegationPlayoff;
+            // Zone comes from the server: playoff spots are per-pool, but
+            // wild cards and relegation zones are tier-wide (see zones.ts)
+            const isPlayoff = s.zone === "playoff";
+            const isWildCard = s.zone === "wildcard";
+            const isAutoRelegate = s.zone === "autorel";
+            const isRelegationPlayoff = s.zone === "relplayoff";
+            const isSafe = s.zone === "safe";
 
             let rankColor = "text-muted-foreground/50";
             let leftBorder = "";
@@ -205,11 +204,7 @@ function StandingsTable({
             // Zone group borders (inline styles for dynamic colors)
             function getZone(idx: number) {
               if (idx < 0 || idx >= count) return "none";
-              if (idx < 2) return "playoff";
-              if (idx === 2 && count > 3) return "wildcard";
-              if (idx === count - 1 && count > 2) return "autorel";
-              if (idx === count - 2 && count > 3 && idx >= 3) return "relplayoff";
-              return "safe";
+              return standings[idx].zone;
             }
             const myZone = getZone(i);
             const prevZone = getZone(i - 1);
@@ -296,10 +291,10 @@ function StandingsTable({
                       )}
                     </span>
                   </td>
-                  <td className="px-1 sm:px-3 py-2 text-center tabular-nums font-medium text-emerald-400">
+                  <td className={`px-1 sm:px-3 py-2 text-center tabular-nums font-medium ${s.wins > 0 ? "text-emerald-400" : "text-muted-foreground/40"}`}>
                     {s.wins}
                   </td>
-                  <td className="px-1 sm:px-3 py-2 text-center tabular-nums font-medium text-red-400">
+                  <td className={`px-1 sm:px-3 py-2 text-center tabular-nums font-medium ${s.losses > 0 ? "text-red-400" : "text-muted-foreground/40"}`}>
                     {s.losses}
                   </td>
                   <td className="px-1 sm:px-3 py-2 text-right tabular-nums font-medium">

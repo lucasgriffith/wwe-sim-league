@@ -28,6 +28,7 @@ import { computeClinchStatus, type ClinchStatus } from "@/lib/standings/clinch";
 import { computeStandings } from "@/lib/standings/compute-standings";
 import { computePlayoffSeeds, computeTagPlayoffSeeds } from "@/lib/playoffs/seeding";
 import { generateBracket } from "@/lib/playoffs/bracket";
+import { assignZones, type StandingZone } from "@/lib/standings/zones";
 import { FormDots } from "@/components/ui/form-dots";
 import { SmartImage } from "@/components/ui/smart-image";
 
@@ -208,6 +209,7 @@ export default async function TierDetailPage({
         streak,
         streakLabel: streak > 0 ? `W${streak}` : streak < 0 ? `L${Math.abs(streak)}` : "—",
         trend,
+        zone: "safe" as StandingZone,
         linkHref: isTag ? "/tag-teams" : `/roster/${wrestlerSlugMap[participantId!] ?? participantId}`,
         imageUrl,
         memberImages,
@@ -261,6 +263,36 @@ export default async function TierDetailPage({
 
     return { pool, stats, clinchMap, canonical };
   });
+
+  // Tier-wide zones: playoff spots are per-pool, wild cards and relegation
+  // are decided across the whole tier (see zones.ts)
+  {
+    const tierCompleted = matches.filter(
+      (m) =>
+        m.match_phase === "pool_play" &&
+        m.played_at &&
+        (m.winner_wrestler_id || m.winner_tag_team_id)
+    );
+    const allStatRows = standingsByPool.flatMap((p) => p.stats);
+    const combined = computeStandings(
+      allStatRows.map((s) => ({ id: s.id, name: s.name })),
+      tierCompleted.map((m) => ({
+        id: m.id,
+        wrestlerAId: (m.wrestler_a_id || m.tag_team_a_id)!,
+        wrestlerBId: (m.wrestler_b_id || m.tag_team_b_id)!,
+        winnerId: (m.winner_wrestler_id || m.winner_tag_team_id)!,
+        matchTimeSeconds: m.match_time_seconds ?? 0,
+      }))
+    );
+    const zones = assignZones({
+      poolRowIds: standingsByPool.map((p) => p.stats.map((s) => s.id)),
+      combinedOrder: combined.map((c) => c.participantId),
+      hasBracket: tier.has_pools,
+    });
+    allStatRows.forEach((s) => {
+      s.zone = zones.get(s.id) ?? "safe";
+    });
+  }
 
   const poolPlayMatches = matches.filter(
     (m) => m.match_phase === "pool_play"
@@ -429,15 +461,17 @@ export default async function TierDetailPage({
                 <div className="grid gap-6 lg:grid-cols-2">
                   {/* Standings Table */}
                   <div className="rounded-lg border border-border/40 overflow-hidden">
-                    {/* Legend */}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 bg-muted/5 border-b border-border/20">
-                      <span className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/40">Legend</span>
-                      <span className="text-[9px] text-emerald-400">● Playoff (Top 2)</span>
-                      <span className="text-[9px] text-blue-400">● Wild Card (3rd)</span>
-                      <span className="text-[9px] text-foreground/30">● Safe</span>
-                      <span className="text-[9px] text-orange-400">● Relegation Playoff ⚔ (2nd from bottom)</span>
-                      <span className="text-[9px] text-red-400">● Auto-Relegate ↓ (Last)</span>
-                    </div>
+                    {/* Legend — once per tier, above Pool A */}
+                    {pool !== "B" && (
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 bg-muted/5 border-b border-border/20">
+                        <span className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/40">Legend</span>
+                        <span className="text-[9px] text-emerald-400">● Playoff (pool top 2)</span>
+                        <span className="text-[9px] text-blue-400">● Wild Card (best 2 remaining)</span>
+                        <span className="text-[9px] text-foreground/30">● Safe</span>
+                        <span className="text-[9px] text-orange-400">● Relegation Playoff ⚔ (3rd-4th from bottom, tier-wide)</span>
+                        <span className="text-[9px] text-red-400">● Auto-Relegate ↓ (tier bottom 2)</span>
+                      </div>
+                    )}
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent border-border/40">
@@ -456,14 +490,12 @@ export default async function TierDetailPage({
                         {stats.map((s, i) => {
                           const count = stats.length;
 
-                          // Per-pool zone logic:
-                          // Top 2 = Playoff, 3rd = Wild Card, 2nd from bottom = Relegation Playoff, Last = Auto-Relegate
-                          // Everything in between = Safe
-                          const isPlayoff = i < 2;
-                          const isWildCard = i === 2 && count > 3;
-                          const isAutoRelegate = i === count - 1 && count > 2;
-                          const isRelegationPlayoff = i === count - 2 && count > 3 && !isPlayoff && !isWildCard;
-                          const isSafe = !isPlayoff && !isWildCard && !isAutoRelegate && !isRelegationPlayoff;
+                          // Zone computed tier-wide server-side (see zones.ts)
+                          const isPlayoff = s.zone === "playoff";
+                          const isWildCard = s.zone === "wildcard";
+                          const isAutoRelegate = s.zone === "autorel";
+                          const isRelegationPlayoff = s.zone === "relplayoff";
+                          const isSafe = s.zone === "safe";
 
                           let rankColor = "text-muted-foreground/50";
                           let leftBorder = "";
@@ -490,11 +522,7 @@ export default async function TierDetailPage({
                           // Zone group borders
                           function getZone(idx: number) {
                             if (idx < 0 || idx >= count) return "none";
-                            if (idx < 2) return "playoff";
-                            if (idx === 2 && count > 3) return "wildcard";
-                            if (idx === count - 1 && count > 2) return "autorel";
-                            if (idx === count - 2 && count > 3 && idx >= 3) return "relplayoff";
-                            return "safe";
+                            return stats[idx].zone;
                           }
                           const myZone = getZone(i);
                           const prevZone = getZone(i - 1);
@@ -580,10 +608,10 @@ export default async function TierDetailPage({
                                     )}
                                   </span>
                                 </TableCell>
-                                <TableCell className="text-center tabular-nums font-medium text-emerald-400 px-1 sm:px-4">
+                                <TableCell className={`text-center tabular-nums font-medium ${s.wins > 0 ? "text-emerald-400" : "text-muted-foreground/40"} px-1 sm:px-4`}>
                                   {s.wins}
                                 </TableCell>
-                                <TableCell className="text-center tabular-nums font-medium text-red-400 px-1 sm:px-4">
+                                <TableCell className={`text-center tabular-nums font-medium ${s.losses > 0 ? "text-red-400" : "text-muted-foreground/40"} px-1 sm:px-4`}>
                                   {s.losses}
                                 </TableCell>
                                 <TableCell className="text-center tabular-nums font-medium px-1 sm:px-4">

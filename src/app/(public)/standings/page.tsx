@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { StandingsClient } from "@/components/standings/standings-client";
 import { computeStandings } from "@/lib/standings/compute-standings";
+import { assignZones, type StandingZone } from "@/lib/standings/zones";
 import {
   getActivePlaySeason,
   getChampions,
@@ -28,6 +29,7 @@ export interface Standing {
   gb: string;
   streak: string;
   trend: boolean[];
+  zone: StandingZone;
   linkHref: string | null;
   imageUrl: string | null;
   memberImages?: [string | null, string | null];
@@ -182,6 +184,7 @@ export default async function StandingsPage() {
           gb: "",
           streak,
           trend,
+          zone: "safe" as StandingZone,
           linkHref: isTag ? "/tag-teams" : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
           imageUrl: isTag ? null : (wrestlerImageMap[pid] ?? null),
           ...(isTag && tagMemberImages[pid] ? { memberImages: tagMemberImages[pid] } : {}),
@@ -246,6 +249,33 @@ export default async function StandingsPage() {
           standings: computeStandingsForPool(t.id, pool, isTag),
         }))
       : [{ pool: null, standings: computeStandingsForPool(t.id, null, isTag) }];
+
+    // Zones: playoff spots are per-pool, but wild cards and relegation are
+    // tier-wide — compute the combined order and stamp each row
+    const allRows = pools.flatMap((p) => p.standings);
+    const tierPlayed = playedMatches.filter(
+      (m) =>
+        m.tier_id === t.id &&
+        (isTag ? m.winner_tag_team_id : m.winner_wrestler_id)
+    );
+    const combined = computeStandings(
+      allRows.map((r) => ({ id: r.id, name: r.name })),
+      tierPlayed.map((m) => ({
+        id: `${m.tier_id}-${m.wrestler_a_id ?? m.tag_team_a_id}`,
+        wrestlerAId: (isTag ? m.tag_team_a_id : m.wrestler_a_id)!,
+        wrestlerBId: (isTag ? m.tag_team_b_id : m.wrestler_b_id)!,
+        winnerId: (isTag ? m.winner_tag_team_id : m.winner_wrestler_id)!,
+        matchTimeSeconds: m.match_time_seconds ?? 0,
+      }))
+    );
+    const zones = assignZones({
+      poolRowIds: pools.map((p) => p.standings.map((r) => r.id)),
+      combinedOrder: combined.map((c) => c.participantId),
+      hasBracket: t.has_pools,
+    });
+    allRows.forEach((r) => {
+      r.zone = zones.get(r.id) ?? "safe";
+    });
 
     allTierStandings.push({
       tierId: t.id,

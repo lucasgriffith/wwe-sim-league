@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/layout/site-header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -22,11 +23,17 @@ export const metadata: Metadata = {
     "CPU-vs-CPU simulation league with tiered championships and relegation",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Cookie-less visitors resolve to null without a network call
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <html
       lang="en"
@@ -37,7 +44,7 @@ export default function RootLayout({
         <ThemeProvider>
           <SiteHeader />
           <main className="flex-1 pb-16 md:pb-0">{children}</main>
-          <MobileNav />
+          <MobileNav isAdmin={!!user} />
           <Toaster />
         </ThemeProvider>
       </body>
