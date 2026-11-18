@@ -298,14 +298,30 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
   }
 
   return (
-    <div className="rounded-2xl border-2 border-gold/20 bg-gradient-to-b from-gold/[0.04] via-card to-card overflow-hidden relative">
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent" />
+    <div className="cut-br relative overflow-hidden bg-card">
+      <div aria-hidden="true" className="halftone absolute inset-0" />
+
+      {/* Title plate */}
+      <div className="relative flex">
+        <Link
+          href={`/tiers/${tier?.slug ?? tier?.id ?? ""}`}
+          className="cut-plate block min-w-0 max-w-[85%] bg-gold py-3 pl-4 pr-14 text-black"
+        >
+          <span className="block font-mono text-[10px] font-bold tracking-widest">
+            UP NEXT · TIER {tier?.tier_number}
+            {match.pool ? ` · POOL ${match.pool}` : ""}
+          </span>
+          <span className="font-display block truncate text-2xl font-black sm:text-3xl">
+            {tier?.fullName ?? tier?.name ?? "?"}
+          </span>
+        </Link>
+      </div>
 
       {/* Header row */}
-      <div className="px-4 pt-3 pb-2">
+      <div className="relative px-4 pt-2 pb-2">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gold/60">
-            Up Next
+          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+            {remainingCount} matches left
           </span>
           <div className="flex items-center gap-1.5">
             <Button
@@ -315,38 +331,21 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
               className="h-7 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
               disabled={isPending}
             >
-              🎲 Shuffle
+              Shuffle
             </Button>
-            <span className="text-[9px] text-muted-foreground/30 tabular-nums">
-              {remainingCount} left
-            </span>
+
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href={`/tiers/${tier?.slug ?? tier?.id ?? ""}`}>
-            <Badge variant="outline" className="text-xs border-gold/20 text-gold/70 shrink-0 hover:bg-gold/10 transition-colors cursor-pointer">
-              T{tier?.tier_number}
-            </Badge>
-          </Link>
-          <Link href={`/tiers/${tier?.slug ?? tier?.id ?? ""}`} className="text-xs font-bold text-foreground truncate hover:text-gold transition-colors">
-            {tier?.fullName ?? tier?.name ?? "?"}
-          </Link>
-          {match.pool && (
-            <Badge variant="outline" className="text-xs border-border/30 text-muted-foreground shrink-0">
-              Pool {match.pool}
-            </Badge>
-          )}
         </div>
       </div>
 
       {/* Main matchup */}
-      <div className="px-3 sm:px-4 pb-2">
+      <div className="relative px-3 sm:px-4 pb-2">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 sm:gap-2">
           {/* Left participant */}
           <div className="flex items-center gap-2 sm:gap-3">
             <ParticipantPhoto stats={a} />
             <div className="min-w-0 flex-1">
-              <div className="font-bold text-xs sm:text-sm leading-tight break-words">
+              <div className="font-display font-black text-xl sm:text-3xl break-words">
                 {isTag ? (
                   <Link href={`/tag-teams/${aId}`} className="hover:text-gold transition-colors"><RankBadge rank={a.eloRank} />{a.name}</Link>
                 ) : (
@@ -375,14 +374,14 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
 
           {/* VS */}
           <div className="flex flex-col items-center px-1">
-            <span className="text-base font-black text-muted-foreground/15">VS</span>
+            <span className="font-display text-2xl font-black text-muted-foreground/50">VS</span>
           </div>
 
           {/* Right participant */}
           <div className="flex items-center gap-2 sm:gap-3 flex-row-reverse">
             <ParticipantPhoto stats={b} />
             <div className="min-w-0 flex-1 text-right">
-              <div className="font-bold text-xs sm:text-sm leading-tight break-words">
+              <div className="font-display font-black text-xl sm:text-3xl break-words">
                 {isTag ? (
                   <Link href={`/tag-teams/${bId}`} className="hover:text-gold transition-colors">{b.name}<RankBadge rank={b.eloRank} className="ml-1 mr-0" /></Link>
                 ) : (
@@ -416,8 +415,8 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
         const pA = 1 / (1 + Math.pow(10, (b.elo - a.elo) / 400));
         const pctA = Math.round(pA * 100);
         return (
-          <div className="px-3 sm:px-4 pb-3">
-            <div className="flex items-center gap-2 text-[10px] font-bold tabular-nums">
+          <div className="relative px-3 sm:px-4 pb-3">
+            <div className="flex items-center gap-2 text-xs font-bold tabular-nums">
               <span className={pctA >= 50 ? "text-gold" : "text-muted-foreground/60"}>{pctA}%</span>
               <div className="flex h-1.5 flex-1 overflow-hidden rounded-full bg-muted/20">
                 <div className="h-full bg-gold/80" style={{ width: `${pctA}%` }} />
@@ -436,7 +435,7 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
       })() : null}
 
       {/* Inline match entry */}
-      <div className="border-t border-gold/10 bg-gold/[0.02] px-4 py-3">
+      <div className="relative border-t border-border px-4 py-3">
         <div className="flex items-center gap-2">
           {/* Time input */}
           <div className="flex items-center gap-1 shrink-0">

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 const ACCENT_OPTIONS = [
-  { name: "Gold", color: "212, 175, 55", dark: "184, 148, 30" },
+  { name: "Gold", color: "242, 193, 78", dark: "214, 164, 44" },
   { name: "Red", color: "239, 68, 68", dark: "220, 50, 50" },
   { name: "Blue", color: "59, 130, 246", dark: "37, 110, 220" },
   { name: "Emerald", color: "16, 185, 129", dark: "12, 160, 110" },

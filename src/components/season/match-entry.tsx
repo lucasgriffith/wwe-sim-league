@@ -319,7 +319,7 @@ export function MatchEntry({
       {justSubmitted && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-fade-in pointer-events-none">
           <div className="text-center">
-            <div className="text-5xl mb-2">🏆</div>
+            <div className="text-5xl mb-2"></div>
             <div className="text-2xl font-bold text-gold">
               {justSubmitted} wins!
             </div>
@@ -461,7 +461,7 @@ export function MatchEntry({
           <CardContent className="py-12 text-center">
             {tiersWithMatches.length === 0 ? (
               <div>
-                <div className="text-4xl mb-3">🎉</div>
+                <div className="text-4xl mb-3"></div>
                 <p className="text-lg font-bold">All matches complete!</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {totalCount} matches played this season

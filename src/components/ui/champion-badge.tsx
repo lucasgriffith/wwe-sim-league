@@ -22,7 +22,7 @@ export function ChampionBadge({ beltName, beltImageUrl }: ChampionBadgeProps) {
         />
       ) : (
         <span className="text-sm leading-none" role="img" aria-label={`${beltName} Champion`}>
-          🏆
+          
         </span>
       )}
     </span>

@@ -232,7 +232,7 @@ export default async function TagTeamProfilePage({
           </p>
           {reigning && (
             <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-xs font-semibold text-gold">
-              🏆 Reigning {reigning.beltName} Champions
+              Reigning {reigning.beltName} Champions
             </p>
           )}
         </div>
@@ -321,7 +321,7 @@ export default async function TagTeamProfilePage({
                     className="h-12 w-auto object-contain mx-auto mb-2"
                   />
                 ) : (
-                  <div className="text-2xl text-center mb-2">🏆</div>
+                  <div className="text-2xl text-center mb-2"></div>
                 )}
                 <p className="text-xs font-bold text-center">{m.tiers?.short_name || m.tiers?.name}</p>
                 <p className="text-[10px] text-muted-foreground text-center mt-0.5">

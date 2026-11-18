@@ -175,7 +175,7 @@ export function DynastyTabs({
                 key={c.holderId + c.tierName}
                 className="flex items-center gap-2 rounded-md border border-gold/10 bg-background/50 px-3 py-2"
               >
-                <span className="text-sm">🏆</span>
+                <span className="text-sm"></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold text-gold truncate">
                     {c.holderName}
@@ -311,7 +311,7 @@ export function DynastyTabs({
                                   : "bg-muted/30 text-muted-foreground/60 border-border/20"
                               }`}
                             >
-                              {t.isCurrent ? "🏆 " : ""}{t.name} (S{t.season})
+                              {t.isCurrent ? "" : ""}{t.name} (S{t.season})
                             </Badge>
                           ))}
                         </div>
@@ -418,7 +418,7 @@ export function DynastyTabs({
                                     : "bg-muted/30 text-muted-foreground/60 border-border/20"
                                 }`}
                               >
-                                {t.isCurrent ? "🏆 " : ""}{t.name} (S{t.season})
+                                {t.isCurrent ? "" : ""}{t.name} (S{t.season})
                               </Badge>
                             ))}
                           </div>

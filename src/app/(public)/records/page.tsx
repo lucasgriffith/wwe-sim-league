@@ -54,24 +54,24 @@ export default async function RecordsPage() {
   const leaderCards = [
     {
       label: "Highest Elo",
-      emoji: "📈",
+      emoji: "",
       record: topElo
         ? { participantId: topElo[0], value: `${Math.round(topElo[1].rating)}`, detail: "current rating (min 5 matches)" }
         : null,
     },
     {
       label: "Peak Elo",
-      emoji: "🏔️",
+      emoji: "",
       record: topPeak
         ? { participantId: topPeak[0], value: `${Math.round(topPeak[1].peak)}`, detail: "all-time high" }
         : null,
     },
-    { label: "Most Wins", emoji: "👑", record: book.leaders.mostWins },
-    { label: "Best Win %", emoji: "🎯", record: book.leaders.bestWinPct },
-    { label: "Most Matches", emoji: "🛠️", record: book.leaders.mostMatches },
-    { label: "Most Titles", emoji: "🏆", record: book.leaders.mostTitles },
-    { label: "Quickest Worker", emoji: "⚡", record: book.leaders.quickestAvg },
-    { label: "Goes the Distance", emoji: "⏳", record: book.leaders.longestAvg },
+    { label: "Most Wins", emoji: "", record: book.leaders.mostWins },
+    { label: "Best Win %", emoji: "", record: book.leaders.bestWinPct },
+    { label: "Most Matches", emoji: "", record: book.leaders.mostMatches },
+    { label: "Most Titles", emoji: "", record: book.leaders.mostTitles },
+    { label: "Quickest Worker", emoji: "", record: book.leaders.quickestAvg },
+    { label: "Goes the Distance", emoji: "", record: book.leaders.longestAvg },
   ].filter((c) => c.record);
 
   const hasAnything =
@@ -101,7 +101,7 @@ export default async function RecordsPage() {
           {/* Career leaders */}
           {leaderCards.length > 0 && (
             <section>
-              <SectionHeading emoji="👑" title="Career Leaders" />
+              <SectionHeading emoji="" title="Career Leaders" />
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
                 {leaderCards.map(({ label, emoji, record }) => {
                   const holder = p(record!.participantId);
@@ -111,7 +111,7 @@ export default async function RecordsPage() {
                         <Avatar participant={holder} size={44} />
                         <div className="min-w-0 flex-1">
                           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                            {emoji} {label}
+                            {label}
                           </p>
                           <ParticipantLink participant={holder} className="text-sm font-bold truncate block" />
                           <p className="text-[11px] text-muted-foreground/60">{record!.detail}</p>
@@ -130,7 +130,7 @@ export default async function RecordsPage() {
           {/* Match time records */}
           <div className="grid gap-6 lg:grid-cols-2">
             <RecordList
-              emoji="⚡"
+              emoji=""
               title="Fastest Matches"
               rows={book.fastestMatches.map((r) => ({
                 key: `${r.winnerId}-${r.time}`,
@@ -148,7 +148,7 @@ export default async function RecordsPage() {
               }))}
             />
             <RecordList
-              emoji="⏱️"
+              emoji=""
               title="Longest Matches"
               rows={book.longestMatches.map((r) => ({
                 key: `${r.winnerId}-${r.time}`,
@@ -170,7 +170,7 @@ export default async function RecordsPage() {
           {/* Streaks */}
           <div className="grid gap-6 lg:grid-cols-2">
             <RecordList
-              emoji="🔥"
+              emoji=""
               title="Longest Win Streaks"
               rows={book.winStreaks.map((r) => ({
                 key: r.participantId,
@@ -178,12 +178,12 @@ export default async function RecordsPage() {
                 primary: (
                   <ParticipantLink participant={p(r.participantId)} className="font-semibold hover:text-gold transition-colors" />
                 ),
-                context: [r.seasonSpan, r.active ? "active 🔴" : null].filter(Boolean).join(" · "),
+                context: [r.seasonSpan, r.active ? "active " : null].filter(Boolean).join(" · "),
                 value: `${r.length}W`,
               }))}
             />
             <RecordList
-              emoji="🧊"
+              emoji=""
               title="Longest Losing Streaks"
               rows={book.lossStreaks.map((r) => ({
                 key: r.participantId,
@@ -200,7 +200,7 @@ export default async function RecordsPage() {
           {/* Rivalries + stipulations */}
           <div className="grid gap-6 lg:grid-cols-2">
             <RecordList
-              emoji="⚔️"
+              emoji=""
               title="Rivalries"
               subtitle="Pairings that have met more than once"
               rows={book.rivalries.map((r) => ({
@@ -217,7 +217,7 @@ export default async function RecordsPage() {
               }))}
             />
             <RecordList
-              emoji="🔒"
+              emoji=""
               title="Stipulations"
               subtitle="Most-used match types and who owns them"
               rows={book.stipulations.map((st) => ({
@@ -237,7 +237,7 @@ export default async function RecordsPage() {
           {/* Upsets */}
           {book.upsets.length > 0 && (
             <RecordList
-              emoji="😱"
+              emoji=""
               title="Biggest Upsets"
               subtitle="Lowest-rated winners over highest-rated opponents"
               rows={book.upsets.map((r, i) => ({
@@ -267,8 +267,8 @@ export default async function RecordsPage() {
 function SectionHeading({ emoji, title, subtitle }: { emoji: string; title: string; subtitle?: string }) {
   return (
     <div className="mb-3">
-      <h2 className="flex items-center gap-2 text-base font-semibold">
-        <span>{emoji}</span> {title}
+      <h2 className="rule-title text-2xl">
+        {title}
       </h2>
       {subtitle && <p className="text-xs text-muted-foreground/60 mt-0.5">{subtitle}</p>}
     </div>

@@ -670,8 +670,8 @@ export default async function DashboardPage() {
           {/* On Fire (own column) */}
           {onFire.length > 0 && (
             <div className="max-h-[400px] overflow-y-auto">
-              <h3 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2 flex items-center gap-1">
-                <span>🔥</span> On Fire
+              <h3 className="rule-title mb-2 text-xl">
+                On Fire
               </h3>
               <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">
                 {onFire.slice(0, 8).map((w) => (
@@ -685,7 +685,7 @@ export default async function DashboardPage() {
                     )}
                     <span className="text-[11px] font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
                     <span className="text-[9px] font-bold text-amber-400 shrink-0">
-                      {Array.from({ length: Math.min(w.streak, 3) }).map((_, i) => "🔥").join("")} {w.streak}
+                      W{w.streak}
                     </span>
                   </Link>
                 ))}
@@ -696,8 +696,8 @@ export default async function DashboardPage() {
           {/* Ice Cold (own column) */}
           {iceCold.length > 0 && (
             <div className="max-h-[400px] overflow-y-auto">
-              <h3 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2 flex items-center gap-1">
-                <span>🧊</span> Ice Cold
+              <h3 className="rule-title mb-2 text-xl">
+                Ice Cold
               </h3>
               <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">
                 {iceCold.slice(0, 8).map((w) => (
@@ -711,7 +711,7 @@ export default async function DashboardPage() {
                     )}
                     <span className="text-[11px] font-semibold truncate flex-1 group-hover:text-blue-400 transition-colors">{w.name}</span>
                     <span className="text-[9px] font-bold text-blue-400 shrink-0">
-                      {Array.from({ length: Math.min(Math.abs(w.streak), 3) }).map((_, i) => "🧊").join("")} {Math.abs(w.streak)}L
+                      L{Math.abs(w.streak)}
                     </span>
                   </Link>
                 ))}
@@ -723,8 +723,8 @@ export default async function DashboardPage() {
         {/* ── Power Rankings (3 columns) ──────────────────────────────── */}
         {(menRankings.length > 0 || womenRankings.length > 0) && (
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-3 flex items-center gap-1.5">
-              <span>⚡</span> Elo Rankings
+            <h2 className="rule-title mb-3 flex items-baseline gap-1.5 text-2xl">
+              Elo Rankings
               <Link href="/rankings" className="ml-auto text-[10px] font-semibold normal-case tracking-normal text-gold/70 hover:text-gold">Full rankings →</Link>
             </h2>
             <div className="grid gap-4 lg:grid-cols-3">
@@ -889,7 +889,7 @@ export default async function DashboardPage() {
           {recentMatches.length > 0 && (
             <Card className="border-border/30 bg-card/50">
               <CardHeader className="pb-3">
-                <CardTitle className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50">
+                <CardTitle className="font-display text-xl font-extrabold">
                   Recent Results
                 </CardTitle>
               </CardHeader>
@@ -979,7 +979,7 @@ export default async function DashboardPage() {
           {tierProgress.length > 0 && (
             <Card className="border-border/30 bg-card/50">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50">
+                <CardTitle className="font-display text-xl font-extrabold">
                   Tier Progress
                 </CardTitle>
               </CardHeader>
@@ -1052,8 +1052,8 @@ export default async function DashboardPage() {
         {/* ── Championship Belt Gallery ───────────────────────────────── */}
         {champions.length > 0 && (
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-3 flex items-center gap-1.5">
-              <span>🏆</span> Championship Holders
+            <h2 className="rule-title mb-3 flex items-baseline gap-1.5 text-2xl">
+              Championship Holders
             </h2>
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
               {champions.sort((a, b) => a.tierNumber - b.tierNumber).map((c) => (
@@ -1062,7 +1062,7 @@ export default async function DashboardPage() {
                     <SmartImage src={c.beltImageUrl} alt={c.tierName} width={240} height={96} className="h-12 w-full object-contain mx-auto mb-2 opacity-80 group-hover:opacity-100 transition-opacity" />
                   ) : (
                     <div className="h-12 flex items-center justify-center mb-2">
-                      <span className="text-2xl opacity-30 group-hover:opacity-60 transition-opacity">🏆</span>
+                      <span className="text-2xl opacity-30 group-hover:opacity-60 transition-opacity"></span>
                     </div>
                   )}
                   <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/40 truncate">{c.tierName}</p>

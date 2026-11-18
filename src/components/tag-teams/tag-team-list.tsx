@@ -218,7 +218,7 @@ export function TagTeamList({
                       >
                         {w.name}
                         {wrestlersInTeams.has(w.id) && (
-                          <span className="ml-1.5 text-[10px] text-amber-400/70">⚑ in team</span>
+                          <span className="ml-1.5 text-[10px] text-amber-400/70">in team</span>
                         )}
                       </SelectItem>
                     ))}
@@ -247,7 +247,7 @@ export function TagTeamList({
                         >
                           {w.name}
                           {wrestlersInTeams.has(w.id) && (
-                            <span className="ml-1.5 text-[10px] text-amber-400/70">⚑ in team</span>
+                            <span className="ml-1.5 text-[10px] text-amber-400/70">in team</span>
                           )}
                         </SelectItem>
                       ))}
@@ -538,7 +538,7 @@ function EditTagTeamDialog({
                     >
                       {w.name}
                       {inOtherTeam && (
-                        <span className="ml-1.5 text-[10px] text-amber-400/70">⚑ in team</span>
+                        <span className="ml-1.5 text-[10px] text-amber-400/70">in team</span>
                       )}
                     </SelectItem>
                   );
@@ -567,7 +567,7 @@ function EditTagTeamDialog({
                       >
                         {w.name}
                         {inOtherTeam && (
-                          <span className="ml-1.5 text-[10px] text-amber-400/70">⚑ in team</span>
+                          <span className="ml-1.5 text-[10px] text-amber-400/70">in team</span>
                         )}
                       </SelectItem>
                     );

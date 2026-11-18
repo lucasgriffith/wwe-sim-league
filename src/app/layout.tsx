@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Barlow, Big_Shoulders, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -7,14 +7,24 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Broadcast type system: condensed display for names and headlines, a plain
+// sans for reading, a mono for ratings and times
+const fontBody = Barlow({
+  variable: "--font-body",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const fontDisplay = Big_Shoulders({
+  variable: "--font-display",
   subsets: ["latin"],
+  weight: ["600", "800", "900"],
+});
+
+const fontData = JetBrains_Mono({
+  variable: "--font-data",
+  subsets: ["latin"],
+  weight: ["500", "700"],
 });
 
 export const metadata: Metadata = {
@@ -37,7 +47,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${fontBody.variable} ${fontDisplay.variable} ${fontData.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">

@@ -68,7 +68,7 @@ export function UpcomingSchedule({
   if (matches.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border/40 bg-card/30 px-4 py-12 text-center">
-        <div className="text-3xl mb-2">🎉</div>
+        <div className="text-3xl mb-2"></div>
         <p className="text-sm text-muted-foreground">
           No upcoming matches — all done!
         </p>

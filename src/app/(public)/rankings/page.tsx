@@ -84,13 +84,13 @@ function Poll({
   if (rows.length === 0) return null;
   return (
     <section>
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-base font-semibold">{title}</h2>
+      <div className="rule-title mb-0 flex items-baseline justify-between">
+        <h2 className="text-2xl">{title}</h2>
         <span className="text-xs text-muted-foreground/60">
           Top {rows.length} of {total}
         </span>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-border/40">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/20 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
@@ -111,7 +111,7 @@ function Poll({
                   key={s.id}
                   className={`border-t border-border/10 ${s.rank === 1 ? "bg-gold/[0.05]" : ""}`}
                 >
-                  <td className={`px-2 py-2 text-right font-mono text-sm font-bold tabular-nums ${s.rank === 1 ? "text-gold" : s.rank <= 5 ? "text-foreground/80" : "text-muted-foreground/50"}`}>
+                  <td className={`font-display px-2 py-2 text-right text-2xl font-black ${s.rank === 1 ? "text-gold" : s.rank <= 5 ? "text-foreground" : "text-muted-foreground"}`}>
                     {s.rank}
                   </td>
                   <td className="px-1 py-2 text-center">
@@ -132,7 +132,7 @@ function Poll({
                           {p.name.charAt(0)}
                         </span>
                       )}
-                      <span className="truncate font-semibold transition-colors group-hover:text-gold">
+                      <span className="font-display truncate text-lg font-extrabold transition-colors group-hover:text-gold">
                         {p.name}
                       </span>
                     </Link>

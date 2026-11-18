@@ -134,7 +134,7 @@ export function MatchCardExport({
       onClick={handleShare}
       className="h-7 text-[11px] gap-1 text-gold/60 hover:text-gold hover:bg-gold/10"
     >
-      📸 Share
+      Share
     </Button>
   );
 }

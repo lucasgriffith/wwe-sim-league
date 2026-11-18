@@ -62,19 +62,19 @@ export function detectMilestones(
 
   if (streak === 3) {
     milestones.push({
-      emoji: "🔥",
+      emoji: "",
       message: `${match.winnerName} is on a 3-match win streak!`,
       type: "info",
     });
   } else if (streak === 5) {
     milestones.push({
-      emoji: "🔥🔥",
+      emoji: "",
       message: `${match.winnerName} is DOMINANT — 5-match win streak!`,
       type: "success",
     });
   } else if (streak >= 7) {
     milestones.push({
-      emoji: "🔥🔥🔥",
+      emoji: "",
       message: `${match.winnerName} is UNSTOPPABLE — ${streak}-match win streak!`,
       type: "success",
     });
@@ -94,7 +94,7 @@ export function detectMilestones(
         const mins = Math.floor(match.matchTimeSeconds / 60);
         const secs = match.matchTimeSeconds % 60;
         milestones.push({
-          emoji: "⚡",
+          emoji: "",
           message: `Fastest match this season! ${mins}:${secs.toString().padStart(2, "0")} by ${match.winnerName}`,
           type: "info",
         });
@@ -105,7 +105,7 @@ export function detectMilestones(
   // ── Pool Play Complete ────────────────────────────────────────
   if (context.poolPlayedMatches === context.poolTotalMatches && context.poolTotalMatches > 0) {
     milestones.push({
-      emoji: "✅",
+      emoji: "",
       message: `Pool ${match.pool || ""} play complete for ${match.tierName}!`,
       type: "success",
     });
@@ -114,7 +114,7 @@ export function detectMilestones(
   // ── Tier Pool Play Complete ───────────────────────────────────
   if (context.tierPlayedMatches === context.tierTotalMatches && context.tierTotalMatches > 0) {
     milestones.push({
-      emoji: "🏆",
+      emoji: "",
       message: `All pool play matches complete for ${match.tierName}! Ready for playoffs.`,
       type: "success",
     });
@@ -130,7 +130,7 @@ export function detectMilestones(
 
   if (winnerLosses === 0 && winnerWins >= 4) {
     milestones.push({
-      emoji: "💎",
+      emoji: "",
       message: `${match.winnerName} is UNDEFEATED (${winnerWins}-0)!`,
       type: "success",
     });
@@ -147,7 +147,7 @@ export function detectMilestones(
   // The match just played already counts, so check pre-match state
   if (winnerWins <= 1 && loserWins >= 3 && loserLosses <= 1) {
     milestones.push({
-      emoji: "😱",
+      emoji: "",
       message: `UPSET! ${match.winnerName} takes down ${match.loserName}!`,
       type: "warning",
     });

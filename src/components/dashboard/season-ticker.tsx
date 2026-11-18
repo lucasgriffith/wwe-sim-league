@@ -32,7 +32,7 @@ export function SeasonTicker({
     `${totalPlayed} / ${totalMatches} matches played`,
     `${tiersStarted} / ${totalTiers} tiers in progress`,
     fastestMatch
-      ? `⚡ Fastest: ${formatTime(fastestMatch)}${fastestMatchName ? ` (${fastestMatchName})` : ""}`
+      ? `Fastest: ${formatTime(fastestMatch)}${fastestMatchName ? ` (${fastestMatchName})` : ""}`
       : null,
     averageMatchTime ? `Avg match: ${formatTime(averageMatchTime)}` : null,
     `${totalMatches - totalPlayed} matches remaining`,

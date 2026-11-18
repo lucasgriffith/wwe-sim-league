@@ -427,7 +427,7 @@ export default async function WrestlerProfilePage({
                       className="h-12 w-auto object-contain mx-auto mb-2"
                     />
                   ) : (
-                    <div className="text-2xl text-center mb-2">🏆</div>
+                    <div className="text-2xl text-center mb-2"></div>
                   )}
                   <p className="text-sm font-bold text-gold text-center truncate">{t.tierName}</p>
                   <p className="text-[10px] text-gold/60 text-center mt-0.5">Season {t.season}</p>

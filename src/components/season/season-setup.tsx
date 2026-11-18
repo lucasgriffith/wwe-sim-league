@@ -459,7 +459,7 @@ export function SeasonSetup({
                   disabled={loading}
                   className="text-xs"
                 >
-                  🎲 Randomize Tag Teams
+                  Randomize Tag Teams
                 </Button>
                 <Button
                   size="sm"

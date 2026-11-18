@@ -266,7 +266,7 @@ export function RumbleSeeding({
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardContent className="py-4">
             <p className="text-sm text-amber-400">
-              ⚠ Create a season in{" "}
+              Create a season in{" "}
               <a href="/season/setup" className="underline hover:text-amber-300">
                 Season Setup
               </a>{" "}
@@ -439,11 +439,11 @@ export function RumbleSeeding({
                 {positionValues.length}/{rumbleGroup.length} filled
               </span>
               {hasDuplicates && (
-                <span className="text-red-400">⚠ Duplicate positions</span>
+                <span className="text-red-400">Duplicate positions</span>
               )}
               {hasInvalid && (
                 <span className="text-red-400">
-                  ⚠ Positions must be 1–{rumbleGroup.length}
+                  Positions must be 1–{rumbleGroup.length}
                 </span>
               )}
               {allFilled && !hasDuplicates && !hasInvalid && (

@@ -159,12 +159,12 @@ export default async function MatchPage({
   ];
 
   return (
-    <div className="container max-w-4xl px-4 py-8 animate-fade-in">
-      <div className="text-center">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold/70">
+    <div className="mx-auto max-w-4xl px-4 py-8">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 bg-gold px-5 py-3 text-black">
+        <p className="font-display text-2xl font-black sm:text-3xl">
           {match.tiers?.name ?? "Match"}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-wider">
           {PHASE[match.match_phase] ?? match.match_phase}
           {match.pool ? ` · Pool ${match.pool}` : ""}
           {match.seasons?.season_number ? ` · Season ${match.seasons.season_number}` : ""}
@@ -177,7 +177,7 @@ export default async function MatchPage({
         {[a, null, b].map((s, i) =>
           i === 1 ? (
             <div key="vs" className="pt-14 text-center sm:pt-20">
-              <span className="text-2xl font-black text-muted-foreground/20 sm:text-4xl">VS</span>
+              <span className="font-display text-3xl font-black text-muted-foreground/50 sm:text-5xl">VS</span>
             </div>
           ) : s ? (
             <Link key={s.id} href={s.href} className="group flex flex-col items-center text-center">
@@ -204,10 +204,10 @@ export default async function MatchPage({
                   )
                 )}
               </div>
-              <p className="mt-3 text-lg font-bold leading-tight transition-colors group-hover:text-gold sm:text-2xl">
+              <p className="font-display mt-3 text-3xl font-black transition-colors group-hover:text-gold sm:text-5xl">
                 {s.rank != null && (
-                  <span className="mr-1.5 align-[0.12em] text-sm font-bold tabular-nums text-gold sm:text-base">
-                    #{s.rank}
+                  <span className="mr-2 text-xl font-black text-gold sm:text-3xl">
+                    {s.rank}
                   </span>
                 )}
                 {s.name}
@@ -232,19 +232,19 @@ export default async function MatchPage({
           {/* Win probability */}
           <div className="mt-8">
             <div className="flex items-end justify-between">
-              <span className={`text-3xl font-black tabular-nums ${pctA >= 50 ? "text-gold" : "text-muted-foreground/60"}`}>
+              <span className={`font-display text-6xl font-black sm:text-7xl ${pctA >= 50 ? "text-gold" : "text-muted-foreground"}`}>
                 {pctA}%
               </span>
               <span className="pb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">
                 {winnerId ? "Pre-match win probability" : "Win probability"}
               </span>
-              <span className={`text-3xl font-black tabular-nums ${pctA < 50 ? "text-gold" : "text-muted-foreground/60"}`}>
+              <span className={`font-display text-6xl font-black sm:text-7xl ${pctA < 50 ? "text-gold" : "text-muted-foreground"}`}>
                 {100 - pctA}%
               </span>
             </div>
-            <div className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-muted/20">
-              <div className="h-full bg-gold" style={{ width: `${pctA}%` }} />
-              <div className="h-full flex-1 bg-foreground/20" />
+            <div className="mt-2 flex h-4 gap-[3px]">
+              <div className={pctA >= 50 ? "h-full bg-gold" : "h-full bg-foreground/30"} style={{ width: `${pctA}%` }} />
+              <div className={pctA < 50 ? "h-full flex-1 bg-gold" : "h-full flex-1 bg-foreground/30"} />
             </div>
             {odds && odds.winnerProb < 0.35 && (
               <p className="mt-3 text-center text-sm font-bold uppercase tracking-wider text-wwe-red">
@@ -255,14 +255,15 @@ export default async function MatchPage({
           </div>
 
           {/* Tale of the tape */}
-          <div className="mt-8 overflow-hidden rounded-xl border border-border/40">
+          <h2 className="rule-title mt-10 text-center text-2xl">Tale of the tape</h2>
+          <div>
             {rows.map(([label, get], i) => (
               <div
                 key={label}
-                className={`grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3 text-sm ${i > 0 ? "border-t border-border/20" : ""}`}
+                className={`grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-3 text-base sm:text-lg border-b border-border ${i < 0 ? "" : ""}`}
               >
                 <span className="font-semibold tabular-nums">{get(a)}</span>
-                <span className="w-32 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">
+                <span className="font-display w-36 text-center text-sm font-extrabold tracking-widest text-muted-foreground">
                   {label}
                 </span>
                 <span className="text-right font-semibold tabular-nums">{get(b)}</span>
@@ -272,10 +273,10 @@ export default async function MatchPage({
 
           {/* Series history */}
           <div className="mt-8">
-            <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <h2 className="rule-title mb-3 text-2xl">
               Head-to-head
               {meetings.length > 0 && (
-                <span className="ml-2 normal-case tracking-normal text-foreground">
+                <span className="ml-3 font-mono text-sm normal-case tracking-normal text-gold">
                   {a.name} {aSeriesWins}–{meetings.length - aSeriesWins} {b.name}
                 </span>
               )}

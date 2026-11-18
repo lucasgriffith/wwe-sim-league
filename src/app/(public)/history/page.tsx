@@ -122,7 +122,7 @@ export default async function HistoryPage() {
                             variant="outline"
                             className="text-[10px] border-gold/15 text-gold/70 gap-0.5"
                           >
-                            🏆 {c.holderName}
+                            {c.holderName}
                             <span className="text-gold/40">· {c.tierName}</span>
                           </Badge>
                         ))}

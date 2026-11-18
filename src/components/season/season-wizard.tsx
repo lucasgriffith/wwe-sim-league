@@ -737,10 +737,10 @@ export function SeasonWizard({
                 className="bg-gold text-black hover:bg-gold-dark font-semibold"
               >
                 {tagAssigned
-                  ? "🎲 Re-Randomize"
+                  ? "Re-Randomize"
                   : loading
                     ? "Assigning..."
-                    : "🎲 Randomize Tag Teams"}
+                    : "Randomize Tag Teams"}
               </Button>
               <Button
                 variant="outline"
@@ -876,7 +876,7 @@ export function SeasonWizard({
                 disabled={loading}
                 className="bg-gold text-black hover:bg-gold-dark font-bold"
               >
-                {loading ? "Generating schedules..." : `🏁 Start Season ${seasonNum}`}
+                {loading ? "Generating schedules..." : `Start Season ${seasonNum}`}
               </Button>
             </div>
           </CardContent>
@@ -1065,8 +1065,8 @@ function RumbleStep({
                         }`}>
                           {cv.entries.length}/{chunk.length} filled
                           {cv.isValid && " ✓"}
-                          {cv.hasDuplicates && " · ⚠ Dups"}
-                          {cv.hasInvalid && ` · ⚠ 1–${chunk.length}`}
+                          {cv.hasDuplicates && " · Dups"}
+                          {cv.hasInvalid && ` · 1–${chunk.length}`}
                         </span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">

@@ -39,7 +39,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/30 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50">
+    <header className="sticky top-0 z-50 w-full border-b-[3px] border-gold bg-[#111115]">
       <div className="container flex h-14 max-w-screen-2xl items-center px-4">
         {/* Logo */}
         <Link href="/" className="mr-8 flex items-center gap-2.5 group">
@@ -51,12 +51,9 @@ export function SiteHeader() {
             height={32}
             className="rounded-lg opacity-90 transition-opacity group-hover:opacity-100"
           />
-          <div className="flex flex-col">
-            <span className="text-sm font-bold leading-none gradient-text-gold">WWE 2K26</span>
-            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground leading-none mt-0.5">
-              Sim League
-            </span>
-          </div>
+          <span className="font-display text-xl font-black leading-none whitespace-nowrap">
+            Sim League <span className="text-gold">2K26</span>
+          </span>
         </Link>
 
         {/* Desktop nav */}
@@ -67,7 +64,7 @@ export function SiteHeader() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`relative rounded-md px-3 py-1.5 text-[13px] font-medium transition-all ${
+                className={`font-display relative px-2.5 py-1.5 text-[15px] font-extrabold tracking-wider whitespace-nowrap transition-colors ${
                   active
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground/80"
@@ -75,7 +72,7 @@ export function SiteHeader() {
               >
                 {link.label}
                 {active && (
-                  <span className="absolute inset-x-1 -bottom-[13px] h-px bg-gradient-to-r from-transparent via-gold to-transparent" />
+                  <span className="absolute inset-x-2 -bottom-[12px] h-[3px] bg-foreground" />
                 )}
               </Link>
             );

@@ -46,7 +46,7 @@ export function generateRecapSections(data: RecapData): Array<{
   // Overview
   sections.push({
     title: "Season Overview",
-    emoji: "📊",
+    emoji: "",
     content: `Season ${data.seasonNumber} featured ${data.totalMatches} matches across ${data.champions.length} championship tiers.`,
   });
 
@@ -69,7 +69,7 @@ export function generateRecapSections(data: RecapData): Array<{
 
     sections.push({
       title: "Champions Crowned",
-      emoji: "🏆",
+      emoji: "",
       content: champContent,
     });
   }
@@ -78,7 +78,7 @@ export function generateRecapSections(data: RecapData): Array<{
   if (data.mvp) {
     sections.push({
       title: "Season MVP",
-      emoji: "⭐",
+      emoji: "",
       content: `${data.mvp.name} dominated with a ${data.mvp.wins}-${data.mvp.losses} record (${(data.mvp.winPct * 100).toFixed(0)}% win rate) in the ${data.mvp.tierName}.`,
     });
   }
@@ -90,7 +90,7 @@ export function generateRecapSections(data: RecapData): Array<{
     const secs = time % 60;
     sections.push({
       title: "Fastest Match",
-      emoji: "⚡",
+      emoji: "",
       content: `${data.records.fastestMatch.winnerName} defeated ${data.records.fastestMatch.loserName} in just ${mins}:${secs.toString().padStart(2, "0")} (${data.records.fastestMatch.tierName}).`,
     });
   }
@@ -101,7 +101,7 @@ export function generateRecapSections(data: RecapData): Array<{
     const secs = time % 60;
     sections.push({
       title: "Longest Match",
-      emoji: "⏱️",
+      emoji: "",
       content: `${data.records.longestMatch.winnerName} outlasted ${data.records.longestMatch.loserName} in an epic ${mins}:${secs.toString().padStart(2, "0")} bout (${data.records.longestMatch.tierName}).`,
     });
   }
@@ -117,7 +117,7 @@ export function generateRecapSections(data: RecapData): Array<{
         .join(", ");
       sections.push({
         title: "Rising Stars",
-        emoji: "📈",
+        emoji: "",
         content: riserText,
       });
     }
@@ -128,7 +128,7 @@ export function generateRecapSections(data: RecapData): Array<{
         .join(", ");
       sections.push({
         title: "Biggest Falls",
-        emoji: "📉",
+        emoji: "",
         content: fallerText,
       });
     }

@@ -693,7 +693,7 @@ export default async function TierDetailPage({
           {playoffMatches.length > 0 && (
             <div>
               <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
-                <span className="text-gold">🏆</span> Playoffs
+                <span className="text-gold"></span> Playoffs
               </h2>
               <div className="rounded-lg border border-gold/20 bg-gold/[0.02] p-4 overflow-x-auto">
                 <BracketView
@@ -739,7 +739,7 @@ export default async function TierDetailPage({
           {projectedBracket && (
             <div>
               <h2 className="mb-1 flex items-center gap-2 text-base font-semibold">
-                <span className="text-gold">🏆</span> Projected Playoff Picture
+                <span className="text-gold"></span> Projected Playoff Picture
               </h2>
               <p className="mb-3 text-xs text-muted-foreground">
                 If the season ended today — updates with every result.

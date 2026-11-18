@@ -15,19 +15,19 @@ export default async function ExportPage() {
       title: "Roster",
       description: "All wrestlers with gender, brand, overall rating, and active status",
       href: "/api/export/roster",
-      icon: "👤",
+      icon: "",
     },
     {
       title: "Dynasty Stats",
       description: "Career statistics for all active wrestlers — wins, losses, win%, titles, playoff record",
       href: "/api/export/dynasty",
-      icon: "🏆",
+      icon: "",
     },
     {
       title: "All Match History",
       description: "Every match result across all seasons",
       href: "/api/export/matches",
-      icon: "📊",
+      icon: "",
     },
   ];
 

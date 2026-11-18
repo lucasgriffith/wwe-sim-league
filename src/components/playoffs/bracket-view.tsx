@@ -248,7 +248,7 @@ function ParticipantRow({
         {participant.name}
       </span>
       {isPlayed && isWinner && isFinal && (
-        <span className="text-xs">🏆</span>
+        <span className="text-xs"></span>
       )}
     </div>
   );

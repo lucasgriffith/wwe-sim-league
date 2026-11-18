@@ -123,16 +123,16 @@ export default function WikiPage() {
   │ Seed 3   │─┐
   │ Seed 6   │ │     ┌──────────┐
   └──────────┘ ├────▸│ Winner   │
-               │     │ Seed 2 ★ │─┐
+               │     │ Seed 2 │─┐
                │     └──────────┘ │  ┌──────────┐
   ┌──────────┐                    ├─▸│          │
   │ Seed 4   │─┐                  │  │ CHAMPION │
   │ Seed 5   │ │     ┌──────────┐ │  └──────────┘
   └──────────┘ ├────▸│ Winner   │─┘
-               │     │ Seed 1 ★ │
+               │     │ Seed 1 │
                │     └──────────┘
                │
-               ★ = First-round bye`}</pre>
+               = First-round bye`}</pre>
             </div>
             <p className="mt-3">
               Seeds 1 and 2 receive first-round byes, rewarding the best
@@ -183,7 +183,7 @@ export default function WikiPage() {
               type="relegation-playoff"
               description="3rd-from-bottom defends their spot against the tier below's 3rd place in a Steel Cage match; 4th-from-bottom defends against their 4th. Winner takes (or keeps) the higher tier spot, loser goes down."
               color="amber"
-              arrow="⚔️"
+              arrow="⚔"
             />
           </div>
           <SubSection title="Example (Tier of 10)">
