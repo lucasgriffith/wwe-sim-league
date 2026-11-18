@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -37,10 +37,11 @@ export function TierSchedule({
   rounds: ScheduleRound[];
   isAdmin: boolean;
 }) {
-  const [isOpen, setIsOpen] = useState(() => {
-    if (typeof window !== "undefined") return window.innerWidth >= 1024;
-    return false;
-  });
+  const [isOpen, setIsOpen] = useState(false);
+  // Open by default on desktop; decided after mount so server and client HTML match
+  useEffect(() => {
+    if (window.innerWidth >= 1024) setIsOpen(true);
+  }, []);
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
   const [minutes, setMinutes] = useState("");
   const [seconds, setSeconds] = useState("");

@@ -5,8 +5,7 @@ import {
   getTiers,
   getWrestlers,
 } from "@/lib/data/cached";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 
 export default async function HistoryPage() {
@@ -62,90 +61,86 @@ export default async function HistoryPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Season History</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {seasons?.length ?? 0} completed season{(seasons?.length ?? 0) !== 1 ? "s" : ""}
-        </p>
-      </div>
+      <PageHeader
+        kicker="The archive"
+        title="Season History"
+        stats={[
+          { label: "Seasons", value: seasons?.length ?? 0 },
+          { label: "Matches", value: Object.values(matchCountMap).reduce((a, b) => a + b, 0) },
+        ]}
+      />
 
       {seasons && seasons.length > 0 ? (
-        <div className="space-y-4 stagger-children">
+        <div className="space-y-5">
           {seasons.map((season) => {
             const champs = championsMap[season.id] ?? [];
             const matchCount = matchCountMap[season.id] ?? 0;
+            const top = champs[0];
             return (
-              <Link key={season.id} href={`/history/${season.id}`}>
-                <Card className="card-hover cursor-pointer border-border/40 transition-all">
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gold/10 text-gold font-bold tabular-nums">
-                          {season.season_number}
-                        </div>
-                        <div>
-                          <span className="text-base font-semibold">
-                            Season {season.season_number}
-                          </span>
-                          <p className="text-xs text-muted-foreground">
-                            {season.started_at &&
-                              new Date(season.started_at).toLocaleDateString()}{" "}
-                            —{" "}
-                            {season.completed_at &&
-                              new Date(season.completed_at).toLocaleDateString()}
-                            {matchCount > 0 && (
-                              <span className="ml-2">· {matchCount} matches</span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-muted-foreground/40 shrink-0"
-                      >
-                        <path d="M9 18l6-6-6-6" />
-                      </svg>
+              <Link
+                key={season.id}
+                href={`/history/${season.id}`}
+                className="group block border border-border bg-card transition-colors hover:border-gold/60"
+              >
+                <div className="flex flex-col sm:flex-row">
+                  <div className="halftone flex shrink-0 items-end gap-3 border-b border-border bg-background px-4 py-3 sm:w-44 sm:flex-col sm:items-start sm:justify-between sm:border-b-0 sm:border-r">
+                    <div>
+                      <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-gold/80">Season</p>
+                      <p className="font-display text-7xl font-black leading-[0.85] tabular-nums text-foreground group-hover:text-gold">
+                        {String(season.season_number).padStart(2, "0")}
+                      </p>
                     </div>
-
-                    {champs.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {champs.slice(0, 8).map((c, i) => (
-                          <Badge
-                            key={i}
-                            variant="outline"
-                            className="text-[10px] border-gold/15 text-gold/70 gap-0.5"
-                          >
-                            {c.holderName}
-                            <span className="text-gold/40">· {c.tierName}</span>
-                          </Badge>
+                    <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+                      {season.started_at && new Date(season.started_at).toLocaleDateString()}
+                      {" – "}
+                      {season.completed_at && new Date(season.completed_at).toLocaleDateString()}
+                      <br />
+                      {matchCount} matches
+                    </p>
+                  </div>
+                  <div className="min-w-0 flex-1 p-4">
+                    {top ? (
+                      <>
+                        <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+                          {top.tierName} champion
+                        </p>
+                        <p className="mt-1 font-display text-3xl font-black leading-none [overflow-wrap:anywhere]">
+                          {top.holderName}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No champions recorded.</p>
+                    )}
+                    {champs.length > 1 && (
+                      <div className="mt-4 grid gap-x-6 gap-y-1.5 border-t border-border pt-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {champs.slice(1, 10).map((c, i) => (
+                          <div key={i} className="flex items-baseline justify-between gap-3 text-sm">
+                            <span className="truncate font-semibold">{c.holderName}</span>
+                            <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider text-gold/70">
+                              {c.tierName}
+                            </span>
+                          </div>
                         ))}
-                        {champs.length > 8 && (
-                          <Badge variant="outline" className="text-[10px] border-border/30 text-muted-foreground">
-                            +{champs.length - 8} more
-                          </Badge>
+                        {champs.length > 10 && (
+                          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                            +{champs.length - 10} more
+                          </span>
                         )}
                       </div>
                     )}
-                  </CardContent>
-                </Card>
+                    <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground group-hover:text-gold">
+                      Full recap →
+                    </p>
+                  </div>
+                </div>
               </Link>
             );
           })}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-border/40 bg-card/30 px-6 py-16 text-center">
-          <h3 className="text-lg font-semibold">No History Yet</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Complete a season to see it here.
-          </p>
-        </div>
+        <EmptyState title="No history yet">
+          Complete a season and its champions, brackets and recap are archived here.
+        </EmptyState>
       )}
     </div>
   );

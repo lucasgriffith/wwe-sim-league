@@ -161,36 +161,44 @@ export function DynastyTabs({
     })
     .sort(sortFn);
 
+  const pill = (active: boolean) =>
+    `h-8 rounded-none px-3 font-mono text-[10px] uppercase tracking-[0.16em] ${
+      active
+        ? "border-gold bg-gold text-black font-bold hover:bg-gold"
+        : "border-border text-muted-foreground hover:text-foreground"
+    }`;
+
   return (
     <div className="space-y-4">
       {/* Current Champions */}
       {currentChampions.length > 0 && (
-        <div className="rounded-lg border border-gold/20 bg-gold/5 p-4 mb-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gold mb-3">
-            Current Champions{latestSeasonNumber ? ` — Season ${latestSeasonNumber}` : ""}
-          </h2>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="mb-6">
+          <div className="rule-title mb-px flex items-baseline justify-between gap-4">
+            <h2 className="text-2xl">Reigning Champions</h2>
+            {latestSeasonNumber ? (
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                Season {latestSeasonNumber}
+              </span>
+            ) : null}
+          </div>
+          <div className="grid pl-px sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {currentChampions.map((c) => (
-              <div
-                key={c.holderId + c.tierName}
-                className="flex items-center gap-2 rounded-md border border-gold/10 bg-background/50 px-3 py-2"
-              >
-                <span className="text-sm"></span>
+              <div key={c.holderId + c.tierName} className="-ml-px -mt-px flex items-center gap-3 border border-border bg-card px-3 py-2.5">
+                <span className="w-9 shrink-0 bg-gold py-1 text-center font-mono text-[10px] font-bold text-black">
+                  T{c.tierNumber}
+                </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-gold truncate">
+                  <p className="font-display text-lg font-extrabold leading-none truncate">
                     {c.holderName}
                   </p>
-                  <p className="text-[10px] text-muted-foreground truncate">
+                  <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-gold/70 truncate">
                     {c.tierName}
                   </p>
                 </div>
-                <span className="text-[10px] text-muted-foreground/50 font-mono">
-                  T{c.tierNumber}
-                </span>
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Tab Toggle + Filters */}
@@ -200,7 +208,7 @@ export function DynastyTabs({
             variant={tab === "wrestlers" ? "default" : "outline"}
             size="sm"
             onClick={() => { setTab("wrestlers"); setSearch(""); setGenderFilter("all"); setSortKey("powerScore"); setSortDir("desc"); }}
-            className={`text-xs ${tab !== "wrestlers" ? "border-border/40 text-muted-foreground hover:text-foreground" : ""}`}
+            className={pill(tab === "wrestlers")}
           >
             Singles ({wrestlerStats.length})
           </Button>
@@ -208,7 +216,7 @@ export function DynastyTabs({
             variant={tab === "tag-teams" ? "default" : "outline"}
             size="sm"
             onClick={() => { setTab("tag-teams"); setSearch(""); setGenderFilter("all"); setSortKey("powerScore"); setSortDir("desc"); }}
-            className={`text-xs ${tab !== "tag-teams" ? "border-border/40 text-muted-foreground hover:text-foreground" : ""}`}
+            className={pill(tab === "tag-teams")}
           >
             Tag Teams ({tagTeamStats.length})
           </Button>
@@ -224,7 +232,7 @@ export function DynastyTabs({
               variant={genderFilter === g ? "default" : "outline"}
               size="sm"
               onClick={() => setGenderFilter(g)}
-              className={`text-xs ${genderFilter !== g ? "border-border/40 text-muted-foreground hover:text-foreground" : ""}`}
+              className={pill(genderFilter === g)}
             >
               {g === "all" ? "All" : g.charAt(0).toUpperCase() + g.slice(1)}
             </Button>
@@ -258,10 +266,10 @@ export function DynastyTabs({
       {/* Wrestler Leaderboard */}
       {tab === "wrestlers" && (
         filteredWrestlers.length > 0 ? (
-          <div className="rounded-lg border border-border/40 overflow-hidden">
+          <div className="border border-border bg-card overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent border-border/40">
+                <TableRow className="hover:bg-transparent border-b-2 border-foreground/80">
                   <SortableHead sortKey="powerScore" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-16 text-center">PWR</SortableHead>
                   <SortableHead sortKey="rank" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-10 text-center">Rank</SortableHead>
                   <SortableHead sortKey="name" currentKey={sortKey} dir={sortDir} onSort={handleSort}>Name</SortableHead>
@@ -278,17 +286,17 @@ export function DynastyTabs({
                 {filteredWrestlers.map((s, i) => (
                   <TableRow key={s.id} className="table-row-hover border-border/30">
                     <TableCell className="text-center">
-                      <span className="text-sm font-bold tabular-nums text-gold">
+                      <span className="text-base font-bold tabular-nums text-gold">
                         {s.powerScore}
                       </span>
                     </TableCell>
-                    <TableCell className={`text-center tabular-nums font-semibold ${i === 0 ? "rank-1" : i === 1 ? "rank-2" : i === 2 ? "rank-3" : "text-muted-foreground"}`}>
+                    <TableCell className={`text-center font-display text-xl font-black tabular-nums ${i < 3 ? "text-gold" : "text-muted-foreground/70"}`}>
                       {i + 1}
                     </TableCell>
                     <TableCell>
                       <Link
                         href={`/roster/${s.slug ?? s.id}`}
-                        className="font-medium hover:text-gold transition-colors"
+                        className="font-display text-lg font-extrabold leading-none hover:text-gold transition-colors"
                       >
                         {s.name}
                       </Link>
@@ -305,13 +313,13 @@ export function DynastyTabs({
                           {s.titles.map((t, ti) => (
                             <Badge
                               key={ti}
-                              className={`text-[10px] ${
+                              className={`rounded-none font-mono text-[9px] uppercase tracking-wider ${
                                 t.isCurrent
-                                  ? "bg-gold/15 text-gold border-gold/20 font-bold"
-                                  : "bg-muted/30 text-muted-foreground/60 border-border/20"
+                                  ? "bg-gold text-black border-gold font-bold"
+                                  : "bg-transparent text-muted-foreground border-border"
                               }`}
                             >
-                              {t.isCurrent ? "" : ""}{t.name} (S{t.season})
+                              {t.name} (S{t.season})
                             </Badge>
                           ))}
                         </div>
@@ -352,10 +360,10 @@ export function DynastyTabs({
       {/* Tag Team Leaderboard */}
       {tab === "tag-teams" && (
         filteredTagTeams.length > 0 ? (
-          <div className="rounded-lg border border-border/40 overflow-hidden">
+          <div className="border border-border bg-card overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent border-border/40">
+                <TableRow className="hover:bg-transparent border-b-2 border-foreground/80">
                   <SortableHead sortKey="powerScore" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-16 text-center">PWR</SortableHead>
                   <SortableHead sortKey="rank" currentKey={sortKey} dir={sortDir} onSort={handleSort} className="w-10 text-center">Rank</SortableHead>
                   <SortableHead sortKey="name" currentKey={sortKey} dir={sortDir} onSort={handleSort}>Team</SortableHead>
@@ -382,17 +390,17 @@ export function DynastyTabs({
                   return (
                     <TableRow key={s.id} className="table-row-hover border-border/30">
                       <TableCell className="text-center">
-                        <span className="text-sm font-bold tabular-nums text-gold">
+                        <span className="text-base font-bold tabular-nums text-gold">
                           {s.powerScore}
                         </span>
                       </TableCell>
-                      <TableCell className={`text-center tabular-nums font-semibold ${i === 0 ? "rank-1" : i === 1 ? "rank-2" : i === 2 ? "rank-3" : "text-muted-foreground"}`}>
+                      <TableCell className={`text-center font-display text-xl font-black tabular-nums ${i < 3 ? "text-gold" : "text-muted-foreground/70"}`}>
                         {i + 1}
                       </TableCell>
                       <TableCell>
                         <Link
                           href={`/tag-teams/${s.id}`}
-                          className="font-medium hover:text-gold transition-colors"
+                          className="font-display text-lg font-extrabold leading-none hover:text-gold transition-colors"
                         >
                           {s.name}
                         </Link>
@@ -412,13 +420,13 @@ export function DynastyTabs({
                             {s.titles.map((t, ti) => (
                               <Badge
                                 key={ti}
-                                className={`text-[10px] ${
+                                className={`rounded-none font-mono text-[9px] uppercase tracking-wider ${
                                   t.isCurrent
-                                    ? "bg-gold/15 text-gold border-gold/20 font-bold"
-                                    : "bg-muted/30 text-muted-foreground/60 border-border/20"
+                                    ? "bg-gold text-black border-gold font-bold"
+                                    : "bg-transparent text-muted-foreground border-border"
                                 }`}
                               >
-                                {t.isCurrent ? "" : ""}{t.name} (S{t.season})
+                                {t.name} (S{t.season})
                               </Badge>
                             ))}
                           </div>
@@ -466,8 +474,8 @@ export function DynastyTabs({
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-border/40 bg-card/30 px-6 py-16 text-center">
-      <h3 className="text-lg font-semibold">No Data Yet</h3>
+    <div className="halftone border border-dashed border-border bg-card/40 px-6 py-16 text-center">
+      <h3 className="text-2xl">No Data Yet</h3>
       <p className="mt-1 text-sm text-muted-foreground">
         Complete a season to see {label} dynasty rankings.
       </p>

@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { SeasonSetup } from "@/components/season/season-setup";
 import { SeasonWizard } from "@/components/season/season-wizard";
@@ -101,14 +102,17 @@ export default async function SeasonSetupPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <h1 className="mb-2 text-3xl font-bold tracking-tight">Season Setup</h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        {showWizard
-          ? season
-            ? `Season ${season.season_number} — Setup in progress`
-            : `Ready to start Season ${nextSeasonNumber}`
-          : `Season ${season!.season_number} — ${season!.status.replace("_", " ")}`}
-      </p>
+      <PageHeader
+        admin
+        kicker={
+          showWizard
+            ? season
+              ? `Season ${season.season_number} · setup in progress`
+              : `Ready to start season ${nextSeasonNumber}`
+            : `Season ${season!.season_number} · ${season!.status.replace("_", " ")}`
+        }
+        title="Season Setup"
+      />
 
       {showWizard ? (
         <SeasonWizard

@@ -305,13 +305,13 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
       <div className="relative flex">
         <Link
           href={`/tiers/${tier?.slug ?? tier?.id ?? ""}`}
-          className="cut-plate block min-w-0 max-w-[85%] bg-gold py-3 pl-4 pr-14 text-black"
+          className="cut-plate block min-w-0 max-w-full bg-gold py-3 pl-4 pr-12 text-black"
         >
           <span className="block font-mono text-[10px] font-bold tracking-widest">
             UP NEXT · TIER {tier?.tier_number}
             {match.pool ? ` · POOL ${match.pool}` : ""}
           </span>
-          <span className="font-display block truncate text-2xl font-black sm:text-3xl">
+          <span className="font-display block text-xl font-black sm:truncate sm:text-3xl">
             {tier?.fullName ?? tier?.name ?? "?"}
           </span>
         </Link>
@@ -340,12 +340,12 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
 
       {/* Main matchup */}
       <div className="relative px-3 sm:px-4 pb-2">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 sm:gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:gap-2">
           {/* Left participant */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
             <ParticipantPhoto stats={a} />
-            <div className="min-w-0 flex-1">
-              <div className="font-display font-black text-xl sm:text-3xl break-words">
+            <div className="min-w-0 w-full sm:flex-1">
+              <div className="font-display font-black text-xl sm:text-3xl [overflow-wrap:anywhere]">
                 {isTag ? (
                   <Link href={`/tag-teams/${aId}`} className="hover:text-gold transition-colors"><RankBadge rank={a.eloRank} />{a.name}</Link>
                 ) : (
@@ -378,10 +378,10 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
           </div>
 
           {/* Right participant */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-row-reverse">
+          <div className="flex min-w-0 flex-col items-end gap-2 sm:flex-row-reverse sm:items-center sm:gap-3">
             <ParticipantPhoto stats={b} />
-            <div className="min-w-0 flex-1 text-right">
-              <div className="font-display font-black text-xl sm:text-3xl break-words">
+            <div className="min-w-0 w-full sm:flex-1 text-right">
+              <div className="font-display font-black text-xl sm:text-3xl [overflow-wrap:anywhere]">
                 {isTag ? (
                   <Link href={`/tag-teams/${bId}`} className="hover:text-gold transition-colors">{b.name}<RankBadge rank={b.eloRank} className="ml-1 mr-0" /></Link>
                 ) : (

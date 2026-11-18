@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { getDivisions, getTiers } from "@/lib/data/cached";
 import { SmartImage } from "@/components/ui/smart-image";
 import { Badge } from "@/components/ui/badge";
@@ -35,12 +36,14 @@ export default async function TiersPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Championship Tiers</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {tiers?.length ?? 0} championships across {divisions?.length ?? 0} divisions
-        </p>
-      </div>
+      <PageHeader
+        kicker="The ladder"
+        title="Championship Tiers"
+        stats={[
+          { label: "Titles", value: tiers?.length ?? 0 },
+          { label: "Divisions", value: divisions?.length ?? 0 },
+        ]}
+      />
 
       {tiersByDivision.map((division) => (
         <div key={division.id} className="mb-10">

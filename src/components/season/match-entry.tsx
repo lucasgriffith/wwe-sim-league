@@ -255,9 +255,9 @@ export function MatchEntry({
             </span>
           </span>
         </div>
-        <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+        <div className="h-2 bg-foreground/10 overflow-hidden">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-gold/80 to-gold transition-all duration-500"
+            className="h-full bg-gold transition-all duration-500"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -329,7 +329,7 @@ export function MatchEntry({
 
       {currentMatch ? (
         <Card className="border-border/40 overflow-hidden">
-          <CardHeader className="pb-2 bg-gradient-to-r from-card to-card/80">
+          <CardHeader className="pb-2 border-b border-border">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-bold">
                 {currentTier?.short_name || currentTier?.name}
@@ -374,7 +374,7 @@ export function MatchEntry({
             {/* Winner selection — large tap targets */}
             <div className="grid grid-cols-2 gap-3">
               <button
-                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-border/40 bg-gradient-to-b from-card to-muted/10 px-3 py-6 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50 min-h-[100px]"
+                className="group relative flex flex-col items-center justify-center border-2 border-border bg-background font-display text-xl font-extrabold uppercase leading-none px-3 py-6 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50 min-h-[100px]"
                 onClick={() => handleWinner(idA)}
                 disabled={loading}
               >
@@ -387,7 +387,7 @@ export function MatchEntry({
               </button>
 
               <button
-                className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-border/40 bg-gradient-to-b from-card to-muted/10 px-3 py-6 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50 min-h-[100px]"
+                className="group relative flex flex-col items-center justify-center border-2 border-border bg-background font-display text-xl font-extrabold uppercase leading-none px-3 py-6 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50 min-h-[100px]"
                 onClick={() => handleWinner(idB)}
                 disabled={loading}
               >

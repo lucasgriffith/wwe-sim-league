@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,12 +34,7 @@ export default async function ExportPage() {
 
   return (
     <div className="container max-w-screen-md px-4 py-8 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Export Center</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Download league data as CSV files
-        </p>
-      </div>
+      <PageHeader kicker="Data" title="Export Center" description="Download league data as CSV files." />
 
       <div className="space-y-3">
         {exports.map((exp) => (

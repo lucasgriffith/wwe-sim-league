@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getAllMatches, getTagTeams, getWrestlers } from "@/lib/data/cached";
 import { computeRecordBook, type RecordParticipant } from "@/lib/records/compute-records";
 import { buildEloBoard } from "@/lib/elo/board";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import { SmartImage } from "@/components/ui/smart-image";
 
 function formatTime(seconds: number): string {
@@ -42,6 +42,7 @@ export default async function RecordsPage() {
   );
 
   const book = computeRecordBook(matches, ovrMap);
+  const playedCount = matches.filter((m) => m.played_at).length;
   const p = (id: string): RecordParticipant =>
     participants.get(id) ?? { name: "?", href: null, imageUrl: null, isTag: false };
 
@@ -82,45 +83,47 @@ export default async function RecordsPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Record Book</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          All-time league records, across every season
-        </p>
-      </div>
+      <PageHeader
+        kicker="All-time · every season"
+        title="Record Book"
+        stats={[
+          { label: "Matches", value: playedCount },
+          { label: "Records", value: leaderCards.length },
+        ]}
+      />
 
       {!hasAnything ? (
-        <div className="rounded-xl border border-dashed border-border/40 bg-card/30 px-6 py-16 text-center">
-          <h3 className="text-lg font-semibold">No records yet</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Records appear once matches have been played.
-          </p>
-        </div>
+        <EmptyState title="No records yet">
+          Records appear once matches have been played.
+        </EmptyState>
       ) : (
         <div className="space-y-10">
           {/* Career leaders */}
           {leaderCards.length > 0 && (
             <section>
               <SectionHeading emoji="" title="Career Leaders" />
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
-                {leaderCards.map(({ label, emoji, record }) => {
+              <div className="grid pl-px pt-px sm:grid-cols-2 lg:grid-cols-4">
+                {leaderCards.map(({ label, record }) => {
                   const holder = p(record!.participantId);
                   return (
-                    <Card key={label} className="card-hover border-border/40">
-                      <CardContent className="py-4 flex items-center gap-3">
+                    <div key={label} className="relative -ml-px -mt-px flex flex-col border border-border bg-card p-4">
+                      <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-gold/80">
+                        {label}
+                      </p>
+                      <p className="mt-2 font-display text-5xl font-black leading-none tabular-nums text-foreground">
+                        {record!.value}
+                      </p>
+                      <div className="mt-4 flex items-center gap-2.5 border-t border-border pt-3">
                         <Avatar participant={holder} size={44} />
                         <div className="min-w-0 flex-1">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                            {label}
-                          </p>
-                          <ParticipantLink participant={holder} className="text-sm font-bold truncate block" />
-                          <p className="text-[11px] text-muted-foreground/60">{record!.detail}</p>
+                          <ParticipantLink
+                            participant={holder}
+                            className="block font-display text-lg font-extrabold leading-none hover:text-gold [overflow-wrap:anywhere]"
+                          />
+                          <p className="mt-1 font-mono text-[10px] text-muted-foreground">{record!.detail}</p>
                         </div>
-                        <span className="text-2xl font-bold tabular-nums text-gold shrink-0">
-                          {record!.value}
-                        </span>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -270,7 +273,7 @@ function SectionHeading({ emoji, title, subtitle }: { emoji: string; title: stri
       <h2 className="rule-title text-2xl">
         {title}
       </h2>
-      {subtitle && <p className="text-xs text-muted-foreground/60 mt-0.5">{subtitle}</p>}
+      {subtitle && <p className="mt-1.5 text-xs text-muted-foreground">{subtitle}</p>}
     </div>
   );
 }
@@ -305,13 +308,13 @@ function Avatar({
         alt=""
         width={size * 2}
         height={size * 2}
-        className={`${sizeClass} rounded-full object-cover border border-border/20 shrink-0`}
+        className={`${sizeClass} object-cover object-top border border-border shrink-0`}
       />
     );
   }
   return (
     <span
-      className={`${sizeClass} rounded-full bg-muted/20 border border-border/20 flex items-center justify-center text-xs font-bold text-muted-foreground/40 shrink-0`}
+      className={`${sizeClass} bg-muted/20 border border-border flex items-center justify-center text-xs font-bold text-muted-foreground/40 shrink-0`}
     >
       {participant.name.charAt(0)}
     </span>
@@ -339,31 +342,35 @@ function RecordList({
   return (
     <section>
       <SectionHeading emoji={emoji} title={title} subtitle={subtitle} />
-      <div className="rounded-lg border border-border/40 overflow-hidden">
+      <div className="border border-border bg-card">
         {rows.map((row, i) => (
           <div
             key={row.key}
-            className={`flex items-center gap-3 px-4 py-2.5 text-sm ${
-              i > 0 ? "border-t border-border/20" : ""
-            } ${i === 0 ? "bg-gold/[0.04]" : ""}`}
+            className={`flex items-center gap-3 px-3 py-2.5 text-sm ${
+              i > 0 ? "border-t border-border/60" : "border-l-[3px] border-l-gold bg-gold/[0.06]"
+            }`}
           >
             <span
-              className={`w-5 text-center font-mono text-xs font-bold shrink-0 ${
-                i === 0 ? "text-gold" : "text-muted-foreground/40"
+              className={`w-6 shrink-0 text-center font-display font-black tabular-nums ${
+                i === 0 ? "text-2xl text-gold" : "text-lg text-muted-foreground/50"
               }`}
             >
               {i + 1}
             </span>
             {row.avatar && <Avatar participant={row.avatar} size={28} />}
             <div className="min-w-0 flex-1">
-              <p className="truncate">{row.primary}</p>
+              <p className={i === 0 ? "font-display text-lg font-extrabold leading-tight" : "leading-snug"}>
+                {row.primary}
+              </p>
               {row.context && (
-                <p className="text-[11px] text-muted-foreground/50">{row.context}</p>
+                <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+                  {row.context}
+                </p>
               )}
             </div>
             <span
-              className={`tabular-nums font-bold shrink-0 ${
-                i === 0 ? "text-gold text-base" : "text-muted-foreground"
+              className={`shrink-0 font-bold tabular-nums ${
+                i === 0 ? "text-xl text-gold" : "text-muted-foreground"
               }`}
             >
               {row.value}

@@ -6,6 +6,7 @@ import {
   getTiers,
   getWrestlers,
 } from "@/lib/data/cached";
+import { PageHeader } from "@/components/ui/page-header";
 import { DynastyTabs } from "@/components/dynasty/dynasty-tabs";
 
 export default async function DynastyPage() {
@@ -337,14 +338,16 @@ export default async function DynastyPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">
-          Dynasty Leaderboard
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          All-time rankings across all seasons
-        </p>
-      </div>
+      <PageHeader
+        kicker="All-time"
+        title="Dynasty"
+        description="Career power rankings across every season: titles, tier reached, win rate and playoff wins."
+        stats={[
+          { label: "Seasons", value: (seasons ?? []).filter((s) => s.status === "completed").length },
+          { label: "Matches", value: allMatches.length },
+          { label: "Champions", value: currentChampions.length },
+        ]}
+      />
       <DynastyTabs
         wrestlerStats={wrestlerStats}
         currentChampions={currentChampions}

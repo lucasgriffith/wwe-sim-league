@@ -4,15 +4,6 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { Database } from "@/types/database";
 import type { Gender } from "@/types/database";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -41,10 +32,13 @@ type Wrestler = Database["public"]["Tables"]["wrestlers"]["Row"];
 export function WrestlerTable({
   wrestlers,
   isAdmin = false,
+  elo = {},
 }: {
   wrestlers: Wrestler[];
   isAdmin?: boolean;
+  elo?: Record<string, { rating: number; rank: number; wins: number; losses: number }>;
 }) {
+  const [sort, setSort] = useState<"name" | "elo" | "ovr">("name");
   const [search, setSearch] = useState("");
   const [genderFilter, setGenderFilter] = useState<"all" | "male" | "female">(
     "all"
@@ -55,19 +49,33 @@ export function WrestlerTable({
     null
   );
 
-  const filtered = wrestlers.filter((w) => {
-    const matchesSearch = w.name
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    const matchesGender =
-      genderFilter === "all" || w.gender === genderFilter;
-    return matchesSearch && matchesGender;
-  });
+  const filtered = wrestlers
+    .filter((w) => {
+      const matchesSearch = w.name.toLowerCase().includes(search.toLowerCase());
+      const matchesGender = genderFilter === "all" || w.gender === genderFilter;
+      return matchesSearch && matchesGender;
+    })
+    .sort((a, b) => {
+      if (sort === "elo") {
+        return (elo[b.id]?.rating ?? 0) - (elo[a.id]?.rating ?? 0);
+      }
+      if (sort === "ovr") {
+        return (b.overall_rating ?? 0) - (a.overall_rating ?? 0);
+      }
+      return 0;
+    });
+
+  const pill = (active: boolean) =>
+    `h-8 px-3 font-mono text-[10px] uppercase tracking-[0.16em] border transition-colors ${
+      active
+        ? "border-gold bg-gold text-black font-bold"
+        : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+    }`;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative max-w-xs flex-1">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="relative lg:w-72">
           <svg
             width="14"
             height="14"
@@ -83,51 +91,36 @@ export function WrestlerTable({
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <Input
-            placeholder="Search wrestlers..."
+            placeholder="Search the roster"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-background/50"
           />
         </div>
-        <div className="flex gap-1.5">
-          {(["all", "male", "female"] as const).map((g) => (
-            <Button
-              key={g}
-              variant={genderFilter === g ? "default" : "outline"}
-              size="sm"
-              onClick={() => setGenderFilter(g)}
-              className={`text-xs ${genderFilter !== g ? "border-border/40 text-muted-foreground hover:text-foreground" : ""}`}
-            >
-              {g === "all" ? "All" : g === "male" ? "Male" : "Female"}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex">
+            {(["all", "male", "female"] as const).map((g) => (
+              <button key={g} type="button" onClick={() => setGenderFilter(g)} className={`${pill(genderFilter === g)} -ml-px first:ml-0`}>
+                {g === "all" ? "All" : g === "male" ? "Men" : "Women"}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center">
+            <span className="mr-2 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/70">Sort</span>
+            {(["name", "elo", "ovr"] as const).map((k) => (
+              <button key={k} type="button" onClick={() => setSort(k)} className={`${pill(sort === k)} -ml-px first:ml-0`}>
+                {k === "name" ? "A–Z" : k === "elo" ? "Elo" : "Overall"}
+              </button>
+            ))}
+          </div>
         </div>
         {isAdmin && (
           <Button
             size="sm"
-            className="ml-auto bg-gold text-black hover:bg-gold-dark font-semibold text-xs gap-1.5"
+            className="bg-gold text-black hover:bg-gold-dark font-semibold text-xs gap-1.5 lg:ml-auto"
             onClick={() => setShowForm(!showForm)}
           >
-            {showForm ? (
-              "Cancel"
-            ) : (
-              <>
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Add Wrestler
-              </>
-            )}
+            {showForm ? "Cancel" : "+ Add Wrestler"}
           </Button>
         )}
       </div>
@@ -138,159 +131,106 @@ export function WrestlerTable({
         </div>
       )}
 
-      <div className="rounded-lg border border-border/40 overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent border-border/40">
-              <TableHead className="text-[11px] uppercase tracking-wider">
-                Name
-              </TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider">
-                Gender
-              </TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider">
-                Brand
-              </TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider">
-                Overall
-              </TableHead>
-              <TableHead className="text-[11px] uppercase tracking-wider">
-                Status
-              </TableHead>
-              {isAdmin && (
-                <TableHead className="text-[11px] uppercase tracking-wider text-right">
-                  Actions
-                </TableHead>
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((wrestler) => (
-              <TableRow
+      {filtered.length === 0 ? (
+        <div className="halftone border border-dashed border-border bg-card/40 px-6 py-16 text-center">
+          <h3 className="text-2xl">No wrestlers found</h3>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 pl-px pt-px sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {filtered.map((wrestler) => {
+            const e = elo[wrestler.id];
+            return (
+              <div
                 key={wrestler.id}
-                className="table-row-hover border-border/30"
+                className={`group relative -ml-px -mt-px border border-border bg-card ${wrestler.is_active ? "" : "opacity-45"}`}
               >
-                <TableCell>
-                  <Link
-                    href={`/roster/${wrestler.slug ?? wrestler.id}`}
-                    className="flex items-center gap-2.5 font-medium hover:text-gold transition-colors"
-                  >
+                <Link href={`/roster/${wrestler.slug ?? wrestler.id}`} className="block">
+                  <div className="halftone relative aspect-square overflow-hidden bg-background">
                     {wrestler.image_url ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={wrestler.image_url}
-                        alt={wrestler.name}
-                        className="h-7 w-7 rounded-full object-cover border border-border/30 shrink-0"
+                        alt=""
+                        loading="lazy"
+                        className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.04]"
                       />
                     ) : (
-                      <div className="h-7 w-7 rounded-full bg-muted/30 border border-border/20 flex items-center justify-center shrink-0">
-                        <span className="text-[10px] font-bold text-muted-foreground/40">
-                          {wrestler.name.charAt(0)}
-                        </span>
+                      <div className="flex h-full w-full items-center justify-center font-display text-7xl font-black text-muted-foreground/15">
+                        {wrestler.name.charAt(0)}
                       </div>
                     )}
-                    {wrestler.name}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] ${
-                      wrestler.gender === "male"
-                        ? "border-blue-500/20 text-blue-400"
-                        : "border-purple-500/20 text-purple-400"
-                    }`}
-                  >
-                    {wrestler.gender === "male" ? "Male" : "Female"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {wrestler.brand || (
-                    <span className="text-muted-foreground/30">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="tabular-nums font-medium">
-                  {wrestler.overall_rating ?? (
-                    <span className="text-muted-foreground/30">—</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`status-dot ${wrestler.is_active ? "status-dot-active" : "status-dot-inactive"}`}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {wrestler.is_active ? "Active" : "Inactive"}
-                    </span>
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-card to-transparent" />
+                    {e && e.rank <= 25 && (
+                      <span className="absolute left-0 top-0 bg-gold px-1.5 py-0.5 font-display text-lg font-black leading-none text-black tabular-nums">
+                        #{e.rank}
+                      </span>
+                    )}
+                    {wrestler.overall_rating != null && (
+                      <span className="absolute right-0 top-0 bg-background/85 px-1.5 py-1 font-mono text-[10px] font-bold leading-none text-foreground/90">
+                        {wrestler.overall_rating}
+                        <span className="ml-0.5 text-[8px] text-muted-foreground">OVR</span>
+                      </span>
+                    )}
+                    {!wrestler.is_active && (
+                      <span className="absolute bottom-1 right-1 font-mono text-[8px] uppercase tracking-[0.18em] text-muted-foreground">
+                        Inactive
+                      </span>
+                    )}
                   </div>
-                </TableCell>
-                {isAdmin && (
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                        onClick={() => setEditingWrestler(wrestler)}
-                        title="Edit"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                          <path d="m15 5 4 4" />
-                        </svg>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400"
-                        onClick={() => setDeletingWrestler(wrestler)}
-                        title="Delete"
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M3 6h18" />
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                          <line x1="10" y1="11" x2="10" y2="17" />
-                          <line x1="14" y1="11" x2="14" y2="17" />
-                        </svg>
-                      </Button>
+                  <div className="border-t-2 border-transparent px-2.5 pb-2.5 pt-2 transition-colors group-hover:border-gold">
+                    <div className="font-display text-lg font-extrabold leading-[1.02] [overflow-wrap:anywhere] group-hover:text-gold">
+                      {wrestler.name}
                     </div>
-                  </TableCell>
+                    <div className="mt-1.5 flex items-baseline justify-between gap-2 font-mono text-[10px]">
+                      {e ? (
+                        <>
+                          <span className="font-bold text-gold">{e.rating}</span>
+                          <span className="text-muted-foreground">
+                            {e.wins}-{e.losses}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="uppercase tracking-[0.14em] text-muted-foreground/50">
+                          {wrestler.gender === "male" ? "Men" : "Women"} · unranked
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+                {isAdmin && (
+                  <div className="absolute right-1 top-7 flex flex-col gap-1 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => setEditingWrestler(wrestler)}
+                      title="Edit"
+                      aria-label={`Edit ${wrestler.name}`}
+                      className="flex h-7 w-7 items-center justify-center bg-background/90 text-muted-foreground hover:text-gold"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeletingWrestler(wrestler)}
+                      title="Delete"
+                      aria-label={`Delete ${wrestler.name}`}
+                      className="flex h-7 w-7 items-center justify-center bg-background/90 text-muted-foreground hover:text-red-400"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                      </svg>
+                    </button>
+                  </div>
                 )}
-              </TableRow>
-            ))}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={isAdmin ? 6 : 5}
-                  className="text-center text-muted-foreground py-8"
-                >
-                  No wrestlers found
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <p className="text-xs text-muted-foreground/60">
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
         Showing {filtered.length} of {wrestlers.length}
       </p>
 

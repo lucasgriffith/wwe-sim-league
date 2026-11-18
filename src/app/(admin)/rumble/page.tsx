@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { RumbleSeeding } from "@/components/rumble/rumble-seeding";
 
@@ -31,10 +32,12 @@ export default async function RumblePage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8">
-      <h1 className="mb-2 text-3xl font-bold">Royal Rumble Seeding</h1>
-      <p className="mb-6 text-muted-foreground">
-        Enter elimination order to auto-generate tier assignments.
-      </p>
+      <PageHeader
+        admin
+        kicker="Season 1 seeding"
+        title="Royal Rumble"
+        description="Enter elimination order to auto-generate tier assignments."
+      />
       <RumbleSeeding
         wrestlers={(wrestlers ?? []) as any}
         tagTeams={(tagTeams ?? []) as any}

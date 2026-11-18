@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { getTagTeams, getWrestlers } from "@/lib/data/cached";
 import { TagTeamList } from "@/components/tag-teams/tag-team-list";
@@ -15,10 +16,11 @@ export default async function TagTeamsPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <h1 className="mb-2 text-3xl font-bold tracking-tight">Tag Teams</h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        {tagTeams?.length ?? 0} teams
-      </p>
+      <PageHeader
+        kicker="The tag division"
+        title="Tag Teams"
+        stats={[{ label: "Teams", value: tagTeams?.length ?? 0 }]}
+      />
       <TagTeamList
         tagTeams={tagTeams ?? []}
         wrestlers={sortByName(wrestlers ?? [])}

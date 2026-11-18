@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -28,16 +29,18 @@ export default async function RosterPhotosPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <h1 className="text-3xl font-bold tracking-tight">Photo Review</h1>
-      {!manifest ? (
-        <p className="mt-4 text-sm text-muted-foreground">No photo proposals to review.</p>
-      ) : (
+      <PageHeader
+        admin
+        kicker="Roster portraits"
+        title="Photo Review"
+        description={
+          manifest
+            ? `${manifest.proposals.length} proposed portraits from ${manifest.source}. Nothing changes until you approve it, and every approval can be reverted to the photo that was there before.`
+            : "No photo proposals to review."
+        }
+      />
+      {!manifest ? null : (
         <>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            {manifest.proposals.length} proposed portraits from {manifest.source}. Nothing
-            changes until you approve it, and every approval can be reverted to the photo
-            that was there before.
-          </p>
           <PhotoReview
             proposals={manifest.proposals.map((p) => ({ ...p, current: current[p.id] ?? null }))}
             unmatched={manifest.unmatched}

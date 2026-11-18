@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { RelegationManager } from "@/components/relegation/relegation-manager";
 
@@ -15,10 +16,7 @@ export default async function RelegationPage() {
   if (!season) {
     return (
       <div className="container max-w-screen-2xl px-4 py-8">
-        <h1 className="text-3xl font-bold">Relegation</h1>
-        <p className="mt-4 text-muted-foreground">
-          No season currently in relegation phase.
-        </p>
+        <PageHeader admin kicker="Season control" title="Relegation" description="No season currently in relegation phase." />
       </div>
     );
   }
@@ -53,10 +51,7 @@ export default async function RelegationPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8">
-      <h1 className="mb-2 text-3xl font-bold">Relegation</h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        Season {season.season_number}
-      </p>
+      <PageHeader admin kicker={`Season ${season.season_number}`} title="Relegation" />
       <RelegationManager
         season={season}
         tiers={tiers ?? []}

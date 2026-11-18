@@ -74,10 +74,10 @@ export function StandingsClient({ divisions, champions = {} }: Props) {
           <div key={tier.tierId} className="bg-card">
             <Link
               href={`/tiers/${tier.tierSlug ?? tier.tierId}`}
-              className="cut-plate inline-flex max-w-full items-baseline gap-3 bg-gold py-2 pl-4 pr-14 text-black transition-opacity hover:opacity-90"
+              className="cut-plate inline-flex max-w-full flex-col gap-x-3 bg-gold py-2 pl-4 pr-12 text-black transition-opacity hover:opacity-90 sm:flex-row sm:items-baseline"
             >
-              <span className="font-mono text-xs font-bold tracking-widest">TIER {tier.tierNumber}</span>
-              <span className="font-display truncate text-2xl font-black">{tier.tierName}</span>
+              <span className="font-mono text-xs font-bold tracking-widest whitespace-nowrap">TIER {tier.tierNumber}</span>
+              <span className="font-display text-xl font-black sm:text-2xl">{tier.tierName}</span>
             </Link>
 
             {tier.hasPools ? (

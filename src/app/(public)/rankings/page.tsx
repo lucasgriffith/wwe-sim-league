@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { getAllMatches, getTagTeams, getWrestlers } from "@/lib/data/cached";
 import { buildEloBoard, POOL_LABEL, type EloPool, type EloStanding } from "@/lib/elo/board";
@@ -23,14 +24,11 @@ export default async function RankingsPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Elo Rankings</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Every match moves the ratings: beat someone rated above you and you
-          climb fast, lose to someone below you and you fall hard. Playoff
-          matches count 25% more, title matches 50% more.
-        </p>
-      </div>
+      <PageHeader
+        kicker="The poll"
+        title="Elo Rankings"
+        description="Every match moves the ratings: beat someone rated above you and you climb fast, lose to someone below you and you fall hard. Playoff matches count 25% more, title matches 50% more."
+      />
 
       {!hasAny ? (
         <div className="rounded-xl border border-dashed border-border/40 bg-card/30 px-6 py-16 text-center">
@@ -97,9 +95,9 @@ function Poll({
               <th className="w-10 px-2 py-2 text-right">#</th>
               <th className="w-9 px-1 py-2 text-center" aria-label="Movement" />
               <th className="px-2 py-2 text-left">Name</th>
-              <th className="w-14 px-2 py-2 text-center">W-L</th>
+              <th className="hidden w-14 px-2 py-2 text-center sm:table-cell">W-L</th>
               <th className="hidden w-14 px-2 py-2 text-right sm:table-cell">Peak</th>
-              <th className="w-12 px-2 py-2 text-right">Last</th>
+              <th className="w-10 px-1 py-2 text-right">Last</th>
               <th className="w-16 px-3 py-2 text-right">Elo</th>
             </tr>
           </thead>
@@ -118,7 +116,7 @@ function Poll({
                     <Movement s={s} />
                   </td>
                   <td className="px-2 py-2">
-                    <Link href={p.href} className="group flex items-center gap-2">
+                    <Link href={p.href} className="group flex min-w-0 items-center gap-2">
                       {p.image ? (
                         <SmartImage
                           src={p.image}
@@ -132,12 +130,12 @@ function Poll({
                           {p.name.charAt(0)}
                         </span>
                       )}
-                      <span className="font-display truncate text-lg font-extrabold transition-colors group-hover:text-gold">
+                      <span className="font-display text-lg font-extrabold leading-none transition-colors group-hover:text-gold">
                         {p.name}
                       </span>
                     </Link>
                   </td>
-                  <td className="px-2 py-2 text-center text-xs tabular-nums text-muted-foreground">
+                  <td className="hidden px-2 py-2 text-center text-xs tabular-nums text-muted-foreground sm:table-cell">
                     {s.wins}-{s.losses}
                   </td>
                   <td className="hidden px-2 py-2 text-right text-xs tabular-nums text-muted-foreground/60 sm:table-cell">

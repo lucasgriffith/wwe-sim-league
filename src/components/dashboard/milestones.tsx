@@ -44,9 +44,9 @@ export function MilestonesBanner({ milestones }: { milestones: Milestone[] }) {
   if (visible.length === 0) return null;
 
   const colors = {
-    gold: "from-gold/10 to-gold/5 border-gold/20 text-gold",
-    fire: "from-orange-500/10 to-orange-500/5 border-orange-500/20 text-orange-400",
-    info: "from-blue-500/10 to-blue-500/5 border-blue-500/20 text-blue-400",
+    gold: "border-l-gold text-gold",
+    fire: "border-l-orange-400 text-orange-400",
+    info: "border-l-sky-400 text-sky-400",
   };
 
   return (
@@ -54,10 +54,10 @@ export function MilestonesBanner({ milestones }: { milestones: Milestone[] }) {
       {visible.map((m) => (
         <div
           key={m.id}
-          className={`flex items-center gap-3 rounded-xl border bg-gradient-to-r px-4 py-2.5 ${colors[m.type]} animate-slide-down`}
+          className={`flex items-center gap-3 border border-l-4 border-border bg-card px-4 py-2.5 ${colors[m.type]}`}
         >
           <span className="text-base">{m.icon}</span>
-          <span className="text-xs font-semibold flex-1">{m.text}</span>
+          <span className="flex-1 font-display text-lg font-extrabold uppercase leading-none text-foreground">{m.text}</span>
           <button
             onClick={() => dismiss(m.id)}
             className="text-muted-foreground/30 hover:text-muted-foreground transition-colors shrink-0"

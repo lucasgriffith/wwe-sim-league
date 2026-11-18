@@ -327,14 +327,14 @@ export function PlayoffsManager({
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <button
-                          className="flex flex-col items-center justify-center rounded-xl border-2 border-border/40 bg-gradient-to-b from-card to-muted/10 px-3 py-5 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50"
+                          className="flex flex-col items-center justify-center border-2 border-border bg-background font-display text-xl font-extrabold uppercase leading-none px-3 py-5 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50"
                           onClick={() => handleRecordPlayoffResult(nextMatch.id, aId)}
                           disabled={loading}
                         >
                           <span className="text-base font-bold leading-tight">{aName}</span>
                         </button>
                         <button
-                          className="flex flex-col items-center justify-center rounded-xl border-2 border-border/40 bg-gradient-to-b from-card to-muted/10 px-3 py-5 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50"
+                          className="flex flex-col items-center justify-center border-2 border-border bg-background font-display text-xl font-extrabold uppercase leading-none px-3 py-5 text-center transition-all hover:border-gold/40 hover:bg-gold/5 active:scale-[0.98] disabled:opacity-50"
                           onClick={() => handleRecordPlayoffResult(nextMatch.id, bId)}
                           disabled={loading}
                         >

@@ -266,10 +266,10 @@ export default async function WrestlerProfilePage({
               alt={wrestler.name}
               width={160}
               height={160}
-              className="block h-36 w-36 object-cover object-top sm:h-48 sm:w-48"
+              className="block h-28 w-28 object-cover object-top sm:h-48 sm:w-48"
             />
           ) : (
-            <div className="h-36 w-36 sm:h-48 sm:w-48 bg-muted/20 flex items-center justify-center">
+            <div className="h-28 w-28 sm:h-48 sm:w-48 bg-muted/20 flex items-center justify-center">
               <span className="text-2xl font-bold text-muted-foreground/30">
                 {wrestler.name.charAt(0)}
               </span>
@@ -279,8 +279,8 @@ export default async function WrestlerProfilePage({
             <ProfileImageUpload wrestlerId={id} currentUrl={wrestler.image_url} />
           )}
         </div>
-        <div className="relative min-w-0 flex-1 pb-6">
-        <h1 className="text-5xl sm:text-7xl">
+        <div className="relative min-w-0 flex-[1_1_12rem] pb-2 sm:pb-6">
+        <h1 className="text-4xl [overflow-wrap:anywhere] sm:text-7xl">
           {eloRank != null && (
             <span className="mr-3 text-3xl text-gold sm:text-5xl" title={`Ranked #${eloRank} in ${POOL_LABEL[eloStanding!.pool]} by Elo`}>
               {eloRank}
@@ -323,7 +323,7 @@ export default async function WrestlerProfilePage({
         </div>
         </div>
         {eloStanding && (
-          <div className="relative pb-6 text-right">
+          <div className="relative w-full pb-6 sm:w-auto sm:text-right">
             <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               Elo · {POOL_LABEL[eloStanding.pool]} #{eloStanding.rank} of {eloStanding.poolSize}
             </p>

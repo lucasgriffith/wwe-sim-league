@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { getAllMatches, getWrestlers } from "@/lib/data/cached";
 import { CompareView } from "@/components/compare/compare-view";
 import { sortByName } from "@/lib/utils/sort-name";
@@ -55,10 +56,7 @@ export default async function ComparePage({
 
   return (
     <div className="container max-w-screen-lg px-4 py-8 animate-fade-in">
-      <h1 className="text-3xl font-bold tracking-tight mb-2">Head-to-Head</h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        Compare two wrestlers side by side
-      </p>
+      <PageHeader kicker="Tale of the tape" title="Head-to-Head" description="Compare two wrestlers side by side." />
       <CompareView
         wrestlers={sortByName(wrestlers ?? [])}
         selectedA={a ?? ""}

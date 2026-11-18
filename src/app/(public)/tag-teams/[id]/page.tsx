@@ -196,12 +196,12 @@ export default async function TagTeamProfilePage({
                 alt={m.name}
                 width={160}
                 height={160}
-                className={`block h-32 w-32 object-cover object-top sm:h-44 sm:w-44 ${i === 0 ? "relative z-10" : ""}`}
+                className={`block h-24 w-24 object-cover object-top sm:h-44 sm:w-44 ${i === 0 ? "relative z-10" : ""}`}
               />
             ) : (
               <div
                 key={i}
-                className={`h-32 w-32 sm:h-44 sm:w-44 bg-muted/20 flex items-center justify-center ${i === 0 ? "relative z-10" : ""}`}
+                className={`h-24 w-24 sm:h-44 sm:w-44 bg-muted/20 flex items-center justify-center ${i === 0 ? "relative z-10" : ""}`}
               >
                 <span className="text-xl font-bold text-muted-foreground/20">
                   {m?.name.charAt(0) ?? "?"}
@@ -210,8 +210,8 @@ export default async function TagTeamProfilePage({
             )
           )}
         </div>
-        <div className="relative min-w-0 flex-1 pb-6">
-          <h1 className="text-4xl sm:text-6xl">
+        <div className="relative min-w-0 flex-[1_1_12rem] pb-2 sm:pb-6">
+          <h1 className="text-3xl [overflow-wrap:anywhere] sm:text-6xl">
             {eloRank != null && (
               <span className="mr-3 text-2xl text-gold sm:text-4xl" title={`Ranked #${eloRank} in ${POOL_LABEL[eloStanding!.pool]} by Elo`}>
                 {eloRank}
@@ -237,7 +237,7 @@ export default async function TagTeamProfilePage({
           )}
         </div>
         {eloStanding && (
-          <div className="relative pb-6 text-right">
+          <div className="relative w-full pb-6 sm:w-auto sm:text-right">
             <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               Elo · {POOL_LABEL[eloStanding.pool]} #{eloStanding.rank} of {eloStanding.poolSize}
             </p>

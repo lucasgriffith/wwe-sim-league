@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentSeason,
@@ -9,7 +10,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { getStatusLabel, getStatusColor } from "@/lib/season/state-machine";
+import { getStatusLabel } from "@/lib/season/state-machine";
 import { UpcomingSchedule } from "@/components/season/upcoming-schedule";
 
 const statusSteps = ["setup", "pool_play", "playoffs", "relegation", "completed"] as const;
@@ -28,9 +29,9 @@ export default async function SeasonPage() {
   if (!season) {
     return (
       <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-        <h1 className="text-3xl font-bold tracking-tight">Current Season</h1>
-        <div className="mt-8 rounded-xl border border-dashed border-border/40 bg-card/30 px-6 py-16 text-center">
-          <h3 className="text-lg font-semibold">No Active Season</h3>
+        <PageHeader kicker="Season control" title="Current Season" />
+        <div className="halftone border border-dashed border-border bg-card/40 px-6 py-16 text-center">
+          <h3 className="text-2xl">No Active Season</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Start one from{" "}
             <Link href="/season/setup" className="text-gold hover:underline">
@@ -99,14 +100,7 @@ export default async function SeasonPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <div className="mb-8 flex items-center gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">
-          Season {season.season_number}
-        </h1>
-        <Badge className={`${getStatusColor(season.status)} text-xs`}>
-          {getStatusLabel(season.status)}
-        </Badge>
-      </div>
+      <PageHeader kicker={getStatusLabel(season.status)} title={`Season ${season.season_number}`} />
 
       {/* Status stepper */}
       <div className="mb-10 flex items-center gap-1">
@@ -115,7 +109,7 @@ export default async function SeasonPage() {
           const isCurrent = i === currentStepIdx;
           return (
             <div key={step} className="flex items-center gap-1 flex-1">
-              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
+              <div className={`flex h-7 w-7 items-center justify-center font-display text-base font-black transition-all ${
                 isCompleted ? "bg-gold/20 text-gold" :
                 isCurrent ? "bg-gold text-black ring-2 ring-gold/30" :
                 "bg-muted text-muted-foreground"
@@ -161,9 +155,9 @@ export default async function SeasonPage() {
                               {tier.played}/{tier.total}
                             </span>
                           </div>
-                          <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className="mt-2 h-1.5 bg-foreground/10 overflow-hidden">
                             <div
-                              className={`h-full rounded-full transition-all duration-500 ${
+                              className={`h-full transition-all duration-500 ${
                                 pct === 100 ? "bg-emerald-500" : "bg-gold"
                               }`}
                               style={{ width: `${pct}%` }}

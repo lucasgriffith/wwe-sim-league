@@ -1,14 +1,19 @@
+import { PageHeader } from "@/components/ui/page-header";
+
 export default function WikiPage() {
   return (
-    <div className="container max-w-screen-md px-4 py-8 animate-fade-in">
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold tracking-tight">How It Works</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Everything you need to know about the WWE 2K26 Simulation League
-        </p>
-      </div>
+    <div className="container max-w-screen-lg px-4 py-8 animate-fade-in">
+      <PageHeader
+        kicker="The rulebook"
+        title="How It Works"
+        description="Everything you need to know about the WWE 2K26 Simulation League."
+        stats={[
+          { label: "Divisions", value: 4 },
+          { label: "Tiers", value: 28 },
+        ]}
+      />
 
-      <article className="prose-wiki space-y-10">
+      <article className="space-y-12 [counter-reset:rule]">
         {/* Overview */}
         <Section title="Overview">
           <p>
@@ -117,7 +122,7 @@ export default function WikiPage() {
               <li><strong>2 Wild Cards</strong> — the best remaining records across both pools</li>
             </ul>
             <p>All 6 are seeded 1–6 by overall record. The bracket works as follows:</p>
-            <div className="mt-3 rounded-lg border border-border/40 bg-card/30 p-4 font-mono text-xs leading-relaxed">
+            <div className="mt-3 overflow-x-auto border border-border bg-card p-4 font-mono text-xs leading-relaxed">
               <pre className="whitespace-pre text-muted-foreground">{`  Quarterfinals        Semifinals          Final
   ┌──────────┐
   │ Seed 3   │─┐
@@ -183,7 +188,7 @@ export default function WikiPage() {
               type="relegation-playoff"
               description="3rd-from-bottom defends their spot against the tier below's 3rd place in a Steel Cage match; 4th-from-bottom defends against their 4th. Winner takes (or keeps) the higher tier spot, loser goes down."
               color="amber"
-              arrow="⚔"
+              arrow="×"
             />
           </div>
           <SubSection title="Example (Tier of 10)">
@@ -227,8 +232,27 @@ export default function WikiPage() {
             <li><strong>Highest Tier Reached</strong> — the most prestigious tier a wrestler has competed in</li>
           </ul>
           <p>
-            The dynasty leaderboard ranks all wrestlers by championships won,
-            then by wins, then by win percentage.
+            The dynasty leaderboard ranks everyone by a career power score
+            built from titles, highest tier reached, win rate and playoff wins.
+          </p>
+        </Section>
+
+        {/* Elo */}
+        <Section title="Elo Ratings &amp; Rankings">
+          <p>
+            Every wrestler and tag team carries an Elo rating, like a chess
+            rating. Everyone starts from a seed based on their 2K overall
+            (1200 at 80 OVR), and every match moves both ratings.
+          </p>
+          <ul>
+            <li><strong>Opponent strength matters</strong> — beating someone rated above you is worth far more than beating someone below you, and losing to a lower-rated opponent costs more</li>
+            <li><strong>Early matches swing harder</strong> — a wrestler&apos;s first 10 matches move their rating faster while it settles</li>
+            <li><strong>Stakes count</strong> — playoff and relegation matches are worth 25% more, title matches 50% more</li>
+          </ul>
+          <p>
+            The small gold number in front of a name is their rank within
+            their own pool (men, women, men&apos;s tag, women&apos;s tag), shown
+            for the top 25 like a college football poll.
           </p>
         </Section>
 
@@ -246,7 +270,7 @@ export default function WikiPage() {
 
         {/* Stipulations Reference */}
         <Section title="Match Stipulation Reference">
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {[
               "Extreme Rules", "Inferno", "Three Stages of Hell",
               "I Quit", "Brawl", "Dumpster Match",
@@ -257,7 +281,7 @@ export default function WikiPage() {
             ].map((stip) => (
               <div
                 key={stip}
-                className="rounded-md border border-border/30 bg-card/30 px-3 py-2 text-xs"
+                className="border-l-2 border-gold/60 bg-card px-3 py-2 font-display text-base font-bold uppercase leading-none text-foreground"
               >
                 {stip}
               </div>
@@ -277,10 +301,16 @@ export default function WikiPage() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section>
-      <h2 className="text-xl font-bold tracking-tight mb-3">{title}</h2>
-      <div className="space-y-3 text-sm leading-relaxed text-muted-foreground [&_strong]:text-foreground [&_em]:text-foreground/80 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1 [&_a]:text-gold [&_a]:underline">
-        {children}
+    <section className="grid gap-x-8 gap-y-3 [counter-increment:rule] md:grid-cols-[5.5rem_minmax(0,1fr)]">
+      <div
+        aria-hidden
+        className="font-display text-6xl font-black leading-[0.8] text-gold/90 tabular-nums before:content-[counter(rule,decimal-leading-zero)] md:text-7xl"
+      />
+      <div className="min-w-0">
+        <h2 className="rule-title mb-4 text-3xl">{title}</h2>
+        <div className="space-y-3 text-[15px] leading-relaxed text-muted-foreground [&_strong]:text-foreground [&_em]:text-foreground/80 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1 [&_li]:marker:text-gold/70 [&_a]:text-gold [&_a]:underline">
+          {children}
+        </div>
       </div>
     </section>
   );
@@ -288,11 +318,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function SubSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mt-4">
-      <h3 className="text-sm font-semibold text-foreground mb-2">{title}</h3>
-      <div className="space-y-2">
-        {children}
-      </div>
+    <div className="mt-6">
+      <h3 className="mb-2 font-mono! text-[11px] font-bold tracking-[0.18em] text-gold/90">{title}</h3>
+      <div className="space-y-2">{children}</div>
     </div>
   );
 }
@@ -311,20 +339,22 @@ function DivisionCard({
   examples: string;
 }) {
   const colors: Record<string, string> = {
-    blue: "from-blue-500/8 to-transparent border-blue-500/15 text-blue-400",
-    purple: "from-purple-500/8 to-transparent border-purple-500/15 text-purple-400",
-    emerald: "from-emerald-500/8 to-transparent border-emerald-500/15 text-emerald-400",
-    orange: "from-orange-500/8 to-transparent border-orange-500/15 text-orange-400",
+    blue: "border-l-blue-400 text-blue-400",
+    purple: "border-l-purple-400 text-purple-400",
+    emerald: "border-l-emerald-400 text-emerald-400",
+    orange: "border-l-orange-400 text-orange-400",
   };
-  const c = colors[color] ?? "";
   return (
-    <div className={`rounded-lg border bg-gradient-to-br p-4 ${c}`}>
-      <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-foreground">{name}</h4>
-        <span className="text-[10px] font-mono">{tiers} tiers</span>
+    <div className={`flex gap-4 border border-l-4 border-border bg-card p-4 ${colors[color] ?? ""}`}>
+      <div className="shrink-0 text-center">
+        <div className="font-display text-5xl font-black leading-[0.85] tabular-nums">{tiers}</div>
+        <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">tiers</div>
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">{format}</p>
-      <p className="mt-2 text-[10px] text-muted-foreground/60">{examples}</p>
+      <div className="min-w-0">
+        <h4 className="font-display text-xl font-extrabold uppercase leading-none text-foreground">{name}</h4>
+        <p className="mt-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{format}</p>
+        <p className="mt-2 text-xs leading-snug text-muted-foreground/80">{examples}</p>
+      </div>
     </div>
   );
 }
@@ -339,13 +369,13 @@ function PhaseStep({
   description: string;
 }) {
   return (
-    <div className="flex gap-4">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold/10 text-xs font-bold text-gold">
+    <div className="flex gap-4 border-b border-border pb-3 last:border-b-0">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-gold font-display text-xl font-black text-black">
         {number}
       </div>
       <div>
-        <h4 className="text-sm font-semibold text-foreground">{name}</h4>
-        <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">{description}</p>
+        <h4 className="font-display text-xl font-extrabold uppercase leading-none text-foreground">{name}</h4>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
       </div>
     </div>
   );
@@ -363,18 +393,18 @@ function MovementRule({
   arrow: string;
 }) {
   const colors: Record<string, string> = {
-    red: "border-red-500/20 bg-red-500/5",
-    emerald: "border-emerald-500/20 bg-emerald-500/5",
-    amber: "border-amber-500/20 bg-amber-500/5",
+    red: "border-l-red-400 text-red-400",
+    emerald: "border-l-emerald-400 text-emerald-400",
+    amber: "border-l-amber-400 text-amber-400",
   };
   return (
-    <div className={`flex items-start gap-3 rounded-lg border p-3 ${colors[color] ?? ""}`}>
-      <span className="text-lg">{arrow}</span>
+    <div className={`flex items-start gap-4 border border-l-4 border-border bg-card p-3 ${colors[color] ?? ""}`}>
+      <span className="w-6 shrink-0 text-center font-display text-2xl font-black leading-none">{arrow}</span>
       <div>
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="font-display text-lg font-extrabold uppercase leading-none">
           {type.replace("-", " ")}
         </span>
-        <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">{description}</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{description}</p>
       </div>
     </div>
   );

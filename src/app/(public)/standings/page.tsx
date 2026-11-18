@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import Link from "next/link";
 import { StandingsClient } from "@/components/standings/standings-client";
 import { computeStandings } from "@/lib/standings/compute-standings";
@@ -60,10 +60,7 @@ export default async function StandingsPage() {
   if (!season) {
     return (
       <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-        <h1 className="text-3xl font-bold tracking-tight">Standings</h1>
-        <p className="mt-4 text-muted-foreground">
-          No active season.
-        </p>
+        <PageHeader kicker="League table" title="Standings" description="No active season." />
       </div>
     );
   }
@@ -309,15 +306,10 @@ export default async function StandingsPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Standings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Season {season.season_number} ·{" "}
-          <Badge variant="outline" className="text-[10px]">
-            {season.status.replace("_", " ")}
-          </Badge>
-        </p>
-      </div>
+      <PageHeader
+        kicker={`Season ${season.season_number} · ${season.status.replace("_", " ")}`}
+        title="Standings"
+      />
 
       <StandingsClient divisions={divisions} champions={champions} />
     </div>

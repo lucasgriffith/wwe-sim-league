@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { MatchEntry } from "@/components/season/match-entry";
 import { MatchEntryTabs } from "@/components/season/match-entry-tabs";
@@ -17,10 +18,7 @@ export default async function MatchEntryPage() {
   if (!season || !["pool_play", "playoffs", "relegation"].includes(season.status)) {
     return (
       <div className="container max-w-screen-2xl px-4 py-8">
-        <h1 className="text-3xl font-bold">Match Entry</h1>
-        <p className="mt-4 text-muted-foreground">
-          No active season in a playable phase.
-        </p>
+        <PageHeader admin kicker="Season control" title="Match Entry" description="No active season in a playable phase." />
       </div>
     );
   }
@@ -65,10 +63,15 @@ export default async function MatchEntryPage() {
 
   return (
     <div className="container max-w-lg px-4 py-8 animate-fade-in">
-      <h1 className="mb-2 text-3xl font-bold tracking-tight">Match Entry</h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        Season {season.season_number}
-      </p>
+      <PageHeader
+        admin
+        kicker={`Season ${season.season_number}`}
+        title="Match Entry"
+        stats={[
+          { label: "Played", value: playedCount },
+          { label: "Left", value: totalCount - playedCount },
+        ]}
+      />
       <MatchEntryTabs
         seasonId={season.id}
         tiers={(tiers ?? []) as any}

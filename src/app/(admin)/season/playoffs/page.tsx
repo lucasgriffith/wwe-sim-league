@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { PlayoffsManager } from "@/components/playoffs/playoffs-manager";
 
@@ -15,10 +16,7 @@ export default async function PlayoffsPage() {
   if (!season) {
     return (
       <div className="container max-w-screen-2xl px-4 py-8">
-        <h1 className="text-3xl font-bold">Playoffs</h1>
-        <p className="mt-4 text-muted-foreground">
-          No season currently in playoff phase.
-        </p>
+        <PageHeader admin kicker="Season control" title="Playoffs" description="No season currently in playoff phase." />
       </div>
     );
   }
@@ -49,10 +47,7 @@ export default async function PlayoffsPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8">
-      <h1 className="mb-2 text-3xl font-bold">Playoffs</h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        Season {season.season_number}
-      </p>
+      <PageHeader admin kicker={`Season ${season.season_number}`} title="Playoffs" />
       <PlayoffsManager
         season={season}
         tiers={tiers ?? []}

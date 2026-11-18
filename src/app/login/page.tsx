@@ -47,7 +47,7 @@ export default function LoginPage() {
             height={48}
             className="mx-auto mb-3 rounded-xl"
           />
-          <h1 className="text-xl font-bold gradient-text-gold">Admin Login</h1>
+          <h1 className="text-3xl text-gold">Admin Login</h1>
           <p className="text-xs text-muted-foreground mt-1">
             Sign in to manage the simulation league
           </p>

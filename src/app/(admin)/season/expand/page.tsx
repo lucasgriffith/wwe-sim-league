@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { MidSeasonExpansion } from "@/components/season/mid-season-expansion";
 import { sortByName } from "@/lib/utils/sort-name";
@@ -16,10 +17,7 @@ export default async function ExpandPage() {
   if (!season) {
     return (
       <div className="container max-w-screen-2xl px-4 py-8">
-        <h1 className="text-3xl font-bold">Mid-Season Expansion</h1>
-        <p className="mt-4 text-muted-foreground">
-          No season currently in pool play phase.
-        </p>
+        <PageHeader admin kicker="Season control" title="Mid-Season Expansion" description="No season currently in pool play phase." />
       </div>
     );
   }
@@ -53,13 +51,12 @@ export default async function ExpandPage() {
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">
-      <h1 className="mb-2 text-3xl font-bold tracking-tight">
-        Mid-Season Expansion
-      </h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        Season {season.season_number} — Add new wrestlers and generate catch-up
-        matches
-      </p>
+      <PageHeader
+        admin
+        kicker={`Season ${season.season_number}`}
+        title="Mid-Season Expansion"
+        description="Add new wrestlers and generate catch-up matches."
+      />
       <MidSeasonExpansion
         seasonId={season.id}
         tiers={(tiers ?? []) as any}

@@ -11,7 +11,6 @@ import {
 import { buildEloBoard } from "@/lib/elo/board";
 import { RankBadge } from "@/components/ui/rank-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
@@ -484,96 +483,91 @@ export default async function DashboardPage() {
         />
       )}
 
-      {/* ── Hero Banner ──────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden border-b border-border/20">
-        <div className="absolute inset-0 bg-gradient-to-r from-gold/[0.03] via-transparent to-wwe-red/[0.03]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(212,175,55,0.08),transparent_60%)]" />
-        <div className="container max-w-screen-2xl px-4 py-10 sm:py-14 relative">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-3 mb-3">
-                <img src="/logo.svg" alt="" className="h-10 w-10" />
-                {season && (
-                  <Badge className={`${getStatusColor(season.status)} text-[10px] uppercase tracking-widest font-bold`}>
-                    Season {season.season_number} · {getStatusLabel(season.status)}
-                  </Badge>
+      {/* ── Masthead ─────────────────────────────────────────────────── */}
+      <div className="halftone border-b-[3px] border-gold bg-card">
+        <div className="container max-w-screen-2xl px-4 py-8 sm:py-10">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:items-end">
+            <div className="min-w-0">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <img src="/logo.svg" alt="" className="h-7 w-7" />
+                {season ? (
+                  <>
+                    <span className="bg-gold px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-black">
+                      Season {season.season_number}
+                    </span>
+                    <span className="border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-foreground/80">
+                      {getStatusLabel(season.status)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    Off-season
+                  </span>
                 )}
               </div>
-              <h1 className="text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
-                <span className="bg-gradient-to-r from-gold via-amber-300 to-gold bg-clip-text text-transparent">
-                  WWE 2K26
-                </span>
+              <h1 className="text-6xl leading-[0.86] sm:text-7xl lg:text-8xl">
+                <span className="text-gold">WWE 2K26</span>
+                <br />
+                Sim League
               </h1>
-              <p className="text-lg sm:text-xl font-medium text-foreground/70 mt-1">
-                Simulation League
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground max-w-md">
-                CPU-vs-CPU championship simulation across 28 tiers with promotion, relegation, and dynasty tracking.{" "}
-                <Link href="/wiki" className="text-gold/70 hover:text-gold transition-colors">
-                  Learn more →
+              <p className="mt-4 max-w-md text-sm text-muted-foreground">
+                CPU-vs-CPU title chase across 28 tiers, with promotion, relegation and
+                a running Elo poll.{" "}
+                <Link href="/wiki" className="font-semibold text-gold hover:underline">
+                  How it works →
                 </Link>
               </p>
-              {/* Mobile-only compact progress */}
-              {season && totalMatches > 0 && (
-                <div className="flex items-center gap-3 mt-3 sm:hidden">
-                  <div className="h-1.5 flex-1 max-w-32 rounded-full bg-muted/20 overflow-hidden">
-                    <div className="h-full rounded-full bg-gold" style={{ width: `${overallPct}%` }} />
-                  </div>
-                  <span className="text-xs font-bold tabular-nums text-gold">{overallPct}%</span>
-                  <span className="text-[10px] text-muted-foreground tabular-nums">{totalPlayed}/{totalMatches}</span>
-                </div>
-              )}
             </div>
 
-            {/* Season Progress Ring — hidden on mobile */}
             {season && totalMatches > 0 && (
-              <div className="hidden sm:flex items-center gap-6">
-                <div className="relative h-32 w-32 shrink-0">
-                  <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-                    <defs>
-                      <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="rgb(212,175,55)" />
-                        <stop offset="100%" stopColor="rgb(245,158,11)" />
-                      </linearGradient>
-                    </defs>
-                    {/* Track ring — visible in dark mode */}
-                    <circle cx="50" cy="50" r="42" fill="none" strokeWidth="6" stroke="rgba(255,255,255,0.08)" />
-                    {/* Progress fill */}
-                    <circle
-                      cx="50" cy="50" r="42" fill="none"
-                      strokeWidth="6" strokeLinecap="round"
-                      strokeDasharray={`${overallPct * 2.64} 264`}
-                      stroke={overallPct === 100 ? "rgb(16,185,129)" : "url(#ringGrad)"}
-                      style={{ filter: "drop-shadow(0 0 6px rgba(212,175,55,0.3))" }}
+              <div className="border border-border bg-background">
+                <div className="flex items-end justify-between gap-4 px-4 pt-4">
+                  <div>
+                    <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Season complete
+                    </p>
+                    <p className={`font-display text-7xl font-black leading-[0.85] tabular-nums ${overallPct === 100 ? "text-emerald-400" : "text-foreground"}`}>
+                      {overallPct}
+                      <span className="text-3xl text-gold">%</span>
+                    </p>
+                  </div>
+                  <p className="pb-1 text-right font-mono text-xs text-muted-foreground">
+                    <span className="text-lg font-bold text-foreground">{totalPlayed}</span>
+                    <span> / {totalMatches}</span>
+                    <br />
+                    matches
+                  </p>
+                </div>
+                <div className="mx-4 mt-3 flex h-2.5 gap-px" aria-hidden>
+                  {Array.from({ length: 40 }, (_, i) => (
+                    <span
+                      key={i}
+                      className={`flex-1 ${i < Math.round((overallPct / 100) * 40) ? (overallPct === 100 ? "bg-emerald-400" : "bg-gold") : "bg-foreground/10"}`}
                     />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-black tabular-nums">{overallPct}%</span>
-                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Complete</span>
-                  </div>
+                  ))}
                 </div>
-                <div className="text-sm space-y-1 hidden sm:block">
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Matches:</span>
-                    <span className="font-bold tabular-nums">{totalPlayed}/{totalMatches}</span>
+                <dl className="mt-4 grid grid-cols-3 border-t border-border">
+                  <div className="px-4 py-2.5">
+                    <dt className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Tiers done</dt>
+                    <dd className="font-display text-2xl font-extrabold leading-none tabular-nums">
+                      {tierProgress.filter((t) => t.played === t.total && t.total > 0).length}
+                      <span className="text-base text-muted-foreground">/{tierProgress.length}</span>
+                    </dd>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Tiers:</span>
-                    <span className="font-bold tabular-nums">{tierProgress.filter((t) => t.played === t.total && t.total > 0).length}/{tierProgress.length}</span>
+                  <div className="border-l border-border px-4 py-2.5">
+                    <dt className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Pace</dt>
+                    <dd className="font-display text-2xl font-extrabold leading-none tabular-nums">
+                      {matchesPerDay ?? "–"}
+                      {matchesPerDay && <span className="text-base text-muted-foreground">/day</span>}
+                    </dd>
                   </div>
-                  {matchesPerDay && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Pace:</span>
-                      <span className="font-bold tabular-nums">{matchesPerDay}/day</span>
-                    </div>
-                  )}
-                  {projectedDaysLeft && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">ETA:</span>
-                      <span className="font-bold tabular-nums">~{projectedDaysLeft}d</span>
-                    </div>
-                  )}
-                </div>
+                  <div className="border-l border-border px-4 py-2.5">
+                    <dt className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Finishes in</dt>
+                    <dd className="font-display text-2xl font-extrabold leading-none tabular-nums">
+                      {projectedDaysLeft ? <>~{projectedDaysLeft}<span className="text-base text-muted-foreground">d</span></> : "–"}
+                    </dd>
+                  </div>
+                </dl>
               </div>
             )}
           </div>
@@ -586,9 +580,9 @@ export default async function DashboardPage() {
         {milestones.length > 0 && <MilestonesBanner milestones={milestones} />}
 
         {/* ── Up Next + Latest Result | On Fire | Ice Cold ─────────── */}
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr]">
           {/* Left: Up Next stacked with Latest Result */}
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             {unplayedMatches.length > 0 && (
               <UpNextCard
                 matches={unplayedMatches}
@@ -673,7 +667,7 @@ export default async function DashboardPage() {
               <h3 className="rule-title mb-2 text-xl">
                 On Fire
               </h3>
-              <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">
+              <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 lg:grid-cols-1">
                 {onFire.slice(0, 8).map((w) => (
                   <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-amber-500/10 bg-amber-500/[0.03] px-2 py-1.5 hover:border-amber-500/25 transition-all group">
                     {w.image ? (
@@ -699,7 +693,7 @@ export default async function DashboardPage() {
               <h3 className="rule-title mb-2 text-xl">
                 Ice Cold
               </h3>
-              <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">
+              <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 lg:grid-cols-1">
                 {iceCold.slice(0, 8).map((w) => (
                   <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-blue-500/10 bg-blue-500/[0.03] px-2 py-1.5 hover:border-blue-500/25 transition-all group">
                     {w.image ? (
@@ -884,16 +878,12 @@ export default async function DashboardPage() {
         )}
 
         {/* ── Recent Results + Tier Map Row ─────────────────────────── */}
-        <div className={`grid gap-4 ${tierProgress.length > 0 && recentMatches.length > 0 ? "lg:grid-cols-2" : ""}`}>
+        <div className={`grid gap-6 ${tierProgress.length > 0 && recentMatches.length > 0 ? "lg:grid-cols-2" : ""}`}>
           {/* Recent Results */}
           {recentMatches.length > 0 && (
-            <Card className="border-border/30 bg-card/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="font-display text-xl font-extrabold">
-                  Recent Results
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1.5">
+            <section className="min-w-0">
+              <h2 className="rule-title text-2xl">Recent Results</h2>
+              <div className="border border-t-0 border-border bg-card divide-y divide-border/60">
                 {recentMatches.map((m, matchIdx) => {
                   const aId = m.wrestler_a_id || m.tag_team_a_id;
                   const bId = m.wrestler_b_id || m.tag_team_b_id;
@@ -908,49 +898,49 @@ export default async function DashboardPage() {
                   const aImg = !isTag ? imageMap[aId ?? ""] : null;
                   const bImg = !isTag ? imageMap[bId ?? ""] : null;
                   return (
-                    <div key={m.id} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted/5 transition-colors">
+                    <div key={m.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-foreground/[0.03] transition-colors">
                       {/* A photo */}
                       {aImgs ? (
                         <div className="flex -space-x-1.5 shrink-0">
-                          {aImgs[0] ? <SmartImage src={aImgs[0]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background relative z-10" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background relative z-10" />}
-                          {aImgs[1] ? <SmartImage src={aImgs[1]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background" />}
+                          {aImgs[0] ? <SmartImage src={aImgs[0]} alt="" width={48} height={48} className="h-8 w-8 object-cover object-top border border-background relative z-10" /> : <div className="h-8 w-8 bg-muted/30 border border-background relative z-10" />}
+                          {aImgs[1] ? <SmartImage src={aImgs[1]} alt="" width={48} height={48} className="h-8 w-8 object-cover object-top border border-background" /> : <div className="h-8 w-8 bg-muted/30 border border-background" />}
                         </div>
                       ) : aImg ? (
-                        <SmartImage src={aImg} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-border/20 shrink-0" />
+                        <SmartImage src={aImg} alt="" width={48} height={48} className="h-8 w-8 object-cover object-top border border-border/20 shrink-0" />
                       ) : (
-                        <div className="h-6 w-6 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                        <div className="h-8 w-8 bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
                           <span className="text-[8px] font-bold text-muted-foreground/30">{aName.charAt(0)}</span>
                         </div>
                       )}
                       {isTag ? (
-                        <Link href={`/tag-teams/${aId}`} className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
-                          <RankBadge rank={eloBoard.standings.get(aId ?? "")?.rank} />{aName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(aId ?? "") ?? 0}-{lossCounts.get(aId ?? "") ?? 0})</span>
+                        <Link href={`/tag-teams/${aId}`} className={`truncate hover:underline ${isAWinner ? "font-display text-lg font-extrabold leading-none text-foreground" : "text-muted-foreground"}`}>
+                          <RankBadge rank={eloBoard.standings.get(aId ?? "")?.rank} />{aName}<span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground/70">({winCounts.get(aId ?? "") ?? 0}-{lossCounts.get(aId ?? "") ?? 0})</span>
                         </Link>
                       ) : (
-                        <Link href={`/roster/${slugMap[aId ?? ""] ?? aId}`} className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
-                          <RankBadge rank={eloBoard.standings.get(aId ?? "")?.rank} />{aName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(aId ?? "") ?? 0}-{lossCounts.get(aId ?? "") ?? 0})</span>
+                        <Link href={`/roster/${slugMap[aId ?? ""] ?? aId}`} className={`truncate hover:underline ${isAWinner ? "font-display text-lg font-extrabold leading-none text-foreground" : "text-muted-foreground"}`}>
+                          <RankBadge rank={eloBoard.standings.get(aId ?? "")?.rank} />{aName}<span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground/70">({winCounts.get(aId ?? "") ?? 0}-{lossCounts.get(aId ?? "") ?? 0})</span>
                         </Link>
                       )}
                       <span className="text-[9px] text-muted-foreground/30 shrink-0">vs</span>
                       {isTag ? (
-                        <Link href={`/tag-teams/${bId}`} className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
-                          <RankBadge rank={eloBoard.standings.get(bId ?? "")?.rank} />{bName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(bId ?? "") ?? 0}-{lossCounts.get(bId ?? "") ?? 0})</span>
+                        <Link href={`/tag-teams/${bId}`} className={`truncate hover:underline ${!isAWinner ? "font-display text-lg font-extrabold leading-none text-foreground" : "text-muted-foreground"}`}>
+                          <RankBadge rank={eloBoard.standings.get(bId ?? "")?.rank} />{bName}<span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground/70">({winCounts.get(bId ?? "") ?? 0}-{lossCounts.get(bId ?? "") ?? 0})</span>
                         </Link>
                       ) : (
-                        <Link href={`/roster/${slugMap[bId ?? ""] ?? bId}`} className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
-                          <RankBadge rank={eloBoard.standings.get(bId ?? "")?.rank} />{bName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(bId ?? "") ?? 0}-{lossCounts.get(bId ?? "") ?? 0})</span>
+                        <Link href={`/roster/${slugMap[bId ?? ""] ?? bId}`} className={`truncate hover:underline ${!isAWinner ? "font-display text-lg font-extrabold leading-none text-foreground" : "text-muted-foreground"}`}>
+                          <RankBadge rank={eloBoard.standings.get(bId ?? "")?.rank} />{bName}<span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground/70">({winCounts.get(bId ?? "") ?? 0}-{lossCounts.get(bId ?? "") ?? 0})</span>
                         </Link>
                       )}
                       {/* B photo */}
                       {bImgs ? (
                         <div className="flex -space-x-1.5 shrink-0">
-                          {bImgs[0] ? <SmartImage src={bImgs[0]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background relative z-10" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background relative z-10" />}
-                          {bImgs[1] ? <SmartImage src={bImgs[1]} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-background" /> : <div className="h-6 w-6 rounded-full bg-muted/30 border border-background" />}
+                          {bImgs[0] ? <SmartImage src={bImgs[0]} alt="" width={48} height={48} className="h-8 w-8 object-cover object-top border border-background relative z-10" /> : <div className="h-8 w-8 bg-muted/30 border border-background relative z-10" />}
+                          {bImgs[1] ? <SmartImage src={bImgs[1]} alt="" width={48} height={48} className="h-8 w-8 object-cover object-top border border-background" /> : <div className="h-8 w-8 bg-muted/30 border border-background" />}
                         </div>
                       ) : bImg ? (
-                        <SmartImage src={bImg} alt="" width={48} height={48} className="h-6 w-6 rounded-full object-cover border border-border/20 shrink-0" />
+                        <SmartImage src={bImg} alt="" width={48} height={48} className="h-8 w-8 object-cover object-top border border-border/20 shrink-0" />
                       ) : (
-                        <div className="h-6 w-6 rounded-full bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
+                        <div className="h-8 w-8 bg-muted/20 border border-border/20 flex items-center justify-center shrink-0">
                           <span className="text-[8px] font-bold text-muted-foreground/30">{bName.charAt(0)}</span>
                         </div>
                       )}
@@ -958,12 +948,12 @@ export default async function DashboardPage() {
                         {(() => {
                           const odds = eloBoard.odds.get(m.id);
                           return odds && odds.winnerProb < 0.35 ? (
-                            <Link href={`/match/${m.id}`} className="rounded bg-wwe-red/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-wwe-red hover:bg-wwe-red/25" title={`The winner had a ${Math.round(odds.winnerProb * 100)}% chance`}>
+                            <Link href={`/match/${m.id}`} className="bg-wwe-red px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-white hover:brightness-110" title={`The winner had a ${Math.round(odds.winnerProb * 100)}% chance`}>
                               Upset {Math.round(odds.winnerProb * 100)}%
                             </Link>
                           ) : null;
                         })()}
-                        {time && <span className="text-[10px] tabular-nums text-muted-foreground/40">{time}</span>}
+                        {time && <span className="text-xs tabular-nums text-muted-foreground">{time}</span>}
                         {matchIdx === 0 && (
                           <UndoMatchButton matchId={m.id} winnerName={wrestlerMap[winnerId ?? ""] ?? "?"} />
                         )}
@@ -971,19 +961,15 @@ export default async function DashboardPage() {
                     </div>
                   );
                 })}
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           )}
 
           {/* Tier Progress Map */}
           {tierProgress.length > 0 && (
-            <Card className="border-border/30 bg-card/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="font-display text-xl font-extrabold">
-                  Tier Progress
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 pb-4">
+            <section className="min-w-0">
+              <h2 className="rule-title text-2xl">Tier Progress</h2>
+              <div className="space-y-4 border border-t-0 border-border bg-card p-3">
                 {(() => {
                   const divColors: Record<string, { border: string; bg: string; text: string; dot: string; fill: string }> = {
                     "Men's Singles": { border: "border-blue-500/25", bg: "bg-blue-500/8", text: "text-blue-400", dot: "bg-blue-500", fill: "59,130,246" },
@@ -1003,17 +989,17 @@ export default async function DashboardPage() {
                     return (
                       <div key={g.label}>
                         <div className="flex items-center gap-1.5 mb-1.5">
-                          <span className={`h-2 w-2 rounded-full ${c.dot}`} />
-                          <span className={`text-[9px] font-bold uppercase tracking-wider ${c.text}`}>{g.label}</span>
+                          <span className={`h-2 w-2 ${c.dot}`} />
+                          <span className={`font-mono text-[10px] font-bold uppercase tracking-[0.18em] ${c.text}`}>{g.label}</span>
                         </div>
-                        <div className="grid gap-1 grid-cols-4">
+                        <div className="grid grid-cols-4 gap-1 sm:grid-cols-8 lg:grid-cols-4 xl:grid-cols-8">
                           {g.tiers.map((t) => {
                             const pct = t.total > 0 ? Math.round((t.played / t.total) * 100) : 0;
                             const done = pct === 100;
                             return (
                               <Link key={t.tierId} href={`/tiers/${t.tierSlug ?? t.tierId}`}>
                                 <div
-                                  className={`rounded border p-1.5 text-center hover:scale-105 transition-all relative overflow-hidden ${
+                                  className={`border px-1.5 py-2 text-center hover:border-gold transition-colors relative overflow-hidden ${
                                     done
                                       ? "border-emerald-500/30"
                                       : pct > 0
@@ -1029,8 +1015,8 @@ export default async function DashboardPage() {
                                   }
                                   title={`${t.tierName}: ${t.played}/${t.total} (${pct}%)`}
                                 >
-                                  <span className="text-[8px] font-bold block truncate relative z-10">{t.tierName}</span>
-                                  <span className={`text-[7px] font-bold tabular-nums relative z-10 ${
+                                  <span className="block truncate font-display text-sm font-extrabold uppercase leading-none relative z-10">{t.tierName}</span>
+                                  <span className={`mt-1 block text-[10px] font-bold tabular-nums relative z-10 ${
                                     done ? "text-emerald-400" : pct > 0 ? c.text : "text-muted-foreground/30"
                                   }`}>
                                     {pct}%
@@ -1044,63 +1030,57 @@ export default async function DashboardPage() {
                     );
                   });
                 })()}
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           )}
         </div>
 
         {/* ── Championship Belt Gallery ───────────────────────────────── */}
         {champions.length > 0 && (
-          <div>
-            <h2 className="rule-title mb-3 flex items-baseline gap-1.5 text-2xl">
-              Championship Holders
-            </h2>
-            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
+          <section>
+            <h2 className="rule-title text-2xl">Championship Holders</h2>
+            <div className="grid grid-cols-2 pl-px sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
               {champions.sort((a, b) => a.tierNumber - b.tierNumber).map((c) => (
-                <div key={c.tierName} className="group rounded-xl border border-border/30 bg-gradient-to-b from-card to-muted/5 p-3 hover:border-gold/30 hover:shadow-lg hover:shadow-gold/5 transition-all text-center">
+                <div key={c.tierName} className="group -ml-px -mt-px border border-border bg-card p-3">
                   {c.beltImageUrl ? (
-                    <SmartImage src={c.beltImageUrl} alt={c.tierName} width={240} height={96} className="h-12 w-full object-contain mx-auto mb-2 opacity-80 group-hover:opacity-100 transition-opacity" />
+                    <SmartImage src={c.beltImageUrl} alt={c.tierName} width={240} height={96} className="mx-auto mb-3 h-12 w-full object-contain opacity-85 transition-opacity group-hover:opacity-100" />
                   ) : (
-                    <div className="h-12 flex items-center justify-center mb-2">
-                      <span className="text-2xl opacity-30 group-hover:opacity-60 transition-opacity"></span>
+                    <div className="mb-3 flex h-12 items-center justify-center font-display text-4xl font-black text-gold/25">
+                      T{c.tierNumber}
                     </div>
                   )}
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/40 truncate">{c.tierName}</p>
-                  <div className="mt-1 flex items-center justify-center gap-1.5">
+                  <p className="truncate font-mono text-[9px] uppercase tracking-[0.16em] text-gold/80">{c.tierName}</p>
+                  <div className="mt-1.5 flex items-center gap-2">
                     {imageMap[c.holderId] ? (
-                      <SmartImage src={imageMap[c.holderId]} alt="" width={40} height={40} className="h-5 w-5 rounded-full object-cover border border-border/20" />
+                      <SmartImage src={imageMap[c.holderId]} alt="" width={56} height={56} className="h-7 w-7 shrink-0 object-cover object-top" />
                     ) : null}
-                    <p className="text-xs font-bold truncate text-gold">{c.holderName}</p>
+                    <p className="font-display text-lg font-extrabold leading-none [overflow-wrap:anywhere]">{c.holderName}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        {/* Tier Heat Map moved to sidebar with Recent Results */}
-
         {/* ── Stats Bar ──────────────────────────────────────────────── */}
-        <div className="grid gap-3 grid-cols-3">
-          <div className="rounded-lg border border-border/20 bg-card/30 px-4 py-3 text-center">
-            <p className="text-2xl font-black tabular-nums">{wrestlerCount ?? 0}</p>
-            <p className="text-[9px] uppercase tracking-wider text-muted-foreground/40 font-semibold">Wrestlers</p>
-          </div>
-          <div className="rounded-lg border border-border/20 bg-card/30 px-4 py-3 text-center">
-            <p className="text-2xl font-black tabular-nums">{tagTeamCount ?? 0}</p>
-            <p className="text-[9px] uppercase tracking-wider text-muted-foreground/40 font-semibold">Tag Teams</p>
-          </div>
-          <div className="rounded-lg border border-border/20 bg-card/30 px-4 py-3 text-center">
-            <p className="text-2xl font-black tabular-nums">{completedSeasons ?? 0}</p>
-            <p className="text-[9px] uppercase tracking-wider text-muted-foreground/40 font-semibold">Seasons</p>
-          </div>
+        <div className="grid grid-cols-3 gap-px border border-border bg-border">
+          {[
+            { label: "Wrestlers", value: wrestlerCount ?? 0, href: "/roster" },
+            { label: "Tag Teams", value: tagTeamCount ?? 0, href: "/tag-teams" },
+            { label: "Seasons Completed", value: completedSeasons ?? 0, href: "/history" },
+          ].map((stat) => (
+            <Link key={stat.label} href={stat.href} className="group bg-card px-4 py-4 transition-colors hover:bg-foreground/[0.03]">
+              <p className="font-display text-5xl font-black leading-[0.85] tabular-nums group-hover:text-gold">{stat.value}</p>
+              <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">{stat.label}</p>
+            </Link>
+          ))}
         </div>
 
         {/* ── Empty State ────────────────────────────────────────────── */}
         {playedMatches.length === 0 && !season && (
-          <div className="rounded-2xl border border-dashed border-border/30 bg-gradient-to-br from-card/50 to-muted/5 px-6 py-16 text-center">
+          <div className="halftone border border-dashed border-border bg-card/40 px-6 py-16 text-center">
             <img src="/logo.svg" alt="" width={56} height={56} className="mx-auto mb-4 opacity-40" />
-            <h3 className="text-xl font-bold">Ready to Begin</h3>
+            <h3 className="text-3xl">Ready to Begin</h3>
             <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
               Add wrestlers to the roster and set up your first season to start the simulation.
             </p>
