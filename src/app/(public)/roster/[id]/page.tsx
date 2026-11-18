@@ -7,7 +7,7 @@ import { ProfileImageUpload } from "@/components/roster/profile-image-upload";
 import { SmartImage } from "@/components/ui/smart-image";
 import { RatingSparkline } from "@/components/ui/rating-sparkline";
 import { displaySrc } from "@/components/ui/smart-image";
-import { computeElo } from "@/lib/elo/compute-elo";
+import { buildEloBoard, POOL_LABEL } from "@/lib/elo/board";
 import {
   getAllAssignments,
   getAllMatches,
@@ -137,17 +137,10 @@ export default async function WrestlerProfilePage({
   const isCurrentChampion = !!currentChampions[id];
 
   // Career Elo + rank within their division
-  const eloRatings = computeElo(allMatchRows);
-  const eloEntry = eloRatings.get(id) ?? null;
-  const eloRank = eloEntry
-    ? 1 +
-      wrestlers.filter(
-        (w) =>
-          w.id !== id &&
-          w.gender === wrestler.gender &&
-          (eloRatings.get(w.id)?.rating ?? -Infinity) > eloEntry.rating
-      ).length
-    : null;
+  const eloBoard = buildEloBoard(allMatchRows, wrestlers, allTagTeams);
+  const eloEntry = eloBoard.entries.get(id) ?? null;
+  const eloStanding = eloBoard.standings.get(id) ?? null;
+  const eloRank = eloStanding?.rank ?? null;
 
   // Championships (finals won)
   const titlesWon = allMatches
@@ -286,7 +279,14 @@ export default async function WrestlerProfilePage({
           )}
         </div>
         <div>
-        <h1 className="text-3xl font-bold tracking-tight">{wrestler.name}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          {eloRank != null && (
+            <span className="mr-2 align-[0.15em] text-lg font-bold tabular-nums text-gold" title={`Ranked #${eloRank} in ${POOL_LABEL[eloStanding!.pool]} by Elo`}>
+              #{eloRank}
+            </span>
+          )}
+          {wrestler.name}
+        </h1>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Badge
             variant="outline"
@@ -362,11 +362,16 @@ export default async function WrestlerProfilePage({
                 Elo Rating
               </p>
               <p className="text-3xl font-bold tabular-nums text-gold">
-                {Math.round(eloEntry.rating)}
+                {eloStanding?.rating ?? Math.round(eloEntry.rating)}
+                {eloStanding?.provisional && <span className="text-lg text-gold/50" title="Provisional — fewer than 10 matches">?</span>}
+                {eloStanding && eloStanding.lastDelta !== 0 && (
+                  <span className={`ml-2 text-sm font-semibold ${eloStanding.lastDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {eloStanding.lastDelta > 0 ? "+" : ""}{eloStanding.lastDelta}
+                  </span>
+                )}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                peak {Math.round(eloEntry.peak)}
-                {eloRank != null && <> · #{eloRank} {wrestler.gender === "female" ? "women's" : "men's"} division</>}
+                {eloRank != null && eloStanding && <>#{eloRank} of {eloStanding.poolSize} · </>}peak {Math.round(eloEntry.peak)}
               </p>
             </div>
             <div className="flex-1 min-w-0 text-muted-foreground">

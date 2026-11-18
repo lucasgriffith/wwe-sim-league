@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getAllMatches, getTagTeams, getWrestlers } from "@/lib/data/cached";
 import { computeRecordBook, type RecordParticipant } from "@/lib/records/compute-records";
-import { computeElo } from "@/lib/elo/compute-elo";
+import { buildEloBoard } from "@/lib/elo/board";
 import { Card, CardContent } from "@/components/ui/card";
 import { SmartImage } from "@/components/ui/smart-image";
 
@@ -46,7 +46,7 @@ export default async function RecordsPage() {
     participants.get(id) ?? { name: "?", href: null, imageUrl: null, isTag: false };
 
   // Elo leaders (min 5 matches so provisional ratings don't top the board)
-  const eloRatings = computeElo(matches);
+  const eloRatings = buildEloBoard(matches, wrestlers, tagTeams).entries;
   const eloRows = [...eloRatings.entries()].filter(([, e]) => e.matches >= 5);
   const topElo = [...eloRows].sort((a, b) => b[1].rating - a[1].rating)[0];
   const topPeak = [...eloRows].sort((a, b) => b[1].peak - a[1].peak)[0];

@@ -15,6 +15,8 @@ export interface StandingsRow {
   matchesPlayed: number;
   totalMatchTime: number;
   avgMatchTime: number;
+  /** Average duration of matches this participant WON (0 if no wins) */
+  avgWinTime: number;
   rank: number;
 }
 
@@ -23,13 +25,12 @@ export interface StandingsRow {
  * page, playoff seeding). Official tiebreak order:
  *
  * 1. Win percentage (descending)
- * 2. Total wins (descending) — only separates rows mid-season when match
- *    counts differ (3-0 ranks above 1-0); once everyone has played the same
- *    schedule, equal win% implies equal wins and this is a no-op
+ * 2. Games back (ascending) — i.e. win-loss differential. Only separates
+ *    rows while match counts differ: 3-0 sits above 1-0, and 0-1 above 0-3
  * 3. Head-to-head record among the tied group (mini-league: only matches
  *    between tied participants count) — transitive by construction, so a
  *    circular head-to-head can't make the order depend on input order
- * 4. Average match time (ascending — quicker matches = more dominant)
+ * 4. Average time of WINS (ascending — quicker wins = more dominant)
  * 5. Deterministic hash of participant id (stable across renders)
  */
 export function computeStandings(
@@ -38,11 +39,11 @@ export function computeStandings(
 ): StandingsRow[] {
   const stats = new Map<
     string,
-    { name: string; wins: number; losses: number; totalTime: number }
+    { name: string; wins: number; losses: number; totalTime: number; winTime: number }
   >();
 
   for (const p of participants) {
-    stats.set(p.id, { name: p.name, wins: 0, losses: 0, totalTime: 0 });
+    stats.set(p.id, { name: p.name, wins: 0, losses: 0, totalTime: 0, winTime: 0 });
   }
 
   for (const m of matches) {
@@ -50,13 +51,17 @@ export function computeStandings(
     const bStats = stats.get(m.wrestlerBId);
 
     if (aStats) {
-      if (m.winnerId === m.wrestlerAId) aStats.wins++;
-      else aStats.losses++;
+      if (m.winnerId === m.wrestlerAId) {
+        aStats.wins++;
+        aStats.winTime += m.matchTimeSeconds;
+      } else aStats.losses++;
       aStats.totalTime += m.matchTimeSeconds;
     }
     if (bStats) {
-      if (m.winnerId === m.wrestlerBId) bStats.wins++;
-      else bStats.losses++;
+      if (m.winnerId === m.wrestlerBId) {
+        bStats.wins++;
+        bStats.winTime += m.matchTimeSeconds;
+      } else bStats.losses++;
       bStats.totalTime += m.matchTimeSeconds;
     }
   }
@@ -72,13 +77,15 @@ export function computeStandings(
       matchesPlayed: played,
       totalMatchTime: s.totalTime,
       avgMatchTime: played > 0 ? Math.round(s.totalTime / played) : 0,
+      avgWinTime: s.wins > 0 ? Math.round(s.winTime / s.wins) : 0,
       rank: 0,
     };
   });
 
-  // Sort by win% then total wins into tied groups, then break each group
-  // as a unit
-  rows.sort((a, b) => b.winPct - a.winPct || b.wins - a.wins);
+  // Sort by win% then games back (= win-loss differential) into tied groups,
+  // then break each group as a unit
+  const diff = (r: StandingsRow) => r.wins - r.losses;
+  rows.sort((a, b) => b.winPct - a.winPct || diff(b) - diff(a));
 
   const ordered: StandingsRow[] = [];
   let i = 0;
@@ -87,7 +94,7 @@ export function computeStandings(
     while (
       j < rows.length &&
       rows[j].winPct === rows[i].winPct &&
-      rows[j].wins === rows[i].wins
+      diff(rows[j]) === diff(rows[i])
     ) {
       j++;
     }
@@ -102,7 +109,7 @@ export function computeStandings(
   return ordered;
 }
 
-/** Break a win%-tied group: mini-league record → avg time → hash. */
+/** Break a tied group: mini-league record → avg time of wins → hash. */
 function orderTiedGroup(
   group: StandingsRow[],
   matches: MatchResult[]
@@ -135,11 +142,11 @@ function orderTiedGroup(
     const aMini = miniPct(a.participantId);
     const bMini = miniPct(b.participantId);
     if (aMini !== bMini) return bMini - aMini;
-    if (a.avgMatchTime !== b.avgMatchTime) {
-      // Unplayed participants (avg 0) sort below anyone with an avg
-      if (a.avgMatchTime === 0) return 1;
-      if (b.avgMatchTime === 0) return -1;
-      return a.avgMatchTime - b.avgMatchTime;
+    if (a.avgWinTime !== b.avgWinTime) {
+      // Participants with no wins (0) sort below anyone with a win time
+      if (a.avgWinTime === 0) return 1;
+      if (b.avgWinTime === 0) return -1;
+      return a.avgWinTime - b.avgWinTime;
     }
     return simpleHash(a.participantId) - simpleHash(b.participantId);
   });

@@ -8,6 +8,7 @@ import { FormDots } from "@/components/ui/form-dots";
 import { ChampionBadge } from "@/components/ui/champion-badge";
 import type { ChampionInfo } from "@/lib/champions";
 import { computeClinchStatus } from "@/lib/standings/clinch";
+import { RankBadge } from "@/components/ui/rank-badge";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -164,6 +165,7 @@ function StandingsTable({
             <th className="px-1 sm:px-3 py-2 text-center w-8">L</th>
             <th className="px-1 sm:px-3 py-2 text-right w-12">Win%</th>
             <th className="px-1 sm:px-3 py-2 text-center w-10 hidden sm:table-cell">GB</th>
+            <th className="px-1 sm:px-3 py-2 text-right w-12 hidden sm:table-cell">Elo</th>
             <th className="px-1 sm:px-3 py-2 text-center w-10">Strk</th>
             <th className="px-1 sm:px-3 py-2 text-center w-12 hidden sm:table-cell">Form</th>
             <th className="px-1 sm:px-3 py-2 text-right w-14 hidden sm:table-cell">Avg Time</th>
@@ -269,6 +271,7 @@ function StandingsTable({
                           href={s.linkHref}
                           className="hover:text-gold transition-colors"
                         >
+                          <RankBadge rank={s.eloRank} />
                           {s.name}
                         </Link>
                       ) : (
@@ -305,6 +308,9 @@ function StandingsTable({
                   <td className="px-1 sm:px-3 py-2 text-center tabular-nums text-xs text-muted-foreground hidden sm:table-cell">
                     {s.gb}
                   </td>
+                  <td className="px-1 sm:px-3 py-2 text-right tabular-nums text-xs font-semibold text-gold/80 hidden sm:table-cell">
+                    {s.elo ?? "—"}
+                  </td>
                   <td className={`px-1 sm:px-3 py-2 text-center tabular-nums text-xs font-semibold ${streakColor}`}>
                     {s.streak}
                   </td>
@@ -320,7 +326,7 @@ function StandingsTable({
           })}
           {standings.length === 0 && (
             <tr>
-              <td colSpan={9} className="px-3 py-4 text-center text-xs text-muted-foreground">
+              <td colSpan={10} className="px-3 py-4 text-center text-xs text-muted-foreground">
                 No matches played yet
               </td>
             </tr>

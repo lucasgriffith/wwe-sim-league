@@ -20,6 +20,7 @@ const navLinks = [
   { href: "/roster", label: "Roster" },
   { href: "/tiers", label: "Tiers" },
   { href: "/standings", label: "Standings" },
+  { href: "/rankings", label: "Rankings" },
   { href: "/tag-teams", label: "Tag Teams" },
   { href: "/dynasty", label: "Dynasty" },
   { href: "/records", label: "Records" },

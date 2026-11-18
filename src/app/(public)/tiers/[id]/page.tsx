@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { BeltImageEditor } from "@/components/tiers/belt-image-editor";
 import {
+  getAllMatches,
+  getTagTeams,
+  getWrestlers,
   getChampions,
   getCurrentSeason,
   getSeasonAssignments,
@@ -31,6 +34,8 @@ import { generateBracket } from "@/lib/playoffs/bracket";
 import { assignZones, type StandingZone } from "@/lib/standings/zones";
 import { FormDots } from "@/components/ui/form-dots";
 import { SmartImage } from "@/components/ui/smart-image";
+import { buildEloBoard } from "@/lib/elo/board";
+import { RankBadge } from "@/components/ui/rank-badge";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -47,13 +52,17 @@ export default async function TierDetailPage({
   const supabase = await createClient();
 
   // Cached data + auth in one round of parallel awaits
-  const [tiers, userResult, activeSeason, champions] = await Promise.all([
+  const [tiers, userResult, activeSeason, champions, careerMatches, allWrestlers, allTagTeams] = await Promise.all([
     getTiers(),
     supabase.auth.getUser(),
     getCurrentSeason(),
     getChampions(),
+    getAllMatches(),
+    getWrestlers(),
+    getTagTeams(),
   ]);
   const user = userResult.data.user;
+  const eloBoard = buildEloBoard(careerMatches, allWrestlers, allTagTeams);
 
   // Try slug first, fall back to UUID for backwards compatibility
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -586,6 +595,7 @@ export default async function TierDetailPage({
                                     )}
                                     {s.linkHref ? (
                                       <Link href={s.linkHref} className="hover:text-gold transition-colors">
+                                        <RankBadge rank={eloBoard.standings.get(s.id)?.rank} />
                                         {s.name}
                                       </Link>
                                     ) : (

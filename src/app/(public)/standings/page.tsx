@@ -3,8 +3,10 @@ import Link from "next/link";
 import { StandingsClient } from "@/components/standings/standings-client";
 import { computeStandings } from "@/lib/standings/compute-standings";
 import { assignZones, type StandingZone } from "@/lib/standings/zones";
+import { buildEloBoard } from "@/lib/elo/board";
 import {
   getActivePlaySeason,
+  getAllMatches,
   getChampions,
   getSeasonAssignments,
   getSeasonMatches,
@@ -30,6 +32,8 @@ export interface Standing {
   streak: string;
   trend: boolean[];
   zone: StandingZone;
+  elo: number | null;
+  eloRank: number | null;
   linkHref: string | null;
   imageUrl: string | null;
   memberImages?: [string | null, string | null];
@@ -64,7 +68,7 @@ export default async function StandingsPage() {
     );
   }
 
-  const [tiers, assignments, seasonMatches, wrestlers, tagTeams, champions] =
+  const [tiers, assignments, seasonMatches, wrestlers, tagTeams, champions, careerMatches] =
     await Promise.all([
       getTiers(),
       getSeasonAssignments(season.id),
@@ -72,7 +76,9 @@ export default async function StandingsPage() {
       getWrestlers(),
       getTagTeams(),
       getChampions(),
+      getAllMatches(),
     ]);
+  const eloBoard = buildEloBoard(careerMatches, wrestlers, tagTeams);
   const matches = seasonMatches.filter((m) => m.match_phase === "pool_play");
 
   const wrestlerMap = Object.fromEntries(
@@ -185,6 +191,8 @@ export default async function StandingsPage() {
           streak,
           trend,
           zone: "safe" as StandingZone,
+          elo: eloBoard.standings.get(pid)?.rating ?? null,
+          eloRank: eloBoard.standings.get(pid)?.rank ?? null,
           linkHref: isTag ? `/tag-teams/${pid}` : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
           imageUrl: isTag ? null : (wrestlerImageMap[pid] ?? null),
           ...(isTag && tagMemberImages[pid] ? { memberImages: tagMemberImages[pid] } : {}),

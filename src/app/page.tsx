@@ -8,7 +8,8 @@ import {
   getSeasonAssignments,
   getAllMatches,
 } from "@/lib/data/cached";
-import { computeElo, eloOf } from "@/lib/elo/compute-elo";
+import { buildEloBoard } from "@/lib/elo/board";
+import { RankBadge } from "@/components/ui/rank-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,7 @@ export default async function DashboardPage() {
     ]);
 
   // Career Elo across all seasons — powers the rankings below
-  const eloRatings = computeElo(careerMatches);
+  const eloBoard = buildEloBoard(careerMatches, wrestlers, allTagTeams);
 
   const wrestlerCount = wrestlers.filter((w) => w.is_active).length;
   const tagTeamCount = allTagTeams.filter((t) => t.is_active).length;
@@ -294,6 +295,8 @@ export default async function DashboardPage() {
     overallRating: number | null;
     streak: number;
     poolRank?: string | null;
+    elo?: number | null;
+    eloRank?: number | null;
   }> = {};
   const allParticipantIds = new Set<string>();
   for (const m of unplayedMatches) {
@@ -343,6 +346,8 @@ export default async function DashboardPage() {
       overallRating: ratingMap[id] ?? null,
       streak: fullStreaks.get(id) ?? 0,
       poolRank: poolRankMap.get(id) ?? null,
+      elo: eloBoard.standings.get(id)?.rating ?? null,
+      eloRank: eloBoard.standings.get(id)?.rank ?? null,
     };
   }
 
@@ -384,7 +389,8 @@ export default async function DashboardPage() {
           losses,
           winPct,
           pwr,
-          elo: eloOf(eloRatings, id),
+          elo: eloBoard.standings.get(id)?.rating ?? 1200,
+          eloDelta: eloBoard.standings.get(id)?.lastDelta ?? 0,
           streak,
         };
       })
@@ -718,7 +724,8 @@ export default async function DashboardPage() {
         {(menRankings.length > 0 || womenRankings.length > 0) && (
           <div>
             <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-3 flex items-center gap-1.5">
-              <span>⚡</span> Power Rankings
+              <span>⚡</span> Elo Rankings
+              <Link href="/rankings" className="ml-auto text-[10px] font-semibold normal-case tracking-normal text-gold/70 hover:text-gold">Full rankings →</Link>
             </h2>
             <div className="grid gap-4 lg:grid-cols-3">
               {/* Men's Top 10 */}
@@ -748,7 +755,8 @@ export default async function DashboardPage() {
                         )}
                         <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
                         <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
-                        <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.elo}</span>
+                        <span className={`text-[9px] tabular-nums shrink-0 w-6 text-right ${w.eloDelta > 0 ? "text-emerald-400/80" : w.eloDelta < 0 ? "text-red-400/80" : "text-muted-foreground/30"}`}>{w.eloDelta > 0 ? `+${w.eloDelta}` : w.eloDelta || "—"}</span>
+                        <span className="text-[10px] tabular-nums text-gold font-bold shrink-0 w-8 text-right">{w.elo}</span>
                       </Link>
                     ))}
                     </div>
@@ -783,7 +791,8 @@ export default async function DashboardPage() {
                         )}
                         <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
                         <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
-                        <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.elo}</span>
+                        <span className={`text-[9px] tabular-nums shrink-0 w-6 text-right ${w.eloDelta > 0 ? "text-emerald-400/80" : w.eloDelta < 0 ? "text-red-400/80" : "text-muted-foreground/30"}`}>{w.eloDelta > 0 ? `+${w.eloDelta}` : w.eloDelta || "—"}</span>
+                        <span className="text-[10px] tabular-nums text-gold font-bold shrink-0 w-8 text-right">{w.elo}</span>
                       </Link>
                     ))}
                     </div>
@@ -824,7 +833,8 @@ export default async function DashboardPage() {
                             )}
                             <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
                             <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
-                            <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.elo}</span>
+                            <span className={`text-[9px] tabular-nums shrink-0 w-6 text-right ${w.eloDelta > 0 ? "text-emerald-400/80" : w.eloDelta < 0 ? "text-red-400/80" : "text-muted-foreground/30"}`}>{w.eloDelta > 0 ? `+${w.eloDelta}` : w.eloDelta || "—"}</span>
+                        <span className="text-[10px] tabular-nums text-gold font-bold shrink-0 w-8 text-right">{w.elo}</span>
                           </Link>
                         ))}
                       </div>
@@ -857,7 +867,8 @@ export default async function DashboardPage() {
                             )}
                             <span className="text-xs font-semibold truncate flex-1 group-hover:text-gold transition-colors">{w.name}</span>
                             <span className="text-[10px] tabular-nums text-foreground/60 shrink-0">{w.wins}W-{w.losses}L</span>
-                            <span className="text-[9px] tabular-nums text-gold/50 font-bold shrink-0 w-8 text-right">{w.elo}</span>
+                            <span className={`text-[9px] tabular-nums shrink-0 w-6 text-right ${w.eloDelta > 0 ? "text-emerald-400/80" : w.eloDelta < 0 ? "text-red-400/80" : "text-muted-foreground/30"}`}>{w.eloDelta > 0 ? `+${w.eloDelta}` : w.eloDelta || "—"}</span>
+                        <span className="text-[10px] tabular-nums text-gold font-bold shrink-0 w-8 text-right">{w.elo}</span>
                           </Link>
                         ))}
                       </div>
@@ -913,21 +924,21 @@ export default async function DashboardPage() {
                       )}
                       {isTag ? (
                         <Link href={`/tag-teams/${aId}`} className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
-                          {aName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(aId ?? "") ?? 0}-{lossCounts.get(aId ?? "") ?? 0})</span>
+                          <RankBadge rank={eloBoard.standings.get(aId ?? "")?.rank} />{aName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(aId ?? "") ?? 0}-{lossCounts.get(aId ?? "") ?? 0})</span>
                         </Link>
                       ) : (
                         <Link href={`/roster/${slugMap[aId ?? ""] ?? aId}`} className={`truncate hover:underline ${isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
-                          {aName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(aId ?? "") ?? 0}-{lossCounts.get(aId ?? "") ?? 0})</span>
+                          <RankBadge rank={eloBoard.standings.get(aId ?? "")?.rank} />{aName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(aId ?? "") ?? 0}-{lossCounts.get(aId ?? "") ?? 0})</span>
                         </Link>
                       )}
                       <span className="text-[9px] text-muted-foreground/30 shrink-0">vs</span>
                       {isTag ? (
                         <Link href={`/tag-teams/${bId}`} className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
-                          {bName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(bId ?? "") ?? 0}-{lossCounts.get(bId ?? "") ?? 0})</span>
+                          <RankBadge rank={eloBoard.standings.get(bId ?? "")?.rank} />{bName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(bId ?? "") ?? 0}-{lossCounts.get(bId ?? "") ?? 0})</span>
                         </Link>
                       ) : (
                         <Link href={`/roster/${slugMap[bId ?? ""] ?? bId}`} className={`truncate hover:underline ${!isAWinner ? "font-semibold text-gold" : "text-muted-foreground/60"}`}>
-                          {bName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(bId ?? "") ?? 0}-{lossCounts.get(bId ?? "") ?? 0})</span>
+                          <RankBadge rank={eloBoard.standings.get(bId ?? "")?.rank} />{bName}<span className="text-[9px] text-muted-foreground/40 font-normal ml-1">({winCounts.get(bId ?? "") ?? 0}-{lossCounts.get(bId ?? "") ?? 0})</span>
                         </Link>
                       )}
                       {/* B photo */}

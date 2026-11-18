@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { recordMatchResult } from "@/app/actions";
 import { toast } from "sonner";
 import { MatchCardExport } from "./match-card-export";
+import { RankBadge } from "@/components/ui/rank-badge";
 /* eslint-disable @next/next/no-img-element */
 
 interface UpcomingMatch {
@@ -30,6 +31,8 @@ interface ParticipantStats {
   overallRating: number | null;
   poolRank?: string | null; // e.g. "1st in Pool A"
   streak: number;
+  elo?: number | null;
+  eloRank?: number | null;
 }
 
 interface TierInfo {
@@ -345,9 +348,9 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
             <div className="min-w-0 flex-1">
               <div className="font-bold text-xs sm:text-sm leading-tight break-words">
                 {isTag ? (
-                  <Link href={`/tag-teams/${aId}`} className="hover:text-gold transition-colors">{a.name}</Link>
+                  <Link href={`/tag-teams/${aId}`} className="hover:text-gold transition-colors"><RankBadge rank={a.eloRank} />{a.name}</Link>
                 ) : (
-                  <Link href={`/roster/${a.slug ?? aId}`} className="hover:text-gold transition-colors">{a.name}</Link>
+                  <Link href={`/roster/${a.slug ?? aId}`} className="hover:text-gold transition-colors"><RankBadge rank={a.eloRank} />{a.name}</Link>
                 )}
               </div>
               <div className="text-xs text-foreground/70 tabular-nums font-medium">
@@ -357,6 +360,9 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
                 {a.poolRank && (
                   <span className="text-[10px] text-gold/60 font-semibold">{a.poolRank}</span>
                 )}
+                {a.elo ? (
+                  <span className="text-[10px] text-gold/70 font-semibold tabular-nums">ELO {a.elo}</span>
+                ) : null}
                 {a.overallRating ? (
                   <span className="text-[10px] text-foreground/50 font-medium">OVR {a.overallRating}</span>
                 ) : null}
@@ -378,9 +384,9 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
             <div className="min-w-0 flex-1 text-right">
               <div className="font-bold text-xs sm:text-sm leading-tight break-words">
                 {isTag ? (
-                  <Link href={`/tag-teams/${bId}`} className="hover:text-gold transition-colors">{b.name}</Link>
+                  <Link href={`/tag-teams/${bId}`} className="hover:text-gold transition-colors">{b.name}<RankBadge rank={b.eloRank} className="ml-1 mr-0" /></Link>
                 ) : (
-                  <Link href={`/roster/${b.slug ?? bId}`} className="hover:text-gold transition-colors">{b.name}</Link>
+                  <Link href={`/roster/${b.slug ?? bId}`} className="hover:text-gold transition-colors">{b.name}<RankBadge rank={b.eloRank} className="ml-1 mr-0" /></Link>
                 )}
               </div>
               <div className="text-xs text-foreground/70 tabular-nums font-medium">
@@ -390,6 +396,9 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
                 {b.poolRank && (
                   <span className="text-[10px] text-gold/60 font-semibold">{b.poolRank}</span>
                 )}
+                {b.elo ? (
+                  <span className="text-[10px] text-gold/70 font-semibold tabular-nums">ELO {b.elo}</span>
+                ) : null}
                 {b.overallRating ? (
                   <span className="text-[10px] text-foreground/50 font-medium">OVR {b.overallRating}</span>
                 ) : null}

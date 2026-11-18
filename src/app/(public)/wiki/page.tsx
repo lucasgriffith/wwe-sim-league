@@ -96,14 +96,13 @@ export default function WikiPage() {
             <p>Standings are sorted by:</p>
             <ol>
               <li><strong>Win percentage</strong> — primary sort</li>
-              <li><strong>Total wins</strong> — among equal win%, more wins ranks higher (only matters mid-season while match counts differ)</li>
+              <li><strong>Games back</strong> — among equal win%, fewer games back ranks higher (only matters mid-season while match counts differ)</li>
               <li><strong>Head-to-head record</strong> — among tied wrestlers, only matches between them count (a mini-league among the tied group)</li>
-              <li><strong>Average match time</strong> — shorter is better (quick wins are dominant wins)</li>
+              <li><strong>Average time of wins</strong> — shorter is better (quick wins are dominant wins)</li>
             </ol>
             <p>
               The same order is used everywhere: the standings page, tier pages,
-              and playoff seeding. GB is shown for reference but doesn&apos;t
-              affect the sort.
+              and playoff seeding.
             </p>
           </SubSection>
         </Section>

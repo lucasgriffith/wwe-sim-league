@@ -6,8 +6,9 @@ import {
   getChampions,
   getCurrentSeason,
   getTagTeams,
+  getWrestlers,
 } from "@/lib/data/cached";
-import { computeElo } from "@/lib/elo/compute-elo";
+import { buildEloBoard, POOL_LABEL } from "@/lib/elo/board";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { RatingSparkline } from "@/components/ui/rating-sparkline";
@@ -45,13 +46,14 @@ export default async function TagTeamProfilePage({
 }) {
   const { id } = await params;
 
-  const [teams, allMatchRows, allAssignRows, currentSeason, champions] =
+  const [teams, allMatchRows, allAssignRows, currentSeason, champions, allWrestlers] =
     await Promise.all([
       getTagTeams(),
       getAllMatches(),
       getAllAssignments(),
       getCurrentSeason(),
       getChampions(),
+      getWrestlers(),
     ]);
 
   const team = teams.find((t) => t.id === id);
@@ -130,19 +132,10 @@ export default async function TagTeamProfilePage({
   const uniqueOpponents = new Set(played.map(opponentOf)).size;
 
   // ── Elo ───────────────────────────────────────────────────────────────────
-  const eloRatings = computeElo(allMatchRows);
-  const eloEntry = eloRatings.get(id) ?? null;
-  const eloRank = eloEntry
-    ? 1 +
-      teams.filter((t) => {
-        const g = (t.wrestler_a as unknown as Member | null)?.gender ?? "male";
-        return (
-          t.id !== id &&
-          g === teamGender &&
-          (eloRatings.get(t.id)?.rating ?? -Infinity) > eloEntry.rating
-        );
-      }).length
-    : null;
+  const eloBoard = buildEloBoard(allMatchRows, allWrestlers, teams);
+  const eloEntry = eloBoard.entries.get(id) ?? null;
+  const eloStanding = eloBoard.standings.get(id) ?? null;
+  const eloRank = eloStanding?.rank ?? null;
 
   // ── Head-to-head ──────────────────────────────────────────────────────────
   const h2h = new Map<string, { wins: number; losses: number }>();
@@ -218,7 +211,14 @@ export default async function TagTeamProfilePage({
           )}
         </div>
         <div className="min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight truncate">{team.name}</h1>
+          <h1 className="text-3xl font-bold tracking-tight truncate">
+            {eloRank != null && (
+              <span className="mr-2 align-[0.15em] text-lg font-bold tabular-nums text-gold" title={`Ranked #${eloRank} in ${POOL_LABEL[eloStanding!.pool]} by Elo`}>
+                #{eloRank}
+              </span>
+            )}
+            {team.name}
+          </h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
             <Badge variant="outline" className="text-[10px]">
               {teamGender === "female" ? "Women's" : "Men's"} Tag
@@ -261,11 +261,20 @@ export default async function TagTeamProfilePage({
         <div className="mt-3 rounded-xl border border-border/40 bg-gradient-to-br from-gold/5 to-transparent p-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="shrink-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Elo Rating</p>
-              <p className="text-3xl font-bold tabular-nums text-gold">{Math.round(eloEntry.rating)}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                Elo Rating
+              </p>
+              <p className="text-3xl font-bold tabular-nums text-gold">
+                {eloStanding?.rating ?? Math.round(eloEntry.rating)}
+                {eloStanding?.provisional && <span className="text-lg text-gold/50" title="Provisional — fewer than 10 matches">?</span>}
+                {eloStanding && eloStanding.lastDelta !== 0 && (
+                  <span className={`ml-2 text-sm font-semibold ${eloStanding.lastDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {eloStanding.lastDelta > 0 ? "+" : ""}{eloStanding.lastDelta}
+                  </span>
+                )}
+              </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                peak {Math.round(eloEntry.peak)}
-                {eloRank != null && <> · #{eloRank} {teamGender === "female" ? "women's" : "men's"} tag division</>}
+                {eloRank != null && eloStanding && <>#{eloRank} of {eloStanding.poolSize} · </>}peak {Math.round(eloEntry.peak)}
               </p>
             </div>
             <div className="flex-1 min-w-0 text-muted-foreground">
