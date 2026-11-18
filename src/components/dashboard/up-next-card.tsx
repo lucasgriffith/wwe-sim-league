@@ -1,5 +1,6 @@
 "use client";
 
+import { tierColor } from "@/lib/tiers/colors";
 import { useState, useCallback, useTransition, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -297,6 +298,8 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
     );
   }
 
+  const plate = tierColor(tier?.slug ?? tier?.fullName ?? tier?.name);
+
   return (
     <div className="cut-br relative overflow-hidden bg-card">
       <div aria-hidden="true" className="halftone absolute inset-0" />
@@ -305,7 +308,8 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
       <div className="relative flex">
         <Link
           href={`/tiers/${tier?.slug ?? tier?.id ?? ""}`}
-          className="cut-plate block min-w-0 max-w-full bg-gold py-3 pl-4 pr-12 text-black"
+          className="cut-plate block min-w-0 max-w-full py-3 pl-4 pr-12"
+          style={{ background: plate.bg, color: plate.fg }}
         >
           <span className="block font-mono text-[10px] font-bold tracking-widest">
             UP NEXT · TIER {tier?.tier_number}

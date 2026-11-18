@@ -3,6 +3,7 @@ import Link from "next/link";
 import { StandingsClient } from "@/components/standings/standings-client";
 import { computeStandings } from "@/lib/standings/compute-standings";
 import { assignZones, type StandingZone } from "@/lib/standings/zones";
+import type { Promotion } from "@/components/standings/zone-ui";
 import { buildEloBoard } from "@/lib/elo/board";
 import {
   getActivePlaySeason,
@@ -32,6 +33,10 @@ export interface Standing {
   streak: string;
   trend: boolean[];
   zone: StandingZone;
+  /** On course to move up: automatically (tier top 2) or via a cage match (3rd-4th) */
+  promotion: Promotion;
+  /** Games back measured against the whole tier, for the combined table */
+  tierGb: string;
   elo: number | null;
   eloRank: number | null;
   linkHref: string | null;
@@ -47,6 +52,13 @@ export interface TierStandings {
   tierShortName: string | null;
   divisionName: string;
   hasPools: boolean;
+  /** Whole-tier order, best first */
+  combinedIds: string[];
+  /** Tier above / below in the same division, if any */
+  above: { tierNumber: number; name: string } | null;
+  below: { tierNumber: number; name: string } | null;
+  /** Who would come up from the tier below right now */
+  comingUp: Array<{ name: string; href: string | null }>;
   isTag: boolean;
   pools: Array<{
     pool: string | null;
@@ -188,6 +200,8 @@ export default async function StandingsPage() {
           streak,
           trend,
           zone: "safe" as StandingZone,
+          promotion: null as Promotion,
+          tierGb: "",
           elo: eloBoard.standings.get(pid)?.rating ?? null,
           eloRank: eloBoard.standings.get(pid)?.rank ?? null,
           linkHref: isTag ? `/tag-teams/${pid}` : `/roster/${wrestlerSlugMap[pid] ?? pid}`,
@@ -283,6 +297,11 @@ export default async function StandingsPage() {
     allRows.forEach((r) => {
       r.zone = zones.get(r.id) ?? "safe";
     });
+    const bestDiff = Math.max(...allRows.map((r) => r.wins - r.losses));
+    allRows.forEach((r) => {
+      const gb = (bestDiff - (r.wins - r.losses)) / 2;
+      r.tierGb = gb === 0 ? "—" : gb.toFixed(1);
+    });
 
     allTierStandings.push({
       tierId: t.id,
@@ -292,6 +311,10 @@ export default async function StandingsPage() {
       tierShortName: t.short_name,
       divisionName: div.name,
       hasPools: t.has_pools,
+      combinedIds: combined.map((c) => c.participantId),
+      above: null,
+      below: null,
+      comingUp: [],
       isTag,
       pools,
     });
@@ -300,9 +323,47 @@ export default async function StandingsPage() {
   const divisions = divisionOrder
     .map((name) => ({
       name,
-      tiers: allTierStandings.filter((t) => t.divisionName === name),
+      tiers: allTierStandings
+        .filter((t) => t.divisionName === name)
+        .sort((a, b) => a.tierNumber - b.tierNumber),
     }))
     .filter((d) => d.tiers.length > 0);
+
+  // Movement between neighbouring tiers: the top 2 of a tier go up, its 3rd
+  // and 4th challenge in a Steel Cage match, and the lowest tier of a
+  // division has nobody below it to be relegated to
+  for (const div of divisions) {
+    div.tiers.forEach((tier, i) => {
+      const rows = new Map(tier.pools.flatMap((p) => p.standings).map((r) => [r.id, r]));
+      const above = div.tiers[i - 1];
+      const below = div.tiers[i + 1];
+      if (above) {
+        tier.above = { tierNumber: above.tierNumber, name: above.tierName };
+        tier.combinedIds.slice(0, 2).forEach((id) => {
+          const r = rows.get(id);
+          if (r) r.promotion = "auto";
+        });
+        if (above.combinedIds.length > 6) {
+          tier.combinedIds.slice(2, 4).forEach((id) => {
+            const r = rows.get(id);
+            if (r) r.promotion = "cage";
+          });
+        }
+      }
+      if (below) {
+        tier.below = { tierNumber: below.tierNumber, name: below.tierName };
+        const belowRows = new Map(below.pools.flatMap((p) => p.standings).map((r) => [r.id, r]));
+        tier.comingUp = below.combinedIds.slice(0, 2).flatMap((id) => {
+          const r = belowRows.get(id);
+          return r ? [{ name: r.name, href: r.linkHref }] : [];
+        });
+      } else {
+        rows.forEach((r) => {
+          if (r.zone === "autorel" || r.zone === "relplayoff") r.zone = "safe";
+        });
+      }
+    });
+  }
 
   return (
     <div className="container max-w-screen-2xl px-4 py-8 animate-fade-in">

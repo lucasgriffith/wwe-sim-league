@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import type { Standing, TierStandings } from "@/app/(public)/standings/page";
 import { FormDots } from "@/components/ui/form-dots";
@@ -9,6 +8,8 @@ import { ChampionBadge } from "@/components/ui/champion-badge";
 import type { ChampionInfo } from "@/lib/champions";
 import { computeClinchStatus } from "@/lib/standings/clinch";
 import { RankBadge } from "@/components/ui/rank-badge";
+import { CutLine, ZoneLegend, ZoneTags, ZONE_RANK_COLOR, ZONE_STRIPE, zoneBand } from "@/components/standings/zone-ui";
+import { tierColor } from "@/lib/tiers/colors";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -33,74 +34,132 @@ interface Props {
 
 export function StandingsClient({ divisions, champions = {} }: Props) {
   const [activeDivision, setActiveDivision] = useState(divisions[0]?.name ?? "");
+  const [view, setView] = useState<"pools" | "tier">("pools");
 
   const activeTiers = divisions.find((d) => d.name === activeDivision)?.tiers ?? [];
 
+  const viewBtn = (active: boolean) =>
+    `h-8 px-3 font-mono text-[10px] uppercase tracking-[0.16em] border -ml-px first:ml-0 transition-colors ${
+      active
+        ? "border-gold bg-gold text-black font-bold"
+        : "border-border text-muted-foreground hover:text-foreground"
+    }`;
+
   return (
     <div>
-      {/* Division jump pills */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {divisions.map((div) => {
-          const isActive = activeDivision === div.name;
-          const c = divColors[div.name] ?? divColors["Men's Singles"];
-          return (
-            <button
-              key={div.name}
-              onClick={() => setActiveDivision(div.name)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
-                isActive ? c.active : `${c.pill} bg-transparent`
-              }`}
-            >
-              {div.name}
-              <span className="ml-1.5 text-[10px] opacity-60">{div.tiers.length}</span>
-            </button>
-          );
-        })}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        {/* Division jump pills */}
+        <div className="flex flex-wrap gap-2">
+          {divisions.map((div) => {
+            const isActive = activeDivision === div.name;
+            const c = divColors[div.name] ?? divColors["Men's Singles"];
+            return (
+              <button
+                key={div.name}
+                onClick={() => setActiveDivision(div.name)}
+                className={`border px-3 py-1.5 text-xs font-semibold transition-all ${
+                  isActive ? c.active : `${c.pill} bg-transparent`
+                }`}
+              >
+                {div.name}
+                <span className="ml-1.5 text-[10px] opacity-60">{div.tiers.length}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex" role="group" aria-label="Table layout">
+          <button type="button" className={viewBtn(view === "pools")} onClick={() => setView("pools")}>
+            Pools
+          </button>
+          <button type="button" className={viewBtn(view === "tier")} onClick={() => setView("tier")}>
+            Tier table
+          </button>
+        </div>
       </div>
 
-      {/* Legend */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-y border-border px-1 py-2">
-        <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/40">Legend</span>
-        <span className="text-[10px] text-emerald-400 font-medium">● Playoff (pool top 2)</span>
-        <span className="text-[10px] text-blue-400 font-medium">● Wild Card (best 2 remaining, both pools)</span>
-        <span className="text-[10px] text-foreground/30 font-medium">● Safe</span>
-        <span className="text-[10px] text-orange-400 font-medium">● Relegation Playoff ⚔ (3rd-4th from bottom, tier-wide)</span>
-        <span className="text-[10px] text-red-400 font-medium">● Auto-Relegate ↓ (tier bottom 2)</span>
+      <div className="mb-6">
+        <ZoneLegend />
       </div>
 
       {/* Tier standings */}
-      <div className="space-y-6">
-        {activeTiers.map((tier) => (
-          <div key={tier.tierId} className="bg-card">
-            <Link
-              href={`/tiers/${tier.tierSlug ?? tier.tierId}`}
-              className="cut-plate inline-flex max-w-full flex-col gap-x-3 bg-gold py-2 pl-4 pr-12 text-black transition-opacity hover:opacity-90 sm:flex-row sm:items-baseline"
-            >
-              <span className="font-mono text-xs font-bold tracking-widest whitespace-nowrap">TIER {tier.tierNumber}</span>
-              <span className="font-display text-xl font-black sm:text-2xl">{tier.tierName}</span>
-            </Link>
+      <div className="space-y-8">
+        {activeTiers.map((tier) => {
+          const color = tierColor(tier.tierSlug ?? tier.tierName);
+          const allRows = tier.pools.flatMap((p) => p.standings);
+          const byId = new Map(allRows.map((r) => [r.id, r]));
+          const clinched = new Set<string>();
+          for (const p of tier.pools) {
+            const rounds = p.standings.length > 1 ? p.standings.length - 1 : 0;
+            const map = computeClinchStatus(
+              p.standings.map((s) => ({ participantId: s.id, wins: s.wins, losses: s.losses })),
+              rounds
+            );
+            map.forEach((status, id) => {
+              if (status === "clinched") clinched.add(id);
+            });
+          }
+          const combined = tier.combinedIds.flatMap((id) => {
+            const r = byId.get(id);
+            return r ? [{ ...r, gb: r.tierGb }] : [];
+          });
+          const showCombined = view === "tier" || !tier.hasPools;
+          return (
+            <div key={tier.tierId} className="bg-card">
+              <Link
+                href={`/tiers/${tier.tierSlug ?? tier.tierId}`}
+                className="cut-plate inline-flex max-w-full flex-col gap-x-3 py-2 pl-4 pr-12 transition-opacity hover:opacity-90 sm:flex-row sm:items-baseline"
+                style={{ background: color.bg, color: color.fg }}
+              >
+                <span className="font-mono text-xs font-bold tracking-widest whitespace-nowrap">TIER {tier.tierNumber}</span>
+                <span className="font-display text-xl font-black sm:text-2xl">{tier.tierName}</span>
+              </Link>
 
-            {tier.hasPools ? (
-              <div className="grid md:grid-cols-2 gap-y-2 md:gap-x-3 md:gap-y-0">
-                {tier.pools.map((p) => (
-                  <StandingsTable
-                    key={p.pool ?? "all"}
-                    label={p.pool ? `Pool ${p.pool}` : undefined}
-                    standings={p.standings}
-                    poolSize={p.standings.length}
-                    champions={champions}
-                  />
-                ))}
-              </div>
-            ) : (
-              <StandingsTable
-                standings={tier.pools[0]?.standings ?? []}
-                poolSize={tier.pools[0]?.standings.length ?? 0}
-                champions={champions}
-              />
-            )}
-          </div>
-        ))}
+              {showCombined ? (
+                <StandingsTable
+                  label={tier.hasPools ? "Tier table · both pools" : undefined}
+                  standings={combined}
+                  clinched={clinched}
+                  champions={champions}
+                />
+              ) : (
+                <div className="grid md:grid-cols-2 gap-y-2 md:gap-x-3 md:gap-y-0">
+                  {tier.pools.map((p) => (
+                    <StandingsTable
+                      key={p.pool ?? "all"}
+                      label={p.pool ? `Pool ${p.pool}` : undefined}
+                      standings={p.standings}
+                      clinched={clinched}
+                      champions={champions}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {tier.below && tier.comingUp.length > 0 && (
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-dashed border-emerald-500/40 px-3 py-2">
+                  <span className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-400">
+                    ↑ Coming up from tier {tier.below.tierNumber}
+                  </span>
+                  <span className="font-display text-base font-extrabold uppercase leading-none text-foreground/70">
+                    {tier.comingUp.map((c, i) => (
+                      <React.Fragment key={c.name}>
+                        {i > 0 && <span className="text-muted-foreground/50"> · </span>}
+                        {c.href ? (
+                          <Link href={c.href} className="hover:text-gold">{c.name}</Link>
+                        ) : (
+                          c.name
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </span>
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground/60">
+                    if the season ended today
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {activeTiers.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-8">
@@ -115,34 +174,14 @@ export function StandingsClient({ divisions, champions = {} }: Props) {
 function StandingsTable({
   standings,
   label,
-  poolSize,
+  clinched,
   champions = {},
 }: {
   standings: Standing[];
   label?: string;
-  poolSize: number;
+  clinched: Set<string>;
   champions?: Record<string, ChampionInfo>;
 }) {
-  const count = standings.length;
-  const totalRounds = count > 1 ? count - 1 : 0;
-
-  const clinchMap = computeClinchStatus(
-    standings.map((s) => ({
-      participantId: s.id,
-      wins: s.wins,
-      losses: s.losses,
-    })),
-    totalRounds
-  );
-
-  function hasClinched(idx: number): boolean {
-    return clinchMap.get(standings[idx].id) === "clinched";
-  }
-
-  function isEliminated(idx: number): boolean {
-    return clinchMap.get(standings[idx].id) === "eliminated";
-  }
-
   return (
     <div className="overflow-x-auto">
       {label && (
@@ -169,65 +208,9 @@ function StandingsTable({
           {standings.map((s, i) => {
             // Zone comes from the server: playoff spots are per-pool, but
             // wild cards and relegation zones are tier-wide (see zones.ts)
-            const isPlayoff = s.zone === "playoff";
-            const isWildCard = s.zone === "wildcard";
-            const isAutoRelegate = s.zone === "autorel";
-            const isRelegationPlayoff = s.zone === "relplayoff";
-            const isSafe = s.zone === "safe";
-
-            let rankColor = "text-muted-foreground/50";
-            let leftBorder = "";
-            let zoneIcon = "";
-
-            if (isPlayoff) {
-              rankColor = "text-emerald-400";
-              leftBorder = "border-l-[3px] border-l-emerald-500/50";
-            } else if (isWildCard) {
-              rankColor = "text-blue-400";
-              leftBorder = "border-l-[3px] border-l-blue-500/40";
-            } else if (isAutoRelegate) {
-              rankColor = "text-red-400";
-              leftBorder = "border-l-[3px] border-l-red-500/50";
-              zoneIcon = "↓";
-            } else if (isRelegationPlayoff) {
-              rankColor = "text-orange-400";
-              leftBorder = "border-l-[3px] border-l-orange-500/40";
-              zoneIcon = "⚔";
-            } else if (isSafe) {
-              leftBorder = "border-l-[3px] border-l-foreground/10";
-            }
-
-            // Zone group borders (inline styles for dynamic colors)
-            function getZone(idx: number) {
-              if (idx < 0 || idx >= count) return "none";
-              return standings[idx].zone;
-            }
-            const myZone = getZone(i);
-            const prevZone = getZone(i - 1);
-            const nextZone = getZone(i + 1);
-
-            const zoneRGB: Record<string, string> = {
-              playoff: "16,185,129",
-              wildcard: "59,130,246",
-              relplayoff: "249,115,22",
-              autorel: "239,68,68",
-            };
-            const rgb = zoneRGB[myZone] ?? "";
-            const isZoneStart = myZone !== "safe" && myZone !== "none" && prevZone !== myZone;
-            const isZoneEnd = myZone !== "safe" && myZone !== "none" && nextZone !== myZone;
-            const isInZone = myZone !== "safe" && myZone !== "none";
-
-            const zoneBorderStyle: React.CSSProperties = {};
-            const zoneRightStyle: React.CSSProperties = {};
-
-            const zoneBgStyle: React.CSSProperties = isInZone
-              ? { background: `linear-gradient(to right, rgba(${rgb},0.18) 0%, rgba(${rgb},0.06) 35%, transparent 65%)` }
-              : isSafe
-                ? { background: `linear-gradient(to right, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 35%, transparent 65%)` }
-                : {};
-
-            const clinched = hasClinched(i);
-            const eliminated = isEliminated(i);
+            const band = zoneBand(s.zone);
+            const rankColor = ZONE_RANK_COLOR[band];
+            const leftBorder = ZONE_STRIPE[band];
 
             const streakColor = s.streak.startsWith("W")
               ? "text-emerald-400"
@@ -237,7 +220,8 @@ function StandingsTable({
 
             return (
               <React.Fragment key={s.id}>
-                <tr className="text-sm" style={{ ...zoneBorderStyle, ...zoneBgStyle }}>
+                <CutLine prev={i > 0 ? standings[i - 1].zone : null} zone={s.zone} colSpan={10} />
+                <tr className="border-b border-border/40 text-sm">
                   <td className={`font-display px-1 sm:px-3 py-2 text-xl font-black ${rankColor} ${leftBorder}`}>
                     {i + 1}
                   </td>
@@ -248,17 +232,17 @@ function StandingsTable({
                           {s.memberImages.map((img, mi) => (
                             img ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
-                              <img key={mi} src={img} alt="" className="h-6 w-6 rounded-full object-cover ring-1 ring-background" />
+                              <img key={mi} src={img} alt="" className="h-7 w-7 object-cover object-top ring-1 ring-background" />
                             ) : (
-                              <span key={mi} className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[8px] text-muted-foreground ring-1 ring-background">?</span>
+                              <span key={mi} className="h-7 w-7 bg-muted flex items-center justify-center text-[8px] text-muted-foreground ring-1 ring-background">?</span>
                             )
                           ))}
                         </span>
                       ) : s.imageUrl ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={s.imageUrl} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
+                        <img src={s.imageUrl} alt="" className="h-7 w-7 object-cover object-top shrink-0" />
                       ) : (
-                        <span className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[8px] text-muted-foreground shrink-0">?</span>
+                        <span className="h-7 w-7 bg-muted flex items-center justify-center text-[8px] text-muted-foreground shrink-0">?</span>
                       )}
                       {s.linkHref ? (
                         <Link
@@ -277,15 +261,7 @@ function StandingsTable({
                           beltImageUrl={champions[s.id].beltImageUrl}
                         />
                       )}
-                      {zoneIcon && (
-                        <span className={`text-[8px] font-bold ${rankColor}`}>{zoneIcon}</span>
-                      )}
-                      {clinched && (
-                        <span className="text-[8px] font-bold text-emerald-400 bg-emerald-400/10 px-1 rounded">✓</span>
-                      )}
-                      {eliminated && (
-                        <span className="text-[8px] font-bold text-muted-foreground/40 bg-muted/10 px-1 rounded">✗</span>
-                      )}
+                      <ZoneTags zone={s.zone} clinched={clinched.has(s.id)} promotion={s.promotion} />
                     </span>
                   </td>
                   <td className={`px-1 sm:px-3 py-2 text-center tabular-nums font-medium ${s.wins > 0 ? "text-emerald-400" : "text-muted-foreground/40"}`}>
@@ -311,7 +287,7 @@ function StandingsTable({
                   <td className="px-1 sm:px-3 py-2 text-center hidden sm:table-cell">
                     {s.trend.length > 0 && <FormDots results={s.trend} />}
                   </td>
-                  <td className="px-1 sm:px-3 py-2 text-right tabular-nums text-xs text-muted-foreground hidden sm:table-cell" style={zoneRightStyle}>
+                  <td className="px-1 sm:px-3 py-2 text-right tabular-nums text-xs text-muted-foreground hidden sm:table-cell">
                     {s.avgTime > 0 ? formatTime(s.avgTime) : "—"}
                   </td>
                 </tr>

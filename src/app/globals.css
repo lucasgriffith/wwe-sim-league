@@ -282,3 +282,37 @@ body::before {
 }
 .status-dot-active { background: #22c55e; box-shadow: 0 0 6px #22c55e80; }
 .status-dot-inactive { background: #6b7280; }
+
+/* ─── Trading cards ──────────────────────────────────────────────────────
+   Rarity is the frame: silver, gold foil, and a holographic foil for
+   reigning champions. The foil is a wide gradient that slides on hover. */
+.trading-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+a:hover > .trading-card,
+a:focus-visible > .trading-card {
+  transform: translateY(-4px) rotate(-0.6deg);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.55);
+}
+.card-foil-silver {
+  background: linear-gradient(135deg, #8e929a, #e8eaee 35%, #9a9ea6 60%, #d5d8dd);
+}
+.card-foil {
+  background-size: 300% 300%;
+  background-position: 0% 50%;
+  transition: background-position 0.9s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+.card-foil-gold {
+  background-image: linear-gradient(115deg, #8a6a1c, #f2c14e 20%, #fff3c4 35%, #c9972b 50%, #f2c14e 65%, #fff3c4 80%, #8a6a1c);
+}
+.card-foil-holo {
+  background-image: linear-gradient(115deg, #f2c14e, #ff6b9d 18%, #7fb2ff 36%, #6ee7b7 54%, #f2c14e 72%, #c084fc 90%, #f2c14e);
+}
+a:hover > .card-foil,
+a:focus-visible > .card-foil {
+  background-position: 100% 50%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .trading-card, .card-foil { transition: none; }
+  a:hover > .trading-card { transform: none; }
+}

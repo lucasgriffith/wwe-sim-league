@@ -1,3 +1,4 @@
+import { tierColor } from "@/lib/tiers/colors";
 import { PageHeader } from "@/components/ui/page-header";
 import { getDivisions, getTiers } from "@/lib/data/cached";
 import { SmartImage } from "@/components/ui/smart-image";
@@ -49,7 +50,7 @@ export default async function TiersPage() {
         <div key={division.id} className="mb-10">
           <div className="mb-4 flex items-center gap-3">
             <div className={`h-4 w-1 rounded-full ${divisionAccents[division.name] ?? "bg-muted"}`} />
-            <h2 className={`text-lg font-semibold ${divisionTextColors[division.name] ?? ""}`}>
+            <h2 className={`text-2xl ${divisionTextColors[division.name] ?? ""}`}>
               {division.name}
             </h2>
             <span className="text-xs text-muted-foreground/60">
@@ -63,6 +64,7 @@ export default async function TiersPage() {
                   className={`group relative rounded-xl border border-border/40 overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:shadow-black/20 ${
                     divisionBorderHover[division.name] ?? "hover:border-border/60"
                   } ${tier.belt_image_url ? "h-48" : "h-auto"}`}
+                  style={{ borderTop: `4px solid ${tierColor(tier.slug ?? tier.name).bg}` }}
                 >
                   {/* Belt image — prominent, vivid */}
                   {tier.belt_image_url ? (
@@ -70,16 +72,12 @@ export default async function TiersPage() {
                       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/95" />
                       {/* Top left tier badge */}
                       <div className="absolute top-2.5 left-3 z-10 flex items-center gap-1.5">
-                        <Badge
-                          variant="outline"
-                          className="text-[9px] font-semibold uppercase tracking-wider bg-background/60 backdrop-blur-sm"
-                          style={{
-                            color: tier.color ?? undefined,
-                            borderColor: tier.color ? `${tier.color}40` : undefined,
-                          }}
+                        <span
+                          className="px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                          style={{ background: tierColor(tier.slug ?? tier.name).bg, color: tierColor(tier.slug ?? tier.name).fg }}
                         >
                           T{tier.tier_number}
-                        </Badge>
+                        </span>
                         {tier.short_name && (
                           <span className="text-[10px] font-mono text-muted-foreground/70 bg-background/60 backdrop-blur-sm px-1.5 py-0.5 rounded">
                             {tier.short_name}
@@ -96,7 +94,7 @@ export default async function TiersPage() {
                       />
                       {/* Bottom overlay with text */}
                       <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-background via-background/90 to-transparent">
-                        <h3 className="text-sm font-bold leading-tight text-foreground">
+                        <h3 className="text-xl leading-none text-foreground">
                           {tier.name}
                         </h3>
                         <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground/60">
@@ -116,16 +114,12 @@ export default async function TiersPage() {
                     /* No belt image — clean card fallback */
                     <div className="p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <Badge
-                          variant="outline"
-                          className="text-[9px] font-semibold uppercase tracking-wider"
-                          style={{
-                            color: tier.color ?? undefined,
-                            borderColor: tier.color ? `${tier.color}40` : undefined,
-                          }}
+                        <span
+                          className="px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                          style={{ background: tierColor(tier.slug ?? tier.name).bg, color: tierColor(tier.slug ?? tier.name).fg }}
                         >
                           T{tier.tier_number}
-                        </Badge>
+                        </span>
                         {tier.short_name && (
                           <span className="text-[10px] font-mono text-muted-foreground/50">
                             {tier.short_name}

@@ -87,11 +87,7 @@ function rankPools(
   return ranks;
 }
 
-export function buildEloBoard(
-  matches: MatchRows,
-  wrestlers: WrestlerRow[],
-  tagTeams: TagTeamRow[]
-): EloBoard {
+function poolsAndSeeds(wrestlers: WrestlerRow[], tagTeams: TagTeamRow[]) {
   const wrestlerById = new Map(wrestlers.map((w) => [w.id, w]));
   const poolOf = new Map<string, EloPool>();
   const seeds = new Map<string, number>();
@@ -112,6 +108,36 @@ export function buildEloBoard(
       seedFromOvr(ovrs.length ? ovrs.reduce((s, o) => s + o, 0) / ovrs.length : null)
     );
   }
+  return { poolOf, seeds };
+}
+
+/**
+ * A participant's rank within their pool after each of their matches, in the
+ * same order as their Elo history. Replays the league up to each match, so
+ * it is only computed for the one profile being viewed.
+ */
+export function rankTimeline(
+  matches: MatchRows,
+  wrestlers: WrestlerRow[],
+  tagTeams: TagTeamRow[],
+  id: string,
+  history: Array<{ playedAt: string }>
+): number[] {
+  const { poolOf, seeds } = poolsAndSeeds(wrestlers, tagTeams);
+  const played = matches.filter((m) => m.played_at);
+  return history.map((h) => {
+    const cutoff = new Date(h.playedAt).getTime();
+    const upTo = played.filter((m) => new Date(m.played_at!).getTime() <= cutoff);
+    return rankPools(computeElo(upTo, seeds), poolOf).get(id) ?? 0;
+  });
+}
+
+export function buildEloBoard(
+  matches: MatchRows,
+  wrestlers: WrestlerRow[],
+  tagTeams: TagTeamRow[]
+): EloBoard {
+  const { poolOf, seeds } = poolsAndSeeds(wrestlers, tagTeams);
 
   const odds = new Map<string, MatchOdds>();
   const entries = computeElo(matches, seeds, odds);

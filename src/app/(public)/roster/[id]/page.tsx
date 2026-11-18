@@ -5,9 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { ProfileImageUpload } from "@/components/roster/profile-image-upload";
 import { SmartImage } from "@/components/ui/smart-image";
+import { buildCards } from "@/lib/cards/build-cards";
+import { RARITY_LABEL, TradingCard } from "@/components/cards/trading-card";
 import { RatingSparkline } from "@/components/ui/rating-sparkline";
 import { displaySrc } from "@/components/ui/smart-image";
-import { buildEloBoard, POOL_LABEL } from "@/lib/elo/board";
+import { buildEloBoard, rankTimeline, POOL_LABEL } from "@/lib/elo/board";
 import {
   getAllAssignments,
   getAllMatches,
@@ -139,6 +141,20 @@ export default async function WrestlerProfilePage({
   // Career Elo + rank within their division
   const eloBoard = buildEloBoard(allMatchRows, wrestlers, allTagTeams);
   const eloEntry = eloBoard.entries.get(id) ?? null;
+  const card = buildCards({
+    wrestlers,
+    tagTeams: allTagTeams,
+    matches: allMatchRows,
+    tiers,
+    assignments: currentSeason
+      ? allAssignRows.filter((a) => a.season_id === currentSeason.id)
+      : [],
+    championIds: new Set(Object.keys(currentChampions)),
+    seasonNumber: currentSeason?.season_number ?? null,
+  }).find((c) => c.id === id);
+  const eloRanks = eloEntry
+    ? rankTimeline(allMatchRows, wrestlers, allTagTeams, id, eloEntry.history)
+    : [];
   const eloStanding = eloBoard.standings.get(id) ?? null;
   const eloRank = eloStanding?.rank ?? null;
 
@@ -376,15 +392,17 @@ export default async function WrestlerProfilePage({
       {eloEntry && eloEntry.history.length >= 2 && (
         <div className="mt-[2px] bg-card px-5 pb-5 pt-4">
           <div>
-            <p className="mb-6 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rating history · hover a match</p>
+            <p className="mb-6 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rating history · hover a match · ◆ title won</p>
             <div className="min-w-0 text-muted-foreground">
               <RatingSparkline
                 height={120}
-                points={eloEntry.history.map((h) => {
+                points={eloEntry.history.map((h, hi) => {
                   const opponent = wrestlers.find((w) => w.id === h.opponentId);
                   return {
                     rating: h.rating,
                     won: h.won,
+                    rank: eloRanks[hi] || undefined,
+                    title: h.phase === "final" ? (h.won ? "won" : "lost") : undefined,
                     opponentImage: opponent?.image_url
                       ? displaySrc(opponent.image_url, 40)
                       : null,
@@ -392,6 +410,31 @@ export default async function WrestlerProfilePage({
                   };
                 })}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trading card */}
+      {card && (
+        <div className="mt-6">
+          <SectionHeader>Trading Card</SectionHeader>
+          <div className="flex flex-wrap items-end gap-6">
+            <div className="w-56 shrink-0">
+              <TradingCard card={card} link={false} />
+            </div>
+            <div className="max-w-sm pb-2 text-sm text-muted-foreground">
+              <p>
+                Card #{String(card.number).padStart(3, "0")} of {card.setSize} ·{" "}
+                <span className="font-semibold text-foreground">{RARITY_LABEL[card.rarity]}</span>
+              </p>
+              <p className="mt-1">
+                The frame upgrades with form: silver for the top 25 of the Elo poll, gold
+                for the top 5, holographic for a reigning champion.
+              </p>
+              <Link href="/cards" className="mt-3 inline-block font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gold hover:underline">
+                See the full set →
+              </Link>
             </div>
           </div>
         </div>

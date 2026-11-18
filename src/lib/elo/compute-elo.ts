@@ -44,6 +44,7 @@ export interface EloHistoryPoint {
   opponentId: string;
   opponentRating: number; // opponent's rating going into the match
   won: boolean;
+  phase: string | null; // pool_play, quarterfinal, semifinal, final, relegation
 }
 
 export interface EloEntry {
@@ -157,6 +158,7 @@ export function computeElo(
       opponentId: b,
       opponentRating: Math.round(beforeB),
       won: scoreA === 1,
+      phase: m.match_phase ?? null,
     });
     eb.history.push({
       rating: Math.round(eb.rating),
@@ -166,6 +168,7 @@ export function computeElo(
       opponentId: a,
       opponentRating: Math.round(beforeA),
       won: scoreA === 0,
+      phase: m.match_phase ?? null,
     });
   }
 

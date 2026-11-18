@@ -8,7 +8,7 @@ import {
   getTagTeams,
   getWrestlers,
 } from "@/lib/data/cached";
-import { buildEloBoard, POOL_LABEL } from "@/lib/elo/board";
+import { buildEloBoard, rankTimeline, POOL_LABEL } from "@/lib/elo/board";
 import { Badge } from "@/components/ui/badge";
 import { RatingSparkline } from "@/components/ui/rating-sparkline";
 import { SmartImage, displaySrc } from "@/components/ui/smart-image";
@@ -133,6 +133,9 @@ export default async function TagTeamProfilePage({
   // ── Elo ───────────────────────────────────────────────────────────────────
   const eloBoard = buildEloBoard(allMatchRows, allWrestlers, teams);
   const eloEntry = eloBoard.entries.get(id) ?? null;
+  const eloRanks = eloEntry
+    ? rankTimeline(allMatchRows, allWrestlers, teams, id, eloEntry.history)
+    : [];
   const eloStanding = eloBoard.standings.get(id) ?? null;
   const eloRank = eloStanding?.rank ?? null;
 
@@ -278,16 +281,18 @@ export default async function TagTeamProfilePage({
       {eloEntry && eloEntry.history.length >= 2 && (
         <div className="mt-[2px] bg-card px-5 pb-5 pt-4">
           <div>
-            <p className="mb-6 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rating history · hover a match</p>
+            <p className="mb-6 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rating history · hover a match · ◆ title won</p>
             <div className="min-w-0 text-muted-foreground">
               <RatingSparkline
                 height={120}
-                points={eloEntry.history.map((h) => {
+                points={eloEntry.history.map((h, hi) => {
                   const oppTeam = teamById.get(h.opponentId);
                   const oppImage = (oppTeam?.wrestler_a as unknown as Member | null)?.image_url ?? null;
                   return {
                     rating: h.rating,
                     won: h.won,
+                    rank: eloRanks[hi] || undefined,
+                    title: h.phase === "final" ? (h.won ? "won" : "lost") : undefined,
                     opponentImage: oppImage ? displaySrc(oppImage, 40) : null,
                     label: `${h.rating} — ${h.won ? "def." : "lost to"} ${teamNames[h.opponentId] ?? "?"}${h.seasonNumber ? ` (S${h.seasonNumber})` : ""}`,
                   };

@@ -32,6 +32,8 @@ import { computeStandings } from "@/lib/standings/compute-standings";
 import { computePlayoffSeeds, computeTagPlayoffSeeds } from "@/lib/playoffs/seeding";
 import { generateBracket } from "@/lib/playoffs/bracket";
 import { assignZones, type StandingZone } from "@/lib/standings/zones";
+import { CutLine, ZoneLegend, ZoneTags, ZONE_RANK_COLOR, ZONE_STRIPE, zoneBand, type Promotion } from "@/components/standings/zone-ui";
+import { tierColor } from "@/lib/tiers/colors";
 import { FormDots } from "@/components/ui/form-dots";
 import { SmartImage } from "@/components/ui/smart-image";
 import { buildEloBoard } from "@/lib/elo/board";
@@ -69,6 +71,12 @@ export default async function TierDetailPage({
   const tier = tiers.find((t) => (isUuid ? t.id === id : t.slug === id));
 
   if (!tier) notFound();
+  const divisionTierNumbers = tiers
+    .filter((t) => t.division_id === tier.division_id)
+    .map((t) => t.tier_number);
+  const isTopTier = tier.tier_number === Math.min(...divisionTierNumbers);
+  const isBottomTier = tier.tier_number === Math.max(...divisionTierNumbers);
+  const plate = tierColor(tier.slug ?? tier.name);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let assignments: any[] = [];
@@ -275,6 +283,7 @@ export default async function TierDetailPage({
 
   // Tier-wide zones: playoff spots are per-pool, wild cards and relegation
   // are decided across the whole tier (see zones.ts)
+  const promotionOf = new Map<string, Promotion>();
   {
     const tierCompleted = matches.filter(
       (m) =>
@@ -300,7 +309,13 @@ export default async function TierDetailPage({
     });
     allStatRows.forEach((s) => {
       s.zone = zones.get(s.id) ?? "safe";
+      // Nobody sits below the lowest tier of a division
+      if (isBottomTier && (s.zone === "autorel" || s.zone === "relplayoff")) s.zone = "safe";
     });
+    if (!isTopTier) {
+      combined.slice(0, 2).forEach((c) => promotionOf.set(c.participantId, "auto"));
+      combined.slice(2, 4).forEach((c) => promotionOf.set(c.participantId, "cage"));
+    }
   }
 
   const poolPlayMatches = matches.filter(
@@ -375,23 +390,19 @@ export default async function TierDetailPage({
             Tiers
           </Link>
           <span className="text-border/30">·</span>
-          <Badge
-            variant="outline"
-            className="text-[10px] font-semibold uppercase tracking-wider"
-            style={{
-              color: tier.color ?? undefined,
-              borderColor: tier.color ? `${tier.color}40` : undefined,
-            }}
+          <span
+            className="px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em]"
+            style={{ background: plate.bg, color: plate.fg }}
           >
             Tier {tier.tier_number}
-          </Badge>
+          </span>
           <Badge variant="secondary" className="text-[10px]">
             {division.name}
           </Badge>
         </div>
         <div>
           <div className="flex items-center gap-4">
-            <h1 className="text-4xl sm:text-6xl">{tier.name}</h1>
+            <h1 className="border-l-[6px] pl-3 text-4xl sm:text-6xl" style={{ borderColor: plate.bg }}>{tier.name}</h1>
             {tier.belt_image_url && (
               <SmartImage
                 src={tier.belt_image_url}
@@ -471,16 +482,7 @@ export default async function TierDetailPage({
                   {/* Standings Table */}
                   <div className="rounded-lg border border-border/40 overflow-hidden">
                     {/* Legend — once per tier, above Pool A */}
-                    {pool !== "B" && (
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 bg-muted/5 border-b border-border/20">
-                        <span className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/40">Legend</span>
-                        <span className="text-[9px] text-emerald-400">● Playoff (pool top 2)</span>
-                        <span className="text-[9px] text-blue-400">● Wild Card (best 2 remaining)</span>
-                        <span className="text-[9px] text-foreground/30">● Safe</span>
-                        <span className="text-[9px] text-orange-400">● Relegation Playoff ⚔ (3rd-4th from bottom, tier-wide)</span>
-                        <span className="text-[9px] text-red-400">● Auto-Relegate ↓ (tier bottom 2)</span>
-                      </div>
-                    )}
+                    {pool !== "B" && <ZoneLegend />}
                     <Table>
                       <TableHeader>
                         <TableRow className="hover:bg-transparent border-border/40">
@@ -500,64 +502,9 @@ export default async function TierDetailPage({
                           const count = stats.length;
 
                           // Zone computed tier-wide server-side (see zones.ts)
-                          const isPlayoff = s.zone === "playoff";
-                          const isWildCard = s.zone === "wildcard";
-                          const isAutoRelegate = s.zone === "autorel";
-                          const isRelegationPlayoff = s.zone === "relplayoff";
-                          const isSafe = s.zone === "safe";
-
-                          let rankColor = "text-muted-foreground/50";
-                          let leftBorder = "";
-                          let zoneIcon = "";
-
-                          if (isPlayoff) {
-                            rankColor = "text-emerald-400";
-                            leftBorder = "border-l-[3px] border-l-emerald-500/50";
-                          } else if (isWildCard) {
-                            rankColor = "text-blue-400";
-                            leftBorder = "border-l-[3px] border-l-blue-500/40";
-                          } else if (isAutoRelegate) {
-                            rankColor = "text-red-400";
-                            leftBorder = "border-l-[3px] border-l-red-500/50";
-                            zoneIcon = "↓";
-                          } else if (isRelegationPlayoff) {
-                            rankColor = "text-orange-400";
-                            leftBorder = "border-l-[3px] border-l-orange-500/40";
-                            zoneIcon = "⚔";
-                          } else if (isSafe) {
-                            leftBorder = "border-l-[3px] border-l-foreground/10";
-                          }
-
-                          // Zone group borders
-                          function getZone(idx: number) {
-                            if (idx < 0 || idx >= count) return "none";
-                            return stats[idx].zone;
-                          }
-                          const myZone = getZone(i);
-                          const prevZone = getZone(i - 1);
-                          const nextZone = getZone(i + 1);
-
-                          // Zone border colors (RGB for inline styles)
-                          const zoneRGB: Record<string, string> = {
-                            playoff: "16,185,129",
-                            wildcard: "59,130,246",
-                            relplayoff: "249,115,22",
-                            autorel: "239,68,68",
-                          };
-                          const rgb = zoneRGB[myZone] ?? "";
-                          const isZoneStart = myZone !== "safe" && myZone !== "none" && prevZone !== myZone;
-                          const isZoneEnd = myZone !== "safe" && myZone !== "none" && nextZone !== myZone;
-                          const isInZone = myZone !== "safe" && myZone !== "none";
-
-                          const zoneBorderStyle: React.CSSProperties = {};
-                          const zoneRightStyle: React.CSSProperties = {};
-
-                          // Zone gradient wash — left to right fade
-                          const zoneBgStyle: React.CSSProperties = isInZone
-                            ? { background: `linear-gradient(to right, rgba(${rgb},0.18) 0%, rgba(${rgb},0.06) 35%, transparent 65%)` }
-                            : isSafe
-                              ? { background: `linear-gradient(to right, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 35%, transparent 65%)` }
-                              : {};
+                          const band = zoneBand(s.zone);
+                          const rankColor = ZONE_RANK_COLOR[band];
+                          const leftBorder = ZONE_STRIPE[band];
 
                           const streakColor = s.streakLabel.startsWith("W")
                             ? "text-emerald-400"
@@ -565,12 +512,10 @@ export default async function TierDetailPage({
                               ? "text-red-400"
                               : "text-muted-foreground/30";
 
-                          // Remove inner border-b for rows within a zone (not the last row of that zone)
-                          const suppressInnerBorder = isInZone && !isZoneEnd ? "border-b-0" : "";
-
                           return (
                             <React.Fragment key={s.id}>
-                              <TableRow className={suppressInnerBorder} style={{ ...zoneBorderStyle, ...zoneBgStyle }}>
+                              <CutLine prev={i > 0 ? stats[i - 1].zone : null} zone={s.zone} colSpan={9} />
+                              <TableRow>
                                 <TableCell className={`font-display text-xl font-black ${rankColor} ${leftBorder} px-1 sm:px-4`}>
                                   {i + 1}
                                 </TableCell>
@@ -581,17 +526,17 @@ export default async function TierDetailPage({
                                         {s.memberImages.map((img, mi) => (
                                           img ? (
                                             /* eslint-disable-next-line @next/next/no-img-element */
-                                            <img key={mi} src={img} alt="" className="h-6 w-6 rounded-full object-cover ring-1 ring-background" />
+                                            <img key={mi} src={img} alt="" className="h-7 w-7 object-cover object-top ring-1 ring-background" />
                                           ) : (
-                                            <span key={mi} className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[8px] text-muted-foreground ring-1 ring-background">?</span>
+                                            <span key={mi} className="h-7 w-7 bg-muted flex items-center justify-center text-[8px] text-muted-foreground ring-1 ring-background">?</span>
                                           )
                                         ))}
                                       </span>
                                     ) : s.imageUrl ? (
                                       /* eslint-disable-next-line @next/next/no-img-element */
-                                      <img src={s.imageUrl} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
+                                      <img src={s.imageUrl} alt="" className="h-7 w-7 object-cover object-top shrink-0" />
                                     ) : (
-                                      <span className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-[8px] text-muted-foreground shrink-0">?</span>
+                                      <span className="h-7 w-7 bg-muted flex items-center justify-center text-[8px] text-muted-foreground shrink-0">?</span>
                                     )}
                                     {s.linkHref ? (
                                       <Link href={s.linkHref} className="hover:text-gold transition-colors">
@@ -607,15 +552,11 @@ export default async function TierDetailPage({
                                         beltImageUrl={champions[s.id].beltImageUrl}
                                       />
                                     )}
-                                    {zoneIcon && (
-                                      <span className={`text-[8px] font-bold ${rankColor}`}>{zoneIcon}</span>
-                                    )}
-                                    {clinchMap.get(s.id) === "clinched" && (
-                                      <span className="text-[8px] font-bold text-emerald-400 bg-emerald-400/10 px-1 rounded">✓</span>
-                                    )}
-                                    {clinchMap.get(s.id) === "eliminated" && (
-                                      <span className="text-[8px] font-bold text-muted-foreground/40 bg-muted/10 px-1 rounded">✗</span>
-                                    )}
+                                    <ZoneTags
+                                      zone={s.zone}
+                                      clinched={clinchMap.get(s.id) === "clinched"}
+                                      promotion={promotionOf.get(s.id) ?? null}
+                                    />
                                   </span>
                                 </TableCell>
                                 <TableCell className={`text-center tabular-nums font-medium ${s.wins > 0 ? "text-emerald-400" : "text-muted-foreground/40"} px-1 sm:px-4`}>
@@ -638,7 +579,7 @@ export default async function TierDetailPage({
                                 <TableCell className="text-center px-1 sm:px-4 hidden sm:table-cell">
                                   {s.trend.length > 0 && <FormDots results={s.trend} />}
                                 </TableCell>
-                                <TableCell className="text-center tabular-nums text-xs text-muted-foreground hidden sm:table-cell px-1 sm:px-4" style={zoneRightStyle}>
+                                <TableCell className="text-center tabular-nums text-xs text-muted-foreground hidden sm:table-cell px-1 sm:px-4">
                                   {s.avgTime > 0 ? formatTime(s.avgTime) : "-"}
                                 </TableCell>
                               </TableRow>

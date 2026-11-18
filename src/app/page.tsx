@@ -1,3 +1,5 @@
+import { computeRaces } from "@/lib/standings/races";
+import { tierColor } from "@/lib/tiers/colors";
 import {
   getCurrentSeason,
   getCompletedSeasons,
@@ -439,14 +441,24 @@ export default async function DashboardPage() {
       }, Infinity)
     : null;
 
+  // Pace is the average over the last 30 days (or since the first match, if
+  // the season is younger than that), so a recent burst or lull shows up and
+  // the projected finish follows current form rather than the season average
   let matchesPerDay: number | null = null;
   let projectedDaysLeft: number | null = null;
   if (firstMatchDate && firstMatchDate !== Infinity && totalPlayed >= 2) {
-    const daysSinceFirst = Math.max(1, (Date.now() - firstMatchDate) / (1000 * 60 * 60 * 24));
-    matchesPerDay = Math.round((totalPlayed / daysSinceFirst) * 10) / 10;
+    const DAY = 1000 * 60 * 60 * 24;
+    const now = Date.now();
+    const windowDays = Math.min(30, Math.max(1, (now - firstMatchDate) / DAY));
+    const recent = playedMatches.filter(
+      (m) => now - new Date(m.played_at).getTime() <= windowDays * DAY
+    ).length;
+    matchesPerDay = recent / windowDays;
     const remaining = totalMatches - totalPlayed;
     projectedDaysLeft = matchesPerDay > 0 ? Math.ceil(remaining / matchesPerDay) : null;
   }
+
+  const races = season ? computeRaces(tiersData, tierAssignmentsData, allMatchData) : [];
 
   const milestones = computeMilestones({
     totalPlayed,
@@ -555,16 +567,16 @@ export default async function DashboardPage() {
                     </dd>
                   </div>
                   <div className="border-l border-border px-4 py-2.5">
-                    <dt className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Pace</dt>
+                    <dt className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Pace · 30 days</dt>
                     <dd className="font-display text-2xl font-extrabold leading-none tabular-nums">
-                      {matchesPerDay ?? "–"}
-                      {matchesPerDay && <span className="text-base text-muted-foreground">/day</span>}
+                      {matchesPerDay != null ? matchesPerDay.toFixed(2) : "–"}
+                      {matchesPerDay != null && <span className="text-base text-muted-foreground">/day</span>}
                     </dd>
                   </div>
                   <div className="border-l border-border px-4 py-2.5">
                     <dt className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Finishes in</dt>
                     <dd className="font-display text-2xl font-extrabold leading-none tabular-nums">
-                      {projectedDaysLeft ? <>~{projectedDaysLeft}<span className="text-base text-muted-foreground">d</span></> : "–"}
+                      {totalPlayed >= totalMatches ? "Done" : projectedDaysLeft ? <>~{projectedDaysLeft}<span className="text-base text-muted-foreground">d</span></> : "–"}
                     </dd>
                   </div>
                 </dl>
@@ -877,6 +889,74 @@ export default async function DashboardPage() {
           </div>
         )}
 
+        {/* ── Bubble Watch ────────────────────────────────────────────── */}
+        {races.length > 0 && (
+          <section>
+            <div className="rule-title flex items-baseline justify-between gap-4">
+              <h2 className="text-2xl">Bubble Watch</h2>
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                Tightest races
+              </span>
+            </div>
+            <div className="grid pl-px sm:grid-cols-2 xl:grid-cols-4">
+              {races.map((r) => {
+                const kind = {
+                  playoff: { label: "Playoff line", text: "text-gold", bar: "bg-gold", verb: "holds the last playoff spot" },
+                  promotion: { label: "Promotion", text: "text-emerald-400", bar: "bg-emerald-500", verb: "holds the last promotion place" },
+                  drop: { label: "Drop zone", text: "text-red-400", bar: "bg-red-500", verb: "is the last one safe" },
+                }[r.kind];
+                const plate = tierColor(r.tierSlug ?? r.tierName);
+                const href = (id: string) =>
+                  slugMap[id] || genderMap[id] ? `/roster/${slugMap[id] ?? id}` : `/tag-teams/${id}`;
+                return (
+                  <div key={`${r.tierId}-${r.kind}`} className="-ml-px -mt-px flex flex-col border border-border bg-card">
+                    <div className="flex items-center justify-between gap-2 px-3 pt-3">
+                      <Link
+                        href={`/tiers/${r.tierSlug ?? r.tierId}`}
+                        className="px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                        style={{ background: plate.bg, color: plate.fg }}
+                      >
+                        T{r.tierNumber} · {r.tierName}
+                      </Link>
+                      <span className={`font-mono text-[9px] font-bold uppercase tracking-[0.2em] ${kind.text}`}>
+                        {kind.label}
+                      </span>
+                    </div>
+                    <div className="px-3 pb-2 pt-3">
+                      <Link href={href(r.above.id)} className="flex items-baseline justify-between gap-2 hover:text-gold">
+                        <span className="font-display text-xl font-extrabold leading-none [overflow-wrap:anywhere]">
+                          {wrestlerMap[r.above.id] ?? "?"}
+                        </span>
+                        <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                          {r.above.wins}-{r.above.losses}
+                        </span>
+                      </Link>
+                      <div className="my-1.5 flex items-center gap-2">
+                        <span className={`h-0.5 flex-1 ${kind.bar}`} />
+                        <span className={`font-mono text-[10px] font-bold ${kind.text}`}>
+                          {r.gap === 0 ? "LEVEL" : `${r.gap.toFixed(1)} GB`}
+                        </span>
+                      </div>
+                      <Link href={href(r.below.id)} className="flex items-baseline justify-between gap-2 text-muted-foreground hover:text-gold">
+                        <span className="font-display text-xl font-extrabold leading-none [overflow-wrap:anywhere]">
+                          {wrestlerMap[r.below.id] ?? "?"}
+                        </span>
+                        <span className="shrink-0 font-mono text-xs">
+                          {r.below.wins}-{r.below.losses}
+                        </span>
+                      </Link>
+                    </div>
+                    <p className="mt-auto border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground">
+                      {wrestlerMap[r.above.id] ?? "?"} {kind.verb}
+                      {r.gap === 0 ? " on a tiebreak" : ""} · {Math.round(r.progress * 100)}% played
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* ── Recent Results + Tier Map Row ─────────────────────────── */}
         <div className={`grid gap-6 ${tierProgress.length > 0 && recentMatches.length > 0 ? "lg:grid-cols-2" : ""}`}>
           {/* Recent Results */}
@@ -1041,7 +1121,7 @@ export default async function DashboardPage() {
             <h2 className="rule-title text-2xl">Championship Holders</h2>
             <div className="grid grid-cols-2 pl-px sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
               {champions.sort((a, b) => a.tierNumber - b.tierNumber).map((c) => (
-                <div key={c.tierName} className="group -ml-px -mt-px border border-border bg-card p-3">
+                <div key={c.tierName} className="group -ml-px -mt-px border border-border bg-card p-3" style={{ borderTop: `3px solid ${tierColor(c.tierName).bg}` }}>
                   {c.beltImageUrl ? (
                     <SmartImage src={c.beltImageUrl} alt={c.tierName} width={240} height={96} className="mx-auto mb-3 h-12 w-full object-contain opacity-85 transition-opacity group-hover:opacity-100" />
                   ) : (
