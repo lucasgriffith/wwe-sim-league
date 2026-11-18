@@ -105,6 +105,9 @@ export function SiteHeader() {
               <DropdownMenuItem render={<Link href="/season/expand" />}>
                 Mid-Season Expansion
               </DropdownMenuItem>
+              <DropdownMenuItem render={<Link href="/roster-photos" />}>
+                Photo Review
+              </DropdownMenuItem>
               <DropdownMenuItem render={<Link href="/season/match" />}>
                 Enter Match Results
               </DropdownMenuItem>

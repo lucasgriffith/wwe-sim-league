@@ -1537,3 +1537,44 @@ export async function signOut() {
   await supabase.auth.signOut();
   revalidatePath("/");
 }
+
+// ─── Photo proposals ────────────────────────────────────────────────────────
+
+interface PhotoManifest {
+  proposals: Array<{ id: string; name: string; proposed: string; previous: string | null }>;
+}
+
+async function loadPhotoManifest(): Promise<PhotoManifest> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/roster-2k26/proposals.json`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error("No photo proposals found");
+  return res.json();
+}
+
+/**
+ * Apply (or revert) proposed wrestler photos. Only ever UPDATES image_url to
+ * a URL recorded in the proposals manifest — the proposed portrait when
+ * applying, the photo that was there before when reverting.
+ */
+export async function applyPhotoProposals(ids: string[], mode: "apply" | "revert" = "apply") {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const manifest = await loadPhotoManifest();
+  const byId = new Map(manifest.proposals.map((p) => [p.id, p]));
+
+  let changed = 0;
+  for (const id of ids) {
+    const p = byId.get(id);
+    if (!p) continue;
+    const { error } = await admin
+      .from("wrestlers")
+      .update({ image_url: mode === "apply" ? p.proposed : p.previous })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    changed++;
+  }
+  revalidatePath("/roster");
+  revalidatePath("/roster-photos");
+  revalidatePath("/");
+  return { changed };
+}
