@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/ui/page-header";
+import { getTiers } from "@/lib/data/cached";
 
 const SECTIONS = [
   { id: "overview", label: "Overview" },
@@ -14,7 +15,17 @@ const SECTIONS = [
   { id: "match-stipulation-reference", label: "Match Stipulation Reference" },
 ];
 
-export default function WikiPage() {
+const DIVISION_ORDER = ["Men's Singles", "Women's Singles", "Men's Tag Teams", "Women's Tag Teams"];
+
+export default async function WikiPage() {
+  const tiers = await getTiers();
+  const stipDivisions = DIVISION_ORDER.map((name) => ({
+    name,
+    tiers: tiers
+      .filter((t) => (t.divisions as { name: string } | null)?.name === name)
+      .sort((a, b) => a.tier_number - b.tier_number),
+  })).filter((d) => d.tiers.length > 0);
+
   return (
     <div className="container max-w-screen-lg px-4 py-8 animate-fade-in">
       <PageHeader
@@ -179,14 +190,16 @@ export default function WikiPage() {
           </SubSection>
           <SubSection title="Match Stipulations">
             <p>
-              Each playoff match receives a random stipulation drawn from a pool
-              of 18 match types (Extreme Rules, Hell in a Cell, Ladder Match,
-              TLC, etc.). No stipulation is used twice within the same
-              tier&apos;s bracket.
+              Every championship has its own signature match, and every
+              playoff match in that tier is fought under it: the
+              Intercontinental title is decided in Ladder Matches, the
+              Hardcore title under Falls Count Anywhere, and so on. The full
+              list is in the{" "}
+              <a href="#match-stipulation-reference">stipulation reference</a>.
             </p>
             <p>
-              <strong>Exception:</strong> The Hardcore tier (Men&apos;s Singles
-              T16) always uses Falls Count Anywhere for every match.
+              A tier without a signature match draws a random stipulation for
+              each playoff match instead, never repeating one within a bracket.
             </p>
           </SubSection>
         </Section>
@@ -297,27 +310,38 @@ export default function WikiPage() {
 
         {/* Stipulations Reference */}
         <Section id="match-stipulation-reference" title="Match Stipulation Reference">
-          <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {[
-              "Extreme Rules", "Inferno", "Three Stages of Hell",
-              "I Quit", "Brawl", "Dumpster Match",
-              "Ambulance Match", "Casket Match", "Steel Cage",
-              "Hell in a Cell", "Table Match", "Ladder Match",
-              "TLC", "Submission Match", "Falls Count Anywhere",
-              "Iron Man", "Last Man Standing", "No Holds Barred",
-            ].map((stip) => (
-              <div
-                key={stip}
-                className="border-l-2 border-gold/60 bg-card px-3 py-2 font-display text-base font-bold uppercase leading-none text-foreground"
-              >
-                {stip}
+          <p>
+            Each championship&apos;s playoffs are fought under one match type.
+            Promotion and relegation matches between tiers are always Steel
+            Cage.
+          </p>
+          <div className="mt-4 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+            {stipDivisions.map((d) => (
+              <div key={d.name}>
+                <h3 className="mb-2 font-mono! text-[11px] font-bold tracking-[0.18em] text-gold/90">
+                  {d.name}
+                </h3>
+                <ul className="list-none! pl-0! space-y-0!">
+                  {d.tiers.map((t) => (
+                    <li
+                      key={t.id}
+                      className="flex items-baseline justify-between gap-3 border-b border-border py-1.5 text-sm"
+                    >
+                      <span className="min-w-0 truncate">
+                        <span className="mr-2 font-mono text-[10px] text-muted-foreground tabular-nums">
+                          T{t.tier_number}
+                        </span>
+                        {t.short_name || t.name}
+                      </span>
+                      <span className="shrink-0 font-display text-base font-bold uppercase leading-none text-foreground">
+                        {t.fixed_stipulation ?? "Random draw"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Relegation matches always use Steel Cage. The Hardcore tier always
-            uses Falls Count Anywhere.
-          </p>
         </Section>
       </article>
     </div>

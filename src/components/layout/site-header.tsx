@@ -14,30 +14,61 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeAccentPicker } from "@/components/theme-accent";
 
-const navLinks = [
+interface NavLink {
+  href: string;
+  label: string;
+  /** Sub-pages shown on a second row while this section is open */
+  children?: Array<{ href: string; label: string }>;
+}
+
+const navLinks: NavLink[] = [
   { href: "/", label: "Dashboard" },
-  { href: "/roster", label: "Roster" },
-  { href: "/tiers", label: "Tiers" },
-  { href: "/standings", label: "Standings" },
+  {
+    href: "/standings",
+    label: "Standings",
+    children: [
+      { href: "/standings", label: "Tables" },
+      { href: "/tiers", label: "Championships" },
+    ],
+  },
   { href: "/rankings", label: "Rankings" },
-  { href: "/tag-teams", label: "Tag Teams" },
-  { href: "/cards", label: "Cards" },
-  { href: "/dynasty", label: "Dynasty" },
-  { href: "/records", label: "Records" },
-  { href: "/history", label: "History" },
-  { href: "/compare", label: "H2H" },
+  {
+    href: "/roster",
+    label: "Roster",
+    children: [
+      { href: "/roster", label: "Wrestlers" },
+      { href: "/tag-teams", label: "Tag Teams" },
+      { href: "/cards", label: "Cards" },
+    ],
+  },
+  { href: "/schedule", label: "Schedule" },
+  { href: "/playoffs", label: "Playoffs" },
+  {
+    href: "/history",
+    label: "History",
+    children: [
+      { href: "/history", label: "Seasons" },
+      { href: "/dynasty", label: "Dynasty" },
+      { href: "/records", label: "Record Book" },
+    ],
+  },
   { href: "/wiki", label: "Wiki" },
-  { href: "/export", label: "Export" },
 ];
 
-function isActive(pathname: string, href: string) {
+function matches(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(href);
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
+function isActive(pathname: string, link: NavLink) {
+  if (link.children) return link.children.some((c) => matches(pathname, c.href));
+  return matches(pathname, link.href);
 }
 
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const section = navLinks.find((l) => l.children && isActive(pathname, l));
 
   return (
     <header className="sticky top-0 z-50 w-full border-b-[3px] border-gold bg-[#111115]">
@@ -60,7 +91,7 @@ export function SiteHeader() {
         {/* Desktop nav */}
         <nav className="hidden items-center gap-0.5 md:flex">
           {navLinks.map((link) => {
-            const active = isActive(pathname, link.href);
+            const active = isActive(pathname, link);
             return (
               <Link
                 key={link.href}
@@ -116,6 +147,10 @@ export function SiteHeader() {
                 Relegation
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem render={<Link href="/export" />}>
+                Export Data
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <ThemeAccentPicker />
             </DropdownMenuContent>
           </DropdownMenu>
@@ -153,7 +188,7 @@ export function SiteHeader() {
                 </div>
                 <nav className="flex flex-col gap-0.5">
                   {navLinks.map((link) => {
-                    const active = isActive(pathname, link.href);
+                    const active = isActive(pathname, link);
                     return (
                       <Link
                         key={link.href}
@@ -175,6 +210,34 @@ export function SiteHeader() {
           </Sheet>
         </div>
       </div>
+
+      {section?.children && (
+        <div className="border-t border-border bg-[#0c0c0f]">
+          <nav
+            aria-label={`${section.label} sections`}
+            className="container flex h-9 max-w-screen-2xl items-center gap-5 overflow-x-auto px-4"
+          >
+            <span className="hidden font-mono text-[9px] uppercase tracking-[0.22em] text-gold/70 sm:inline">
+              {section.label}
+            </span>
+            {section.children.map((c) => {
+              const on = matches(pathname, c.href);
+              return (
+                <Link
+                  key={c.href}
+                  href={c.href}
+                  aria-current={on ? "page" : undefined}
+                  className={`font-mono text-[11px] uppercase tracking-[0.14em] whitespace-nowrap transition-colors ${
+                    on ? "text-gold" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {c.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

@@ -52,16 +52,16 @@ export function BracketView({ matches, tierName, isTagFinal }: Props) {
 
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[700px] py-4">
+      <div className="min-w-[640px] py-1">
         {/* Column headers */}
         <div className="grid grid-cols-4 gap-4 mb-4 px-2">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 text-center">
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground text-center">
             Quarterfinals
           </div>
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 text-center">
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground text-center">
             Semifinals
           </div>
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 text-center">
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground text-center">
             {/* spacer for alignment */}
           </div>
           <div className="text-[10px] font-semibold uppercase tracking-wider text-gold/50 text-center">
@@ -72,13 +72,13 @@ export function BracketView({ matches, tierName, isTagFinal }: Props) {
         {/* Bracket grid */}
         <div className="relative grid grid-cols-4 gap-4 items-center">
           {/* Column 1: Quarterfinals */}
-          <div className="flex flex-col gap-16">
+          <div className="flex flex-col gap-8">
             {qf1 && <MatchNode match={qf1} />}
             {qf2 && <MatchNode match={qf2} />}
           </div>
 
           {/* Column 2: Semifinals */}
-          <div className="flex flex-col gap-16">
+          <div className="flex flex-col gap-8">
             {sf2 && <MatchNode match={sf2} />}
             {sf1 && <MatchNode match={sf1} />}
           </div>
@@ -147,11 +147,11 @@ function MatchNode({
       : "border-gold/20 bg-gold/[0.02]"
     : match.isPlayed
       ? "border-emerald-500/30 bg-emerald-500/[0.03]"
-      : "border-border/30";
+      : "border-border";
 
   return (
     <div
-      className={`rounded-lg border-2 ${borderColor} overflow-hidden transition-colors w-full ${
+      className={`border ${borderColor} bg-background/60 overflow-hidden transition-colors w-full ${
         isFinal ? "max-w-[200px] mx-auto" : ""
       }`}
     >
@@ -216,7 +216,7 @@ function ParticipantRow({
     return (
       <div className="flex items-center gap-1.5 px-2 py-1.5">
         <span className="text-[10px] font-mono text-muted-foreground/30 w-4">—</span>
-        <span className="text-xs text-muted-foreground/30 italic">TBD</span>
+        <span className="text-xs text-muted-foreground/50 italic">TBD</span>
       </div>
     );
   }
@@ -231,7 +231,7 @@ function ParticipantRow({
           : ""
       }`}
     >
-      <span className="text-[10px] font-mono text-muted-foreground/40 w-4">
+      <span className="text-[10px] font-mono text-gold/70 w-4">
         {participant.seed}
       </span>
       <span
