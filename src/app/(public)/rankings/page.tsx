@@ -28,9 +28,7 @@ export default async function RankingsPage() {
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
           Every match moves the ratings: beat someone rated above you and you
           climb fast, lose to someone below you and you fall hard. Playoff
-          matches count 25% more, title matches 50% more. A{" "}
-          <span className="text-gold/70">?</span> marks a provisional rating
-          (fewer than 10 matches).
+          matches count 25% more, title matches 50% more.
         </p>
       </div>
 
@@ -150,7 +148,6 @@ function Poll({
                   </td>
                   <td className="px-3 py-2 text-right font-bold tabular-nums text-gold">
                     {s.rating}
-                    {s.provisional && <span className="text-gold/50">?</span>}
                   </td>
                 </tr>
               );

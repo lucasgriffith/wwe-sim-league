@@ -411,6 +411,30 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
         </div>
       </div>
 
+      {/* Elo win probability */}
+      {a.elo && b.elo ? (() => {
+        const pA = 1 / (1 + Math.pow(10, (b.elo - a.elo) / 400));
+        const pctA = Math.round(pA * 100);
+        return (
+          <div className="px-3 sm:px-4 pb-3">
+            <div className="flex items-center gap-2 text-[10px] font-bold tabular-nums">
+              <span className={pctA >= 50 ? "text-gold" : "text-muted-foreground/60"}>{pctA}%</span>
+              <div className="flex h-1.5 flex-1 overflow-hidden rounded-full bg-muted/20">
+                <div className="h-full bg-gold/80" style={{ width: `${pctA}%` }} />
+                <div className="h-full flex-1 bg-foreground/15" />
+              </div>
+              <span className={pctA < 50 ? "text-gold" : "text-muted-foreground/60"}>{100 - pctA}%</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between text-[9px] uppercase tracking-wider text-muted-foreground/40">
+              <span>Win probability</span>
+              <Link href={`/match/${match.id}`} className="font-semibold text-gold/70 hover:text-gold">
+                Tale of the tape →
+              </Link>
+            </div>
+          </div>
+        );
+      })() : null}
+
       {/* Inline match entry */}
       <div className="border-t border-gold/10 bg-gold/[0.02] px-4 py-3">
         <div className="flex items-center gap-2">

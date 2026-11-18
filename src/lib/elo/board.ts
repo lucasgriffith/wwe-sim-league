@@ -3,6 +3,7 @@ import {
   seedFromOvr,
   PROVISIONAL_MATCHES,
   type EloEntry,
+  type MatchOdds,
 } from "./compute-elo";
 
 /**
@@ -60,6 +61,10 @@ export interface EloBoard {
   standings: Map<string, EloStanding>;
   /** Pool members in rank order */
   ranked: Record<EloPool, EloStanding[]>;
+  /** Pre-match odds for every played match, keyed by match id */
+  odds: Map<string, MatchOdds>;
+  /** Starting rating for anyone who has not wrestled yet */
+  seeds: Map<string, number>;
 }
 
 function rankPools(
@@ -108,7 +113,8 @@ export function buildEloBoard(
     );
   }
 
-  const entries = computeElo(matches, seeds);
+  const odds = new Map<string, MatchOdds>();
+  const entries = computeElo(matches, seeds, odds);
   const ranks = rankPools(entries, poolOf);
 
   // Previous ranks: the board as it stood before the latest day of results
@@ -171,5 +177,5 @@ export function buildEloBoard(
     ranked[pool].sort((a, b) => a.rank - b.rank);
   }
 
-  return { entries, standings, ranked };
+  return { entries, standings, ranked, odds, seeds };
 }

@@ -363,7 +363,6 @@ export default async function WrestlerProfilePage({
               </p>
               <p className="text-3xl font-bold tabular-nums text-gold">
                 {eloStanding?.rating ?? Math.round(eloEntry.rating)}
-                {eloStanding?.provisional && <span className="text-lg text-gold/50" title="Provisional — fewer than 10 matches">?</span>}
                 {eloStanding && eloStanding.lastDelta !== 0 && (
                   <span className={`ml-2 text-sm font-semibold ${eloStanding.lastDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
                     {eloStanding.lastDelta > 0 ? "+" : ""}{eloStanding.lastDelta}
@@ -376,6 +375,7 @@ export default async function WrestlerProfilePage({
             </div>
             <div className="flex-1 min-w-0 text-muted-foreground">
               <RatingSparkline
+                height={120}
                 points={eloEntry.history.map((h) => {
                   const opponent = wrestlers.find((w) => w.id === h.opponentId);
                   return {

@@ -197,6 +197,43 @@ export default async function RecordsPage() {
             />
           </div>
 
+          {/* Rivalries + stipulations */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <RecordList
+              emoji="⚔️"
+              title="Rivalries"
+              subtitle="Pairings that have met more than once"
+              rows={book.rivalries.map((r) => ({
+                key: `${r.aId}-${r.bId}`,
+                primary: (
+                  <>
+                    <ParticipantLink participant={p(r.aId)} className="font-semibold hover:text-gold transition-colors" />
+                    <span className="text-muted-foreground/60"> vs </span>
+                    <ParticipantLink participant={p(r.bId)} className="font-semibold hover:text-gold transition-colors" />
+                  </>
+                ),
+                context: `${r.meetings} meetings`,
+                value: `${r.aWins}–${r.bWins}`,
+              }))}
+            />
+            <RecordList
+              emoji="🔒"
+              title="Stipulations"
+              subtitle="Most-used match types and who owns them"
+              rows={book.stipulations.map((st) => ({
+                key: st.stipulation,
+                primary: <span className="font-semibold">{st.stipulation}</span>,
+                context: [
+                  st.avgTime ? `avg ${formatTime(st.avgTime)}` : null,
+                  st.specialistId ? `specialist: ${p(st.specialistId).name} (${st.specialistWins}W)` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
+                value: `${st.matches}`,
+              }))}
+            />
+          </div>
+
           {/* Upsets */}
           {book.upsets.length > 0 && (
             <RecordList

@@ -673,7 +673,7 @@ export default async function DashboardPage() {
               <h3 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2 flex items-center gap-1">
                 <span>🔥</span> On Fire
               </h3>
-              <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">
                 {onFire.slice(0, 8).map((w) => (
                   <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-amber-500/10 bg-amber-500/[0.03] px-2 py-1.5 hover:border-amber-500/25 transition-all group">
                     {w.image ? (
@@ -699,7 +699,7 @@ export default async function DashboardPage() {
               <h3 className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 mb-2 flex items-center gap-1">
                 <span>🧊</span> Ice Cold
               </h3>
-              <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">
                 {iceCold.slice(0, 8).map((w) => (
                   <Link key={w.id} href={`/roster/${w.slug ?? w.id}`} className="flex items-center gap-2 rounded-lg border border-blue-500/10 bg-blue-500/[0.03] px-2 py-1.5 hover:border-blue-500/25 transition-all group">
                     {w.image ? (
@@ -955,6 +955,14 @@ export default async function DashboardPage() {
                         </div>
                       )}
                       <span className="ml-auto flex items-center gap-2 shrink-0">
+                        {(() => {
+                          const odds = eloBoard.odds.get(m.id);
+                          return odds && odds.winnerProb < 0.35 ? (
+                            <Link href={`/match/${m.id}`} className="rounded bg-wwe-red/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-wwe-red hover:bg-wwe-red/25" title={`The winner had a ${Math.round(odds.winnerProb * 100)}% chance`}>
+                              Upset {Math.round(odds.winnerProb * 100)}%
+                            </Link>
+                          ) : null;
+                        })()}
                         {time && <span className="text-[10px] tabular-nums text-muted-foreground/40">{time}</span>}
                         {matchIdx === 0 && (
                           <UndoMatchButton matchId={m.id} winnerName={wrestlerMap[winnerId ?? ""] ?? "?"} />

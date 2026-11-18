@@ -132,6 +132,14 @@ export function RatingSparkline({
         />
       </svg>
 
+      {/* High / low rating labels */}
+      <span className="pointer-events-none absolute right-0 top-0 -translate-y-1/2 rounded bg-background/80 px-1 text-[9px] tabular-nums text-muted-foreground/60">
+        {max}
+      </span>
+      <span className="pointer-events-none absolute bottom-0 right-0 translate-y-1/2 rounded bg-background/80 px-1 text-[9px] tabular-nums text-muted-foreground/60">
+        {min}
+      </span>
+
       {/* Win/loss dots as HTML overlays — true circles, unaffected by the
           SVG's horizontal stretch */}
       {points.map((p, i) => (

@@ -56,6 +56,7 @@ export interface EloEntry {
 }
 
 interface EloMatchRow {
+  id?: string;
   wrestler_a_id: string | null;
   wrestler_b_id: string | null;
   tag_team_a_id: string | null;
@@ -67,9 +68,23 @@ interface EloMatchRow {
   seasons?: { season_number: number } | null;
 }
 
+/** Chance that a participant rated `a` beats one rated `b`. */
+export function winProbability(a: number, b: number): number {
+  return 1 / (1 + Math.pow(10, (b - a) / 400));
+}
+
+/** Pre-match picture of a played match, for upset detection. */
+export interface MatchOdds {
+  winnerId: string;
+  /** The winner's chance of winning going in (low = upset) */
+  winnerProb: number;
+  winnerDelta: number;
+}
+
 export function computeElo(
   matches: EloMatchRow[],
-  seeds?: Map<string, number>
+  seeds?: Map<string, number>,
+  oddsOut?: Map<string, MatchOdds>
 ): Map<string, EloEntry> {
   const played = matches
     .filter(
@@ -119,6 +134,13 @@ export function computeElo(
     const deltaB = kB * (1 - scoreA - (1 - expectedA));
     ea.rating += deltaA;
     eb.rating += deltaB;
+    if (oddsOut && m.id) {
+      oddsOut.set(m.id, {
+        winnerId: winner,
+        winnerProb: scoreA === 1 ? expectedA : 1 - expectedA,
+        winnerDelta: Math.round(scoreA === 1 ? deltaA : deltaB),
+      });
+    }
     ea.matches++;
     eb.matches++;
     if (scoreA === 1) ea.wins++;

@@ -59,7 +59,26 @@ export interface LeaderRecord {
   detail: string; // e.g. "31-6 career" or "22 matches"
 }
 
+export interface RivalryRecord {
+  aId: string;
+  bId: string;
+  aWins: number;
+  bWins: number;
+  meetings: number;
+}
+
+export interface StipulationRecord {
+  stipulation: string;
+  matches: number;
+  avgTime: number | null;
+  /** Participant with the most wins under this stipulation */
+  specialistId: string | null;
+  specialistWins: number;
+}
+
 export interface RecordBook {
+  rivalries: RivalryRecord[];
+  stipulations: StipulationRecord[];
   fastestMatches: MatchRecord[];
   longestMatches: MatchRecord[];
   winStreaks: StreakRecord[];
@@ -198,6 +217,56 @@ export function computeRecordBook(
     .sort((a, b) => b.diff - a.diff)
     .slice(0, TOP_N);
 
+  // ── Rivalries: pairings that have met more than once ─────────────────────
+  const pairs = new Map<string, RivalryRecord>();
+  for (const m of played) {
+    const { winner, loser } = participantsOf(m);
+    const [aId, bId] = [winner, loser].sort();
+    const key = `${aId}|${bId}`;
+    if (!pairs.has(key)) pairs.set(key, { aId, bId, aWins: 0, bWins: 0, meetings: 0 });
+    const r = pairs.get(key)!;
+    r.meetings++;
+    if (winner === aId) r.aWins++;
+    else r.bWins++;
+  }
+  const rivalries = [...pairs.values()]
+    .filter((r) => r.meetings >= 2)
+    .sort(
+      (x, y) =>
+        y.meetings - x.meetings ||
+        Math.abs(x.aWins - x.bWins) - Math.abs(y.aWins - y.bWins)
+    )
+    .slice(0, 8);
+
+  // ── Stipulations ──────────────────────────────────────────────────────────
+  const stipMap = new Map<string, { matches: number; time: number; timed: number; wins: Map<string, number> }>();
+  for (const m of played) {
+    if (!m.stipulation) continue;
+    if (!stipMap.has(m.stipulation)) {
+      stipMap.set(m.stipulation, { matches: 0, time: 0, timed: 0, wins: new Map() });
+    }
+    const st = stipMap.get(m.stipulation)!;
+    const { winner } = participantsOf(m);
+    st.matches++;
+    if ((m.match_time_seconds ?? 0) > 0) {
+      st.time += m.match_time_seconds!;
+      st.timed++;
+    }
+    st.wins.set(winner, (st.wins.get(winner) ?? 0) + 1);
+  }
+  const stipulations: StipulationRecord[] = [...stipMap.entries()]
+    .map(([stipulation, st]) => {
+      const best = [...st.wins.entries()].sort((x, y) => y[1] - x[1])[0];
+      return {
+        stipulation,
+        matches: st.matches,
+        avgTime: st.timed ? Math.round(st.time / st.timed) : null,
+        specialistId: best?.[0] ?? null,
+        specialistWins: best?.[1] ?? 0,
+      };
+    })
+    .sort((x, y) => y.matches - x.matches);
+
   // ── Career leaders ────────────────────────────────────────────────────────
   const career = new Map<
     string,
@@ -242,6 +311,8 @@ export function computeRecordBook(
   const longestRow = top(avgRows, (a, b) => b.avgTime - a.avgTime);
 
   return {
+    rivalries,
+    stipulations,
     fastestMatches,
     longestMatches,
     winStreaks: winStreaks.slice(0, TOP_N),
