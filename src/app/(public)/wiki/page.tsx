@@ -1,5 +1,19 @@
 import { PageHeader } from "@/components/ui/page-header";
 
+const SECTIONS = [
+  { id: "overview", label: "Overview" },
+  { id: "divisions-and-tiers", label: "Divisions & Tiers" },
+  { id: "season-structure", label: "Season Structure" },
+  { id: "pool-play-and-standings", label: "Pool Play & Standings" },
+  { id: "playoffs", label: "Playoffs" },
+  { id: "relegation-and-promotion", label: "Relegation & Promotion" },
+  { id: "tag-teams", label: "Tag Teams" },
+  { id: "dynasty-tracking", label: "Dynasty Tracking" },
+  { id: "elo-ratings-and-rankings", label: "Elo Ratings & Rankings" },
+  { id: "royal-rumble-season-1", label: "Royal Rumble (Season 1)" },
+  { id: "match-stipulation-reference", label: "Match Stipulation Reference" },
+];
+
 export default function WikiPage() {
   return (
     <div className="container max-w-screen-lg px-4 py-8 animate-fade-in">
@@ -13,9 +27,22 @@ export default function WikiPage() {
         ]}
       />
 
+      <nav aria-label="Contents" className="mb-10 border-l-2 border-gold/60 pl-3">
+        <ol className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] uppercase tracking-[0.14em]">
+          {SECTIONS.map((s, i) => (
+            <li key={s.id}>
+              <a href={`#${s.id}`} className="text-muted-foreground transition-colors hover:text-gold">
+                <span className="mr-1 text-gold/70 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+
       <article className="space-y-12 [counter-reset:rule]">
         {/* Overview */}
-        <Section title="Overview">
+        <Section id="overview" title="Overview">
           <p>
             The WWE 2K26 Simulation League is a CPU-vs-CPU spectator league
             where every match is simulated by the game&apos;s AI. Wrestlers are
@@ -27,7 +54,7 @@ export default function WikiPage() {
         </Section>
 
         {/* Divisions */}
-        <Section title="Divisions &amp; Tiers">
+        <Section id="divisions-and-tiers" title="Divisions &amp; Tiers">
           <p>
             The league is split into <strong>4 divisions</strong> containing a
             total of <strong>28 championship tiers</strong>:
@@ -70,7 +97,7 @@ export default function WikiPage() {
         </Section>
 
         {/* Season Structure */}
-        <Section title="Season Structure">
+        <Section id="season-structure" title="Season Structure">
           <p>Every season follows a fixed flow:</p>
           <div className="mt-4 space-y-3">
             <PhaseStep number={1} name="Setup" description="Wrestlers are assigned to tiers and split into pools (Pool A and Pool B). Schedules are generated automatically." />
@@ -82,7 +109,7 @@ export default function WikiPage() {
         </Section>
 
         {/* Pool Play */}
-        <Section title="Pool Play &amp; Standings">
+        <Section id="pool-play-and-standings" title="Pool Play &amp; Standings">
           <p>
             All tiers split their participants into two pools (Pool A and Pool
             B). Each wrestler/team faces every other in their pool once —
@@ -113,7 +140,7 @@ export default function WikiPage() {
         </Section>
 
         {/* Playoffs */}
-        <Section title="Playoffs">
+        <Section id="playoffs" title="Playoffs">
           <SubSection title="Singles Tiers (6-Person Bracket)">
             <p>Six wrestlers qualify for the playoff in each singles tier:</p>
             <ul>
@@ -165,7 +192,7 @@ export default function WikiPage() {
         </Section>
 
         {/* Relegation */}
-        <Section title="Relegation &amp; Promotion">
+        <Section id="relegation-and-promotion" title="Relegation &amp; Promotion">
           <p>
             After playoffs are complete, <strong>tier-wide final standings</strong>
             (both pools combined, with the playoff champion and runner-up
@@ -208,7 +235,7 @@ export default function WikiPage() {
         </Section>
 
         {/* Tag Teams */}
-        <Section title="Tag Teams">
+        <Section id="tag-teams" title="Tag Teams">
           <p>
             Wrestlers can compete in both singles and tag team divisions
             simultaneously. A wrestler might be in Men&apos;s Singles Tier 5
@@ -220,7 +247,7 @@ export default function WikiPage() {
         </Section>
 
         {/* Dynasty */}
-        <Section title="Dynasty Tracking">
+        <Section id="dynasty-tracking" title="Dynasty Tracking">
           <p>
             The dynasty system tracks career-level statistics across all
             seasons:
@@ -238,7 +265,7 @@ export default function WikiPage() {
         </Section>
 
         {/* Elo */}
-        <Section title="Elo Ratings &amp; Rankings">
+        <Section id="elo-ratings-and-rankings" title="Elo Ratings &amp; Rankings">
           <p>
             Every wrestler and tag team carries an Elo rating, like a chess
             rating. Everyone starts from a seed based on their 2K overall
@@ -257,7 +284,7 @@ export default function WikiPage() {
         </Section>
 
         {/* Royal Rumble */}
-        <Section title="Royal Rumble (Season 1)">
+        <Section id="royal-rumble-season-1" title="Royal Rumble (Season 1)">
           <p>
             For the inaugural season, a Royal Rumble event is used as the
             initial seeding mechanism. The order in which wrestlers are
@@ -269,7 +296,7 @@ export default function WikiPage() {
         </Section>
 
         {/* Stipulations Reference */}
-        <Section title="Match Stipulation Reference">
+        <Section id="match-stipulation-reference" title="Match Stipulation Reference">
           <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {[
               "Extreme Rules", "Inferno", "Three Stages of Hell",
@@ -299,9 +326,9 @@ export default function WikiPage() {
 
 /* ─── Sub-components ─────────────────────────────────────────────────── */
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section className="grid gap-x-8 gap-y-3 [counter-increment:rule] md:grid-cols-[5.5rem_minmax(0,1fr)]">
+    <section id={id} className="scroll-mt-24 grid gap-x-8 gap-y-3 [counter-increment:rule] md:grid-cols-[5.5rem_minmax(0,1fr)]">
       <div
         aria-hidden
         className="font-display text-6xl font-black leading-[0.8] text-gold/90 tabular-nums before:content-[counter(rule,decimal-leading-zero)] md:text-7xl"
