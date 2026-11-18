@@ -1,7 +1,17 @@
+import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { isAdminUser } from "@/lib/auth/require-admin";
 import { PhotoReview } from "@/components/roster/photo-review";
 
 export default async function RosterPhotosPage() {
+  // Checked here as well as in the layout: pages render alongside their
+  // layout, so the layout's redirect alone would not stop this data loading
+  const {
+    data: { user },
+  } = await (await createClient()).auth.getUser();
+  if (!isAdminUser(user)) redirect("/login");
+
   const manifestUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/roster-2k26/proposals.json`;
   const res = await fetch(manifestUrl, { cache: "no-store" });
   const manifest: {
