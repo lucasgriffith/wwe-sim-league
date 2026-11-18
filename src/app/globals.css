@@ -177,7 +177,8 @@ h2, h3 { font-weight: 800; }
 }
 
 .animate-fade-in {
-  animation: fade-in 0.15s ease-out both;
+  /* Page fades removed with the broadcast redesign: content appears instantly */
+  animation: none;
 }
 
 .animate-slide-up {
@@ -194,7 +195,7 @@ h2, h3 { font-weight: 800; }
 
 /* Staggered children animation */
 .stagger-children > * {
-  animation: slide-up 0.4s ease-out both;
+  animation: none;
 }
 .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
 .stagger-children > *:nth-child(2) { animation-delay: 50ms; }

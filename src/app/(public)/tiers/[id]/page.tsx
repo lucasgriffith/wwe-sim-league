@@ -391,7 +391,7 @@ export default async function TierDetailPage({
         </div>
         <div>
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold sm:text-3xl">{tier.name}</h1>
+            <h1 className="text-4xl sm:text-6xl">{tier.name}</h1>
             {tier.belt_image_url && (
               <SmartImage
                 src={tier.belt_image_url}
@@ -430,10 +430,10 @@ export default async function TierDetailPage({
             return (
               <div key={pool ?? "all"}>
                 {/* Combined pool header with season info */}
-                <div className="mb-3 flex items-center gap-3 rounded-lg border border-border/30 bg-card/40 px-3 py-2">
+                <div className="rule-title mb-3 flex items-center gap-3">
                   <div className="flex items-center gap-2 min-w-0">
                     <Badge variant="outline" className="text-[9px] shrink-0">S{activeSeason.season_number}</Badge>
-                    <span className="text-sm font-semibold">{pool ? `Pool ${pool}` : "Standings"}</span>
+                    <span className="font-display text-2xl font-black">{pool ? `Pool ${pool}` : "Standings"}</span>
                   </div>
                   <div className="flex items-center gap-2 flex-1">
                     <div className="h-1.5 flex-1 max-w-24 rounded-full bg-muted overflow-hidden">
@@ -571,11 +571,11 @@ export default async function TierDetailPage({
                           return (
                             <React.Fragment key={s.id}>
                               <TableRow className={suppressInnerBorder} style={{ ...zoneBorderStyle, ...zoneBgStyle }}>
-                                <TableCell className={`tabular-nums text-xs font-bold ${rankColor} ${leftBorder} px-1 sm:px-4`}>
+                                <TableCell className={`font-display text-xl font-black ${rankColor} ${leftBorder} px-1 sm:px-4`}>
                                   {i + 1}
                                 </TableCell>
                                 <TableCell className="px-1 sm:px-4">
-                                  <span className="flex items-center gap-1.5 font-medium">
+                                  <span className="font-display flex items-center gap-2 text-lg font-extrabold leading-none">
                                     {s.memberImages ? (
                                       <span className="flex items-center -space-x-1.5 shrink-0">
                                         {s.memberImages.map((img, mi) => (

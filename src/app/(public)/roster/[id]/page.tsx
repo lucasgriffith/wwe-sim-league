@@ -257,18 +257,19 @@ export default async function WrestlerProfilePage({
       </Link>
 
       {/* Header */}
-      <div className="mt-6 mb-8 flex items-start gap-5">
-        <div className="shrink-0">
+      <div className="cut-br relative mt-5 mb-[2px] flex flex-wrap items-end gap-x-6 gap-y-4 overflow-hidden bg-card px-5 pt-6 sm:px-8">
+        <div aria-hidden="true" className="halftone absolute inset-0" />
+        <div className="relative shrink-0 self-end">
           {wrestler.image_url ? (
             <SmartImage
               src={wrestler.image_url}
               alt={wrestler.name}
               width={160}
               height={160}
-              className="h-20 w-20 rounded-xl object-cover border-2 border-border/30 shadow-lg"
+              className="block h-36 w-36 object-cover object-top sm:h-48 sm:w-48"
             />
           ) : (
-            <div className="h-20 w-20 rounded-xl bg-muted/20 border-2 border-border/20 flex items-center justify-center">
+            <div className="h-36 w-36 sm:h-48 sm:w-48 bg-muted/20 flex items-center justify-center">
               <span className="text-2xl font-bold text-muted-foreground/30">
                 {wrestler.name.charAt(0)}
               </span>
@@ -278,11 +279,11 @@ export default async function WrestlerProfilePage({
             <ProfileImageUpload wrestlerId={id} currentUrl={wrestler.image_url} />
           )}
         </div>
-        <div>
-        <h1 className="text-3xl font-bold tracking-tight">
+        <div className="relative min-w-0 flex-1 pb-6">
+        <h1 className="text-5xl sm:text-7xl">
           {eloRank != null && (
-            <span className="mr-2 align-[0.15em] text-lg font-bold tabular-nums text-gold" title={`Ranked #${eloRank} in ${POOL_LABEL[eloStanding!.pool]} by Elo`}>
-              #{eloRank}
+            <span className="mr-3 text-3xl text-gold sm:text-5xl" title={`Ranked #${eloRank} in ${POOL_LABEL[eloStanding!.pool]} by Elo`}>
+              {eloRank}
             </span>
           )}
           {wrestler.name}
@@ -321,17 +322,35 @@ export default async function WrestlerProfilePage({
           )}
         </div>
         </div>
+        {eloStanding && (
+          <div className="relative pb-6 text-right">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Elo · {POOL_LABEL[eloStanding.pool]} #{eloStanding.rank} of {eloStanding.poolSize}
+            </p>
+            <p className="font-display text-6xl font-black leading-none text-gold sm:text-7xl">
+              {eloStanding.rating}
+            </p>
+            <p className="font-mono text-xs text-muted-foreground">
+              peak {eloStanding.peak}
+              {eloStanding.lastDelta !== 0 && (
+                <span className={eloStanding.lastDelta > 0 ? "ml-2 text-emerald-400" : "ml-2 text-red-400"}>
+                  {eloStanding.lastDelta > 0 ? "+" : ""}{eloStanding.lastDelta} last match
+                </span>
+              )}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Stat Cards */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 stagger-children">
+      <div className="grid gap-[2px] grid-cols-2 md:grid-cols-4">
         <StatCard
           label="Overall"
           value={wrestler.overall_rating?.toString() ?? "—"}
           gradient="from-amber-500/5"
         />
         <StatCard label="Career Record" gradient="from-blue-500/5">
-          <p className="text-3xl font-bold tabular-nums">
+          <p className="font-display mt-1 text-5xl font-black leading-none">
             <span className="text-emerald-400">{wins}</span>
             <span className="text-muted-foreground/40 mx-1">-</span>
             <span className="text-red-400">{losses}</span>
@@ -355,25 +374,10 @@ export default async function WrestlerProfilePage({
 
       {/* Elo rating + trajectory */}
       {eloEntry && eloEntry.history.length >= 2 && (
-        <div className="mt-3 rounded-xl border border-border/40 bg-gradient-to-br from-gold/5 to-transparent p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="shrink-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                Elo Rating
-              </p>
-              <p className="text-3xl font-bold tabular-nums text-gold">
-                {eloStanding?.rating ?? Math.round(eloEntry.rating)}
-                {eloStanding && eloStanding.lastDelta !== 0 && (
-                  <span className={`ml-2 text-sm font-semibold ${eloStanding.lastDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {eloStanding.lastDelta > 0 ? "+" : ""}{eloStanding.lastDelta}
-                  </span>
-                )}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {eloRank != null && eloStanding && <>#{eloRank} of {eloStanding.poolSize} · </>}peak {Math.round(eloEntry.peak)}
-              </p>
-            </div>
-            <div className="flex-1 min-w-0 text-muted-foreground">
+        <div className="mt-[2px] bg-card px-5 pb-5 pt-4">
+          <div>
+            <p className="mb-6 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rating history · hover a match</p>
+            <div className="min-w-0 text-muted-foreground">
               <RatingSparkline
                 height={120}
                 points={eloEntry.history.map((h) => {
@@ -439,7 +443,7 @@ export default async function WrestlerProfilePage({
       )}
 
       {/* Fun Stats Grid */}
-      <div className="mt-6 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="mt-[2px] grid gap-[2px] grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
         <MiniStat label="Playoff Record" value={playoffMatches.length > 0 ? `${playoffWins}-${playoffLosses}` : "—"} />
         <MiniStat label="Finals Appearances" value={finalsAppearances > 0 ? finalsAppearances.toString() : "—"} />
         <MiniStat label="Relegation Record" value={relegationMatches.length > 0 ? `${relegationWins}-${relegationLosses}` : "—"} />
@@ -689,31 +693,26 @@ export default async function WrestlerProfilePage({
 function StatCard({
   label,
   value,
-  gradient,
   highlight,
   children,
 }: {
   label: string;
   value?: string;
-  gradient: string;
+  gradient?: string;
   highlight?: boolean;
   children?: React.ReactNode;
 }) {
   return (
-    <Card className={`card-hover bg-gradient-to-br ${gradient} to-transparent border-border/40`}>
-      <CardHeader className="pb-1">
-        <CardTitle className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {children ?? (
-          <p className={`text-3xl font-bold tabular-nums ${highlight ? "text-gold" : ""}`}>
-            {value}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+    <div className="bg-card px-5 py-4">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </p>
+      {children ?? (
+        <p className={`font-display mt-1 text-5xl font-black leading-none ${highlight ? "text-gold" : ""}`}>
+          {value}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -727,8 +726,8 @@ function MiniStat({
   highlight?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-border/30 bg-card/30 p-3">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+    <div className="bg-card/60 px-5 py-3">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
         {label}
       </p>
       <p
@@ -744,7 +743,7 @@ function MiniStat({
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <h2 className="rule-title mb-3 mt-4 text-2xl">
       {children}
     </h2>
   );

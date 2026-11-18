@@ -59,30 +59,26 @@ export function StandingsClient({ divisions, champions = {} }: Props) {
       </div>
 
       {/* Legend */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-border/30 bg-card/30 px-3 py-2">
+      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-y border-border px-1 py-2">
         <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/40">Legend</span>
-        <span className="text-[9px] text-emerald-400 font-medium">● Playoff (pool top 2)</span>
-        <span className="text-[9px] text-blue-400 font-medium">● Wild Card (best 2 remaining, both pools)</span>
-        <span className="text-[9px] text-foreground/30 font-medium">● Safe</span>
-        <span className="text-[9px] text-orange-400 font-medium">● Relegation Playoff ⚔ (3rd-4th from bottom, tier-wide)</span>
-        <span className="text-[9px] text-red-400 font-medium">● Auto-Relegate ↓ (tier bottom 2)</span>
+        <span className="text-[10px] text-emerald-400 font-medium">● Playoff (pool top 2)</span>
+        <span className="text-[10px] text-blue-400 font-medium">● Wild Card (best 2 remaining, both pools)</span>
+        <span className="text-[10px] text-foreground/30 font-medium">● Safe</span>
+        <span className="text-[10px] text-orange-400 font-medium">● Relegation Playoff ⚔ (3rd-4th from bottom, tier-wide)</span>
+        <span className="text-[10px] text-red-400 font-medium">● Auto-Relegate ↓ (tier bottom 2)</span>
       </div>
 
       {/* Tier standings */}
       <div className="space-y-6">
         {activeTiers.map((tier) => (
-          <div key={tier.tierId} className="rounded-lg border border-border/40 overflow-hidden">
-            <div className="bg-card/50 px-4 py-2.5 border-b border-border/30 flex items-center gap-2">
-              <span className="font-mono text-xs text-muted-foreground">
-                T{tier.tierNumber}
-              </span>
-              <Link
-                href={`/tiers/${tier.tierSlug ?? tier.tierId}`}
-                className="text-sm font-semibold hover:text-gold transition-colors"
-              >
-                {tier.tierShortName || tier.tierName}
-              </Link>
-            </div>
+          <div key={tier.tierId} className="bg-card">
+            <Link
+              href={`/tiers/${tier.tierSlug ?? tier.tierId}`}
+              className="cut-plate inline-flex max-w-full items-baseline gap-3 bg-gold py-2 pl-4 pr-14 text-black transition-opacity hover:opacity-90"
+            >
+              <span className="font-mono text-xs font-bold tracking-widest">TIER {tier.tierNumber}</span>
+              <span className="font-display truncate text-2xl font-black">{tier.tierName}</span>
+            </Link>
 
             {tier.hasPools ? (
               <div className="grid md:grid-cols-2 gap-y-2 md:gap-x-3 md:gap-y-0">
@@ -150,10 +146,8 @@ function StandingsTable({
   return (
     <div className="overflow-x-auto">
       {label && (
-        <div className="px-4 py-1.5 bg-muted/10">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {label}
-          </span>
+        <div className="px-3 pt-3">
+          <h3 className="rule-title text-lg">{label}</h3>
         </div>
       )}
       <table className="w-full">
@@ -244,11 +238,11 @@ function StandingsTable({
             return (
               <React.Fragment key={s.id}>
                 <tr className="text-sm" style={{ ...zoneBorderStyle, ...zoneBgStyle }}>
-                  <td className={`px-1 sm:px-3 py-2 tabular-nums text-xs font-bold ${rankColor} ${leftBorder}`}>
+                  <td className={`font-display px-1 sm:px-3 py-2 text-xl font-black ${rankColor} ${leftBorder}`}>
                     {i + 1}
                   </td>
                   <td className="px-1 sm:px-3 py-2">
-                    <span className="flex items-center gap-1.5 font-medium">
+                    <span className="font-display flex items-center gap-2 text-lg font-extrabold leading-none">
                       {s.memberImages ? (
                         <span className="flex items-center -space-x-1.5 shrink-0">
                           {s.memberImages.map((img, mi) => (

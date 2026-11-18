@@ -10,7 +10,6 @@ import {
 } from "@/lib/data/cached";
 import { buildEloBoard, POOL_LABEL } from "@/lib/elo/board";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { RatingSparkline } from "@/components/ui/rating-sparkline";
 import { SmartImage, displaySrc } from "@/components/ui/smart-image";
 
@@ -186,8 +185,9 @@ export default async function TagTeamProfilePage({
       </Link>
 
       {/* Header */}
-      <div className="mt-6 mb-8 flex items-center gap-5">
-        <div className="flex items-center -space-x-5 shrink-0">
+      <div className="cut-br relative mt-5 mb-[2px] flex flex-wrap items-end gap-x-6 gap-y-4 overflow-hidden bg-card px-5 pt-6 sm:px-8">
+        <div aria-hidden="true" className="halftone absolute inset-0" />
+        <div className="relative flex items-end -space-x-8 shrink-0 self-end">
           {[memberA, memberB].map((m, i) =>
             m?.image_url ? (
               <SmartImage
@@ -196,12 +196,12 @@ export default async function TagTeamProfilePage({
                 alt={m.name}
                 width={160}
                 height={160}
-                className={`h-20 w-20 rounded-xl object-cover border-2 border-background shadow-lg ${i === 0 ? "relative z-10" : ""}`}
+                className={`block h-32 w-32 object-cover object-top sm:h-44 sm:w-44 ${i === 0 ? "relative z-10" : ""}`}
               />
             ) : (
               <div
                 key={i}
-                className={`h-20 w-20 rounded-xl bg-muted/20 border-2 border-background flex items-center justify-center ${i === 0 ? "relative z-10" : ""}`}
+                className={`h-32 w-32 sm:h-44 sm:w-44 bg-muted/20 flex items-center justify-center ${i === 0 ? "relative z-10" : ""}`}
               >
                 <span className="text-xl font-bold text-muted-foreground/20">
                   {m?.name.charAt(0) ?? "?"}
@@ -210,11 +210,11 @@ export default async function TagTeamProfilePage({
             )
           )}
         </div>
-        <div className="min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight truncate">
+        <div className="relative min-w-0 flex-1 pb-6">
+          <h1 className="text-4xl sm:text-6xl">
             {eloRank != null && (
-              <span className="mr-2 align-[0.15em] text-lg font-bold tabular-nums text-gold" title={`Ranked #${eloRank} in ${POOL_LABEL[eloStanding!.pool]} by Elo`}>
-                #{eloRank}
+              <span className="mr-3 text-2xl text-gold sm:text-4xl" title={`Ranked #${eloRank} in ${POOL_LABEL[eloStanding!.pool]} by Elo`}>
+                {eloRank}
               </span>
             )}
             {team.name}
@@ -236,12 +236,30 @@ export default async function TagTeamProfilePage({
             </p>
           )}
         </div>
+        {eloStanding && (
+          <div className="relative pb-6 text-right">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Elo · {POOL_LABEL[eloStanding.pool]} #{eloStanding.rank} of {eloStanding.poolSize}
+            </p>
+            <p className="font-display text-6xl font-black leading-none text-gold sm:text-7xl">
+              {eloStanding.rating}
+            </p>
+            <p className="font-mono text-xs text-muted-foreground">
+              peak {eloStanding.peak}
+              {eloStanding.lastDelta !== 0 && (
+                <span className={eloStanding.lastDelta > 0 ? "ml-2 text-emerald-400" : "ml-2 text-red-400"}>
+                  {eloStanding.lastDelta > 0 ? "+" : ""}{eloStanding.lastDelta} last match
+                </span>
+              )}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Stat cards */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 stagger-children">
+      <div className="grid gap-[2px] grid-cols-2 md:grid-cols-4">
         <StatCard label="Career Record">
-          <p className="text-3xl font-bold tabular-nums">
+          <p className="font-display mt-1 text-5xl font-black leading-none">
             <span className={wins > 0 ? "text-emerald-400" : "text-muted-foreground/40"}>{wins}</span>
             <span className="text-muted-foreground/40 mx-1">-</span>
             <span className={losses > 0 ? "text-red-400" : "text-muted-foreground/40"}>{losses}</span>
@@ -258,25 +276,10 @@ export default async function TagTeamProfilePage({
 
       {/* Elo */}
       {eloEntry && eloEntry.history.length >= 2 && (
-        <div className="mt-3 rounded-xl border border-border/40 bg-gradient-to-br from-gold/5 to-transparent p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="shrink-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                Elo Rating
-              </p>
-              <p className="text-3xl font-bold tabular-nums text-gold">
-                {eloStanding?.rating ?? Math.round(eloEntry.rating)}
-                {eloStanding && eloStanding.lastDelta !== 0 && (
-                  <span className={`ml-2 text-sm font-semibold ${eloStanding.lastDelta > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {eloStanding.lastDelta > 0 ? "+" : ""}{eloStanding.lastDelta}
-                  </span>
-                )}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {eloRank != null && eloStanding && <>#{eloRank} of {eloStanding.poolSize} · </>}peak {Math.round(eloEntry.peak)}
-              </p>
-            </div>
-            <div className="flex-1 min-w-0 text-muted-foreground">
+        <div className="mt-[2px] bg-card px-5 pb-5 pt-4">
+          <div>
+            <p className="mb-6 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rating history · hover a match</p>
+            <div className="min-w-0 text-muted-foreground">
               <RatingSparkline
                 height={120}
                 points={eloEntry.history.map((h) => {
@@ -296,7 +299,7 @@ export default async function TagTeamProfilePage({
       )}
 
       {/* Mini stats */}
-      <div className="mt-6 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 stagger-children">
+      <div className="mt-[2px] grid gap-[2px] grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         <MiniStat label="Playoff Record" value={playoffMatches.length > 0 ? `${playoffWins}-${playoffMatches.length - playoffWins}` : "—"} />
         <MiniStat label="Pool Play Record" value={poolMatches.length > 0 ? `${poolWins}-${poolMatches.length - poolWins}` : "—"} />
         <MiniStat label="Best Win Streak" value={bestStreak > 0 ? `${bestStreak}` : "—"} />
@@ -452,11 +455,7 @@ export default async function TagTeamProfilePage({
 /* ─── Presentational helpers ─────────────────────────────────────────────── */
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-      {children}
-    </h2>
-  );
+  return <h2 className="rule-title mb-3 mt-4 text-2xl">{children}</h2>;
 }
 
 function StatCard({
@@ -471,20 +470,20 @@ function StatCard({
   children?: React.ReactNode;
 }) {
   return (
-    <Card className={`border-border/40 ${highlight ? "bg-gradient-to-br from-gold/5 to-transparent" : ""}`}>
-      <CardContent className="py-4">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">{label}</p>
-        {children ?? <p className="mt-1 text-3xl font-bold tabular-nums">{value}</p>}
-      </CardContent>
-    </Card>
+    <div className="bg-card px-5 py-4">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+      {children ?? (
+        <p className={`font-display mt-1 text-5xl font-black leading-none ${highlight ? "text-gold" : ""}`}>{value}</p>
+      )}
+    </div>
   );
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border/40 bg-card/40 px-3 py-2.5">
-      <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/50">{label}</p>
-      <p className="mt-0.5 text-sm font-bold tabular-nums">{value}</p>
+    <div className="bg-card/60 px-5 py-3">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-lg font-bold tabular-nums">{value}</p>
     </div>
   );
 }
