@@ -42,6 +42,8 @@ interface CageMatch {
   key: string;
   defender: string;
   challenger: string;
+  defenderImage: string | null;
+  challengerImage: string | null;
   winner: string | null;
 }
 
@@ -190,7 +192,7 @@ export default async function PlayoffsPage() {
             const aId = (m.wrestler_a_id || m.tag_team_a_id)!;
             const bId = (m.wrestler_b_id || m.tag_team_b_id)!;
             const w = m.winner_wrestler_id || m.winner_tag_team_id;
-            return { key: m.id, defender: nameOf(aId), challenger: nameOf(bId), winner: w ? nameOf(w) : null };
+            return { key: m.id, defender: nameOf(aId), challenger: nameOf(bId), defenderImage: imageOf(aId), challengerImage: imageOf(bId), winner: w ? nameOf(w) : null };
           }),
         });
         continue;
@@ -213,6 +215,8 @@ export default async function PlayoffsPage() {
             key: mv.participantId,
             defender: mv.name,
             challenger: mv.opponentName!,
+            defenderImage: imageOf(mv.participantId),
+            challengerImage: mv.opponentId ? imageOf(mv.opponentId) : null,
             winner: null,
           })),
         });
@@ -233,8 +237,8 @@ export default async function PlayoffsPage() {
         title="Playoffs"
         description={
           live > 0
-            ? "Every bracket in the league, and the Steel Cage matches that decide who moves between tiers."
-            : "Brackets are set when pool play ends. Until then this is the field as it stands: who would be in, and against whom, if the season ended today."
+            ? "Every bracket in the league. Under each one are the Steel Cage matches for a place in that tier."
+            : "Brackets are set when pool play ends. Until then this is the field as it stands: who would be in, and against whom, if the season ended today. Under each bracket are the Steel Cage matches for a place in that tier."
         }
         stats={
           live > 0
@@ -262,6 +266,7 @@ export default async function PlayoffsPage() {
             <div className={`grid gap-5 ${d.views[0].tier.has_pools ? "xl:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3"}`}>
               {d.views.map((v) => {
                 const c = tierColor(v.tier.slug ?? v.tier.name);
+                const cage = d.cages.find((cg) => cg.higher.tier.id === v.tier.id);
                 return (
                   <article key={v.tier.id} className="min-w-0 border border-border bg-card">
                     <header className="flex items-stretch border-b border-border">
@@ -305,47 +310,60 @@ export default async function PlayoffsPage() {
                         </p>
                       )}
                     </div>
+                    {cage && (
+                      <div className="border-t border-border p-3">
+                        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 font-mono text-[10px] uppercase tracking-[0.2em]">
+                          <span className="text-amber-400">Promotion / relegation</span>
+                          <span className="tracking-[0.14em] text-muted-foreground">
+                            {cage.projected ? "As it stands · " : ""}winner takes the T{v.tier.tier_number} place
+                          </span>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {cage.matches.map((m) => (
+                            <div key={m.key} className="border border-amber-400/60 bg-background">
+                              <div className="bg-amber-400 px-2 py-1 text-center font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-black">
+                                {RELEGATION_STIPULATION}
+                              </div>
+                              {[
+                                { name: m.defender, image: m.defenderImage, tag: `T${cage.higher.tier.tier_number} · defending` },
+                                { name: m.challenger, image: m.challengerImage, tag: `T${cage.lower.tier.tier_number} · challenging` },
+                              ].map((side, i) => {
+                                const won = m.winner === side.name;
+                                const lost = !!m.winner && !won;
+                                return (
+                                  <div
+                                    key={i}
+                                    className={`relative flex h-9 items-center gap-2 px-2 ${i === 0 ? "border-b border-border" : ""} ${won ? "bg-foreground/[0.06]" : ""}`}
+                                  >
+                                    {won && <span className="absolute inset-y-0 left-0 w-[3px] bg-amber-400" />}
+                                    {side.image && (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={side.image}
+                                        alt=""
+                                        loading="lazy"
+                                        className={`h-6 w-6 shrink-0 bg-muted object-cover object-top ${lost ? "opacity-40 grayscale" : ""}`}
+                                      />
+                                    )}
+                                    <span className={`min-w-0 flex-1 truncate text-sm ${won ? "font-bold" : lost ? "text-muted-foreground/50" : "font-medium"}`}>
+                                      {side.name}
+                                    </span>
+                                    <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                                      {side.tag}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </article>
                 );
               })}
             </div>
 
-            {d.cages.length > 0 && (
-              <div className="mt-8">
-                <h3 className="mb-3 font-mono! text-[11px] font-bold tracking-[0.18em] text-amber-400">
-                  {RELEGATION_STIPULATION} · promotion and relegation
-                  {d.cages.every((cg) => cg.projected) && (
-                    <span className="ml-2 font-normal text-muted-foreground">as it stands</span>
-                  )}
-                </h3>
-                <div className="grid pl-px pt-px sm:grid-cols-2 xl:grid-cols-3">
-                  {d.cages.map((cg) => (
-                    <div key={cg.higher.tier.id} className="-ml-px -mt-px border border-border bg-card px-3 py-2.5">
-                      <div className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                        For a place in T{cg.higher.tier.tier_number} · {cg.higher.tier.short_name || cg.higher.tier.name}
-                      </div>
-                      <ul className="space-y-1">
-                        {cg.matches.map((m) => (
-                          <li key={m.key} className="flex items-baseline gap-2 text-sm">
-                            <span className={`min-w-0 flex-1 truncate ${m.winner && m.winner !== m.defender ? "text-muted-foreground line-through" : m.winner ? "font-semibold text-gold" : ""}`}>
-                              {m.defender}
-                            </span>
-                            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">vs</span>
-                            <span className={`min-w-0 flex-1 truncate text-right ${m.winner && m.winner !== m.challenger ? "text-muted-foreground line-through" : m.winner ? "font-semibold text-gold" : ""}`}>
-                              {m.challenger}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="mt-1.5 flex justify-between font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground/70">
-                        <span>Defending</span>
-                        <span>Challenging from T{cg.lower.tier.tier_number}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </section>
         ))}
       </div>
