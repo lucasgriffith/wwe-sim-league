@@ -11,6 +11,7 @@ import {
   getAllMatches,
 } from "@/lib/data/cached";
 import { buildEloBoard } from "@/lib/elo/board";
+import { EloMoveChip } from "@/components/ui/elo-move";
 import { RankBadge } from "@/components/ui/rank-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -635,11 +636,12 @@ export default async function DashboardPage() {
               const isAWinner = fWinnerId === fAId;
               const aHref = fIsTag ? `/tag-teams/${fAId}` : `/roster/${slugMap[fAId ?? ""] ?? fAId}`;
               const bHref = fIsTag ? `/tag-teams/${fBId}` : `/roster/${slugMap[fBId ?? ""] ?? fBId}`;
+              const fMove = eloBoard.moves.get(featuredMatch.id) ?? null;
 
               return (
-                <div className="rounded-xl border border-border/30 bg-card/50 px-4 py-3">
+                <div className="border border-border bg-card px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-[8px] font-bold uppercase tracking-[0.15em] text-muted-foreground/40">Latest</span>
+                    <span className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-gold/80">Latest</span>
                     {/* Winner */}
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       {fAImg ? (
@@ -650,17 +652,20 @@ export default async function DashboardPage() {
                         </div>
                       )}
                       <div className="min-w-0">
-                        <Link href={aHref} className={`text-xs font-bold truncate block hover:underline ${isAWinner ? "text-gold" : "text-muted-foreground/50"}`}>
+                        <Link href={aHref} className={`text-sm font-bold truncate block hover:underline ${isAWinner ? "text-gold" : "text-muted-foreground"}`}>
                           {fAName}
                         </Link>
-                        <span className="text-[9px] text-muted-foreground/40 tabular-nums">{fAWins}W-{fALosses}L</span>
+                        <span className="flex flex-wrap items-baseline gap-x-2">
+                          <span className="text-[10px] text-muted-foreground tabular-nums">{fAWins}W-{fALosses}L</span>
+                          <EloMoveChip move={fMove?.a ?? null} />
+                        </span>
                       </div>
                     </div>
                     {/* VS + Time */}
                     <div className="text-center shrink-0">
                       <span className="text-[9px] font-black text-muted-foreground/15">VS</span>
                       {featuredMatch.match_time_seconds && (
-                        <div className="text-[9px] tabular-nums text-muted-foreground/30">{formatTime(featuredMatch.match_time_seconds)}</div>
+                        <div className="text-[11px] tabular-nums text-muted-foreground">{formatTime(featuredMatch.match_time_seconds)}</div>
                       )}
                     </div>
                     {/* Loser */}
@@ -673,10 +678,13 @@ export default async function DashboardPage() {
                         </div>
                       )}
                       <div className="min-w-0 text-right">
-                        <Link href={bHref} className={`text-xs font-bold truncate block hover:underline ${!isAWinner ? "text-gold" : "text-muted-foreground/50"}`}>
+                        <Link href={bHref} className={`text-sm font-bold truncate block hover:underline ${!isAWinner ? "text-gold" : "text-muted-foreground"}`}>
                           {fBName}
                         </Link>
-                        <span className="text-[9px] text-muted-foreground/40 tabular-nums">{fBWins}W-{fBLosses}L</span>
+                        <span className="flex flex-wrap items-baseline justify-end gap-x-2">
+                          <EloMoveChip move={fMove?.b ?? null} />
+                          <span className="text-[10px] text-muted-foreground tabular-nums">{fBWins}W-{fBLosses}L</span>
+                        </span>
                       </div>
                     </div>
                     {/* Undo */}

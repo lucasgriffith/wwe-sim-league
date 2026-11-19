@@ -1,14 +1,15 @@
 "use client";
 
 import { tierColor } from "@/lib/tiers/colors";
-import { useState, useCallback, useTransition, useEffect, useRef } from "react";
+import { useState, useCallback, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { recordMatchResult } from "@/app/actions";
+import { recordMatchResult, undoMatchResult } from "@/app/actions";
+import { getResultImpact } from "@/app/result-impact";
+import { ResultCard, type RecordedResult, type ResultSide } from "./result-card";
 import { toast } from "sonner";
-import { MatchCardExport } from "./match-card-export";
 import { RankBadge } from "@/components/ui/rank-badge";
 /* eslint-disable @next/next/no-img-element */
 
@@ -98,19 +99,13 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
   const [minutes, setMinutes] = useState("");
   const [seconds, setSeconds] = useState("");
   const [isPending, startTransition] = useTransition();
-  const [celebration, setCelebration] = useState<{
-    winnerName: string;
-    winnerId: string;
-    matchTime: number;
-  } | null>(null);
-  const celebrationTimer = useRef<NodeJS.Timeout | null>(null);
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
-    };
-  }, []);
+  const router = useRouter();
+  // The saved result, shown until dismissed. It is a snapshot: the page data
+  // refreshes underneath (the match leaves the unplayed list), so it cannot
+  // be derived from the current match.
+  const [result, setResult] = useState<RecordedResult | null>(null);
+  // After an undo, bring the same match back up rather than a random one
+  const [pinnedId, setPinnedId] = useState<string | null>(null);
 
   const validMatches = matches.filter((m) => {
     const aId = m.wrestler_a_id || m.tag_team_a_id;
@@ -125,13 +120,50 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
       newIdx = Math.floor(Math.random() * validMatches.length);
     } while (newIdx === currentIdx && validMatches.length > 1);
     setCurrentIdx(newIdx);
+    setPinnedId(null);
     setMinutes("");
     setSeconds("");
   }, [validMatches.length, currentIdx]);
 
+  function handleNext() {
+    setResult(null);
+    randomize();
+  }
+
+  function handleUndo() {
+    if (!result) return;
+    const undone = result;
+    startTransition(async () => {
+      try {
+        await undoMatchResult(undone.matchId);
+        setPinnedId(undone.matchId);
+        setMinutes(String(Math.floor(undone.seconds / 60)));
+        setSeconds(String(undone.seconds % 60));
+        setResult(null);
+        router.refresh();
+        toast.success("Result undone. The match is back up to re-enter.");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to undo");
+      }
+    });
+  }
+
+  if (result) {
+    return (
+      <ResultCard
+        result={result}
+        onNext={handleNext}
+        onUndo={handleUndo}
+        busy={isPending}
+        hasNext={validMatches.length > 0}
+      />
+    );
+  }
+
   if (validMatches.length === 0) return null;
 
-  const match = validMatches[currentIdx % validMatches.length];
+  const match =
+    validMatches.find((m) => m.id === pinnedId) ?? validMatches[currentIdx % validMatches.length];
   const isTag = !!match.tag_team_a_id;
   const aId = match.wrestler_a_id || match.tag_team_a_id || "";
   const bId = match.wrestler_b_id || match.tag_team_b_id || "";
@@ -164,138 +196,43 @@ export function UpNextCard({ matches, participantStats, tiers, remainingCount, i
     }
     startTransition(async () => {
       try {
-        const result = await recordMatchResult(match.id, {
+        const saved = await recordMatchResult(match.id, {
           ...(isTag
             ? { winner_tag_team_id: winnerId }
             : { winner_wrestler_id: winnerId }),
           match_time_seconds: timeSeconds,
         });
-        for (const ms of result?.milestones ?? []) {
-          const fn = ms.type === "success" ? toast.success : ms.type === "warning" ? toast.warning : toast.info;
-          fn(`${ms.emoji} ${ms.message}`, { duration: 5000 });
-        }
-        const winnerName = winnerId === aId ? a.name : b.name;
-
-        // Show celebration for 3 seconds
-        setCelebration({ winnerName, winnerId, matchTime: timeSeconds });
-
-        // No router.refresh() needed: the server action revalidates "/" and
-        // its response already carries the fresh page data. The old deferred
-        // refresh here could even trigger a full page reload (version-skew
-        // protection after a deploy), wiping the milestone toasts.
-        celebrationTimer.current = setTimeout(() => {
-          setCelebration(null);
-          setMinutes("");
-          setSeconds("");
-          // Auto-shuffle to next match
-          if (validMatches.length > 1) {
-            let newIdx: number;
-            do {
-              newIdx = Math.floor(Math.random() * validMatches.length);
-            } while (newIdx === currentIdx);
-            setCurrentIdx(newIdx);
-          }
-        }, 3000);
+        const side = (id: string, st: ParticipantStats): ResultSide => ({
+          id,
+          name: st.name,
+          href: isTag ? `/tag-teams/${id}` : `/roster/${st.slug ?? id}`,
+          image: st.image,
+          memberImages: st.memberImages,
+        });
+        const loserId = winnerId === aId ? bId : aId;
+        const matchId = match.id;
+        setPinnedId(null);
+        setMinutes("");
+        setSeconds("");
+        setResult({
+          matchId,
+          winner: side(winnerId, winnerId === aId ? a : b),
+          loser: side(loserId, winnerId === aId ? b : a),
+          seconds: timeSeconds,
+          tierNumber: tier?.tier_number ?? null,
+          tierName: tier?.fullName ?? tier?.name ?? "?",
+          pool: match.pool,
+          plate: tierColor(tier?.slug ?? tier?.fullName ?? tier?.name),
+          milestones: (saved?.milestones ?? []).map((ms) => ms.message),
+          impact: undefined,
+        });
+        // The result is saved; the rating and table movement follow
+        const impact = await getResultImpact(matchId).catch(() => null);
+        setResult((r) => (r && r.matchId === matchId ? { ...r, impact } : r));
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to record result");
       }
     });
-  }
-
-  function formatMatchTime(secs: number): string {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  }
-
-  // Celebration screen
-  if (celebration) {
-    const winnerStats = celebration.winnerId === aId ? a : b;
-    return (
-      <div className="rounded-2xl border-2 border-gold/40 bg-gradient-to-b from-gold/[0.08] via-card to-card overflow-hidden relative">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold/60 to-transparent" />
-
-        {/* Confetti particles */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-1.5 h-1.5 rounded-full animate-confetti"
-              style={{
-                left: `${Math.random() * 100}%`,
-                backgroundColor: [
-                  `rgb(var(--accent-color))`,
-                  `rgba(var(--accent-color),0.7)`,
-                  "#10b981", "#ef4444", "#3b82f6", "#a855f7"
-                ][i % 6],
-                animationDelay: `${Math.random() * 0.5}s`,
-                animationDuration: `${2 + Math.random() * 1.5}s`,
-              }}
-            />
-          ))}
-        </div>
-
-        <div className="relative px-6 py-8 flex flex-col items-center gap-3 text-center">
-          {/* Winner photo */}
-          <div className="relative">
-            <div className="absolute -inset-2 rounded-full bg-gold/20 animate-ping-slow" />
-            <ParticipantPhoto stats={winnerStats} size="lg" />
-          </div>
-
-          {/* Winner text */}
-          <div className="space-y-1">
-            <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-gold/60">
-              Winner
-            </div>
-            <div className="text-xl sm:text-2xl font-black text-gold animate-pulse-gold">
-              {celebration.winnerName}
-            </div>
-          </div>
-
-          {/* Match info */}
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Badge variant="outline" className="text-[10px] border-gold/20 text-gold/60">
-              T{tier?.tier_number} · {tier?.name ?? "?"}
-            </Badge>
-            <span className="tabular-nums font-medium">{formatMatchTime(celebration.matchTime)}</span>
-          </div>
-
-          {/* Share button */}
-          <MatchCardExport
-            winnerName={celebration.winnerName}
-            loserName={celebration.winnerId === aId ? b.name : a.name}
-            matchTime={formatMatchTime(celebration.matchTime)}
-            tierName={tier?.name ?? "?"}
-            tierNumber={tier?.tier_number ?? 0}
-            winnerImageUrl={winnerStats.image}
-          />
-        </div>
-
-        {/* CSS animations */}
-        <style jsx>{`
-          @keyframes confetti-fall {
-            0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-            100% { transform: translateY(300px) rotate(720deg); opacity: 0; }
-          }
-          .animate-confetti {
-            animation: confetti-fall 3s ease-out forwards;
-          }
-          .animate-ping-slow {
-            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-          }
-          @keyframes ping {
-            75%, 100% { transform: scale(1.5); opacity: 0; }
-          }
-          .animate-pulse-gold {
-            animation: pulse-gold 1s ease-in-out infinite alternate;
-          }
-          @keyframes pulse-gold {
-            0% { text-shadow: 0 0 8px rgba(var(--accent-color),0.3); }
-            100% { text-shadow: 0 0 20px rgba(var(--accent-color),0.6); }
-          }
-        `}</style>
-      </div>
-    );
   }
 
   const plate = tierColor(tier?.slug ?? tier?.fullName ?? tier?.name);
