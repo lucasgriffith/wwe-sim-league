@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Link from "next/link";
+import { appliesToEveryMatch } from "@/lib/stipulations/types";
 import { BracketView } from "@/components/playoffs/bracket-view";
 import { TierSchedule } from "@/components/tiers/tier-schedule";
 import { computeClinchStatus, type ClinchStatus } from "@/lib/standings/clinch";
@@ -416,7 +417,7 @@ export default async function TierDetailPage({
           </div>
           {tier.fixed_stipulation && (
             <p className="mt-2 text-sm text-muted-foreground">
-              Championship final:{" "}
+              {appliesToEveryMatch(tier.fixed_stipulation) ? "Every match" : "Championship final"}:{" "}
               <span className="text-wwe-red font-medium">
                 {tier.fixed_stipulation}
               </span>
@@ -700,7 +701,10 @@ export default async function TierDetailPage({
                       ? { id: bm.seedB.participantId, name: bm.seedB.name, seed: bm.seedB.seed }
                       : null,
                     winnerId: null,
-                    stipulation: bm.round === "final" ? tier.fixed_stipulation : null,
+                    stipulation:
+                      bm.round === "final" || appliesToEveryMatch(tier.fixed_stipulation)
+                        ? tier.fixed_stipulation
+                        : null,
                     matchTime: null,
                     isPlayed: false,
                     isBye: false,

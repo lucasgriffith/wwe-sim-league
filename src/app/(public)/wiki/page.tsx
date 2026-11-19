@@ -203,6 +203,10 @@ export default async function WikiPage() {
               tier&apos;s signature match, which is saved for the final, and
               Steel Cage, which is saved for promotion and relegation matches.
             </p>
+            <p>
+              <strong>Exception:</strong> the Hardcore Championship is fought
+              under Falls Count Anywhere in every match, pool play included.
+            </p>
           </SubSection>
         </Section>
 
@@ -337,6 +341,11 @@ export default async function WikiPage() {
                       </span>
                       <span className="shrink-0 font-display text-base font-bold uppercase leading-none text-foreground">
                         {t.fixed_stipulation ?? "Random draw"}
+                        {t.fixed_stipulation === "Falls Count Anywhere" && (
+                          <span className="ml-2 font-mono text-[9px] font-normal tracking-[0.14em] text-gold">
+                            every match
+                          </span>
+                        )}
                       </span>
                     </li>
                   ))}

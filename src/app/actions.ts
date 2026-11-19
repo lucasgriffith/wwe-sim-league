@@ -291,8 +291,9 @@ export async function startSeason(seasonId: string) {
 
   // Insert matches in batches
   if (allMatches.length > 0) {
+    const stampedMatches = await withEveryMatchStipulation(admin, allMatches);
     for (let i = 0; i < allMatches.length; i += 500) {
-      const { error } = await admin.from("matches").insert(allMatches.slice(i, i + 500));
+      const { error } = await admin.from("matches").insert(stampedMatches.slice(i, i + 500));
       if (error) throw new Error(error.message);
     }
   }
@@ -375,6 +376,28 @@ export async function removeFromTier(assignmentId: string) {
 
 // ─── Match actions ──────────────────────────────────────────────────────────
 
+/**
+ * Stamp the tier's stipulation onto new matches in tiers where it applies to
+ * every match (the Hardcore title), leaving any stipulation already set.
+ */
+async function withEveryMatchStipulation<T extends { tier_id: string; stipulation?: string | null }>(
+  admin: ReturnType<typeof createAdminClient>,
+  rows: T[]
+): Promise<T[]> {
+  if (rows.length === 0) return rows;
+  const { appliesToEveryMatch } = await import("@/lib/stipulations/types");
+  const { data: tiers } = await admin.from("tiers").select("id, fixed_stipulation");
+  const stipOf = new Map(
+    (tiers ?? [])
+      .filter((t) => appliesToEveryMatch(t.fixed_stipulation))
+      .map((t) => [t.id, t.fixed_stipulation as string])
+  );
+  if (stipOf.size === 0) return rows;
+  return rows.map((r) =>
+    stipOf.has(r.tier_id) && !r.stipulation ? { ...r, stipulation: stipOf.get(r.tier_id)! } : r
+  );
+}
+
 export async function bulkCreateMatches(
   matches: {
     season_id: string;
@@ -391,7 +414,9 @@ export async function bulkCreateMatches(
 ) {
   await requireAdmin();
   const admin = createAdminClient();
-  const { error } = await admin.from("matches").insert(matches);
+  const { error } = await admin
+    .from("matches")
+    .insert(await withEveryMatchStipulation(admin, matches));
   if (error) throw new Error(error.message);
   revalidatePath("/season");
 }
@@ -1516,8 +1541,9 @@ export async function addWrestlersToSeasonMidway(
 
   // Insert catch-up matches
   if (matchInserts.length > 0) {
+    const stampedInserts = await withEveryMatchStipulation(admin, matchInserts);
     for (let i = 0; i < matchInserts.length; i += 500) {
-      const { error } = await admin.from("matches").insert(matchInserts.slice(i, i + 500));
+      const { error } = await admin.from("matches").insert(stampedInserts.slice(i, i + 500));
       if (error) throw new Error(error.message);
     }
   }

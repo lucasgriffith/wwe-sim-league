@@ -13,7 +13,7 @@ import { computeStandings, type StandingsRow } from "@/lib/standings/compute-sta
 import { computePlayoffSeeds, computeTagPlayoffSeeds } from "@/lib/playoffs/seeding";
 import { generateBracket } from "@/lib/playoffs/bracket";
 import { determineMovements } from "@/lib/relegation/determine-movements";
-import { RELEGATION_STIPULATION } from "@/lib/stipulations/types";
+import { RELEGATION_STIPULATION, appliesToEveryMatch } from "@/lib/stipulations/types";
 import { tierColor } from "@/lib/tiers/colors";
 
 export const metadata = { title: "Playoffs" };
@@ -145,7 +145,10 @@ export default async function PlayoffsPage() {
             ? { id: bm.seedB.participantId, name: bm.seedB.name, seed: bm.seedB.seed, image: imageOf(bm.seedB.participantId) }
             : null,
           winnerId: null,
-          stipulation: bm.round === "final" ? tier.fixed_stipulation : null,
+          stipulation:
+            bm.round === "final" || appliesToEveryMatch(tier.fixed_stipulation)
+              ? tier.fixed_stipulation
+              : null,
           matchTime: null,
           isPlayed: false,
           isBye: false,
@@ -276,7 +279,7 @@ export default async function PlayoffsPage() {
                           {v.tier.name}
                         </Link>
                         <div className="mt-0.5 flex flex-wrap gap-x-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                          {v.tier.fixed_stipulation && <span className="text-wwe-red">Final · {v.tier.fixed_stipulation}</span>}
+                          {v.tier.fixed_stipulation && <span className="text-wwe-red">{appliesToEveryMatch(v.tier.fixed_stipulation) ? "Every match" : "Final"} · {v.tier.fixed_stipulation}</span>}
                           <span>
                             {v.champion
                               ? `Champion · ${v.champion}`

@@ -179,18 +179,16 @@ function MatchNode({
         isFinal ? "border-gold/70 shadow-[0_0_0_1px_rgba(212,175,55,0.12)]" : "border-border"
       }`}
     >
-      <div
-        className={`flex items-center justify-between gap-2 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.16em] ${
-          isFinal ? "bg-gold text-black" : "border-b border-border text-muted-foreground"
-        }`}
-      >
-        <span className="truncate font-bold">
-          {isFinal ? "Championship" : (ROUND_LABEL[match.matchKey] ?? match.matchKey)}
-        </span>
-        <span className="shrink-0 truncate">
-          {match.stipulation ?? ""}
-        </span>
-      </div>
+      {isFinal ? (
+        <div className="bg-gold px-2 py-1 text-center font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-black">
+          Championship
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="truncate font-bold">{ROUND_LABEL[match.matchKey] ?? match.matchKey}</span>
+          <span className="shrink-0 truncate">{match.stipulation ?? ""}</span>
+        </div>
+      )}
 
       <ParticipantRow
         participant={match.participantA}
@@ -210,6 +208,11 @@ function MatchNode({
         time={match.matchTime}
         isFinal={isFinal}
       />
+      {isFinal && match.stipulation && (
+        <div className="bg-gold px-2 py-1 text-center font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-black">
+          {match.stipulation}
+        </div>
+      )}
     </div>
   );
 }

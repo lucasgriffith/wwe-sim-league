@@ -1,4 +1,4 @@
-import { RELEGATION_STIPULATION, STIPULATIONS } from "./types";
+import { RELEGATION_STIPULATION, STIPULATIONS, appliesToEveryMatch } from "./types";
 
 /**
  * Stipulation for one playoff match.
@@ -7,13 +7,16 @@ import { RELEGATION_STIPULATION, STIPULATIONS } from "./types";
  *   never using the tier's signature match (kept for the final) or Steel
  *   Cage (kept for promotion and relegation matches).
  * - A tier with no signature match draws its final at random too.
+ * - Exception: the Hardcore tier uses its match for every round.
  */
 export function assignStipulation(
   fixedStipulation: string | null,
   usedInBracket: string[],
   round: string = "final"
 ): string {
-  if (fixedStipulation && round === "final") return fixedStipulation;
+  if (fixedStipulation && (round === "final" || appliesToEveryMatch(fixedStipulation))) {
+    return fixedStipulation;
+  }
 
   const drawable = STIPULATIONS.filter(
     (s) => s !== RELEGATION_STIPULATION && s !== fixedStipulation
