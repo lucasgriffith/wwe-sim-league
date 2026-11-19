@@ -446,6 +446,7 @@ export default async function DashboardPage() {
   // the projected finish follows current form rather than the season average
   let matchesPerDay: number | null = null;
   let projectedDaysLeft: number | null = null;
+  let projectedFinish: string | null = null;
   if (firstMatchDate && firstMatchDate !== Infinity && totalPlayed >= 2) {
     const DAY = 1000 * 60 * 60 * 24;
     const now = Date.now();
@@ -456,6 +457,14 @@ export default async function DashboardPage() {
     matchesPerDay = recent / windowDays;
     const remaining = totalMatches - totalPlayed;
     projectedDaysLeft = matchesPerDay > 0 ? Math.ceil(remaining / matchesPerDay) : null;
+    if (projectedDaysLeft != null) {
+      projectedFinish = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).format(new Date(now + projectedDaysLeft * DAY));
+    }
   }
 
   const races = season ? computeRaces(tiersData, tierAssignmentsData, allMatchData) : [];
@@ -578,6 +587,11 @@ export default async function DashboardPage() {
                     <dd className="font-display text-2xl font-extrabold leading-none tabular-nums">
                       {totalPlayed >= totalMatches ? "Done" : projectedDaysLeft ? <>~{projectedDaysLeft}<span className="text-base text-muted-foreground">d</span></> : "–"}
                     </dd>
+                    {totalPlayed < totalMatches && projectedFinish && (
+                      <dd className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground whitespace-nowrap">
+                        {projectedFinish}
+                      </dd>
+                    )}
                   </div>
                 </dl>
               </div>
