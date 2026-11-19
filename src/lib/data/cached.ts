@@ -2,6 +2,7 @@ import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 import { getCurrentChampions, type ChampionInfo } from "@/lib/champions";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 /**
  * Cached public-data layer.
@@ -11,6 +12,10 @@ import { getCurrentChampions, type ChampionInfo } from "@/lib/champions";
  * cookie-less anon client and are cached across requests under LEAGUE_TAG.
  * Every mutating server action busts the tag (see actions.ts), and a 5-minute
  * TTL self-heals anything changed outside the app (e.g. SQL editor edits).
+ *
+ * Tables that grow with every season (matches, tier_assignments) and the
+ * roster tables are read through fetchAllRows, which pages past PostgREST's
+ * 1000-row response cap. A failed page throws instead of caching a short set.
  */
 
 export const LEAGUE_TAG = "league-data";
@@ -98,11 +103,15 @@ export const getSeasonById = unstable_cache(
 
 export const getWrestlers = unstable_cache(
   async () => {
-    const { data } = await publicClient()
-      .from("wrestlers")
-      .select("*")
-      .order("name");
-    return data ?? [];
+    const client = publicClient();
+    return fetchAllRows((from, to) =>
+      client
+        .from("wrestlers")
+        .select("*")
+        .order("name")
+        .order("id")
+        .range(from, to)
+    );
   },
   ["wrestlers"],
   opts
@@ -110,13 +119,17 @@ export const getWrestlers = unstable_cache(
 
 export const getTagTeams = unstable_cache(
   async () => {
-    const { data } = await publicClient()
-      .from("tag_teams")
-      .select(
-        "*, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(id, name, image_url, gender), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(id, name, image_url, gender)"
-      )
-      .order("name");
-    return data ?? [];
+    const client = publicClient();
+    return fetchAllRows((from, to) =>
+      client
+        .from("tag_teams")
+        .select(
+          "*, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(id, name, image_url, gender), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(id, name, image_url, gender)"
+        )
+        .order("name")
+        .order("id")
+        .range(from, to)
+    );
   },
   ["tag-teams"],
   opts
@@ -148,11 +161,16 @@ export const getTiers = unstable_cache(
 
 export const getSeasonMatches = unstable_cache(
   async (seasonId: string) => {
-    const { data } = await publicClient()
-      .from("matches")
-      .select("*")
-      .eq("season_id", seasonId);
-    return data ?? [];
+    const client = publicClient();
+    return fetchAllRows((from, to) =>
+      client
+        .from("matches")
+        .select("*")
+        .eq("season_id", seasonId)
+        .order("created_at")
+        .order("id")
+        .range(from, to)
+    );
   },
   ["season-matches"],
   opts
@@ -160,13 +178,18 @@ export const getSeasonMatches = unstable_cache(
 
 export const getSeasonAssignments = unstable_cache(
   async (seasonId: string) => {
-    const { data } = await publicClient()
-      .from("tier_assignments")
-      .select(
-        "*, wrestlers(id, name, slug, image_url), tag_teams(id, name, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(image_url), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(image_url))"
-      )
-      .eq("season_id", seasonId);
-    return data ?? [];
+    const client = publicClient();
+    return fetchAllRows((from, to) =>
+      client
+        .from("tier_assignments")
+        .select(
+          "*, wrestlers(id, name, slug, image_url), tag_teams(id, name, wrestler_a:wrestlers!tag_teams_wrestler_a_id_fkey(image_url), wrestler_b:wrestlers!tag_teams_wrestler_b_id_fkey(image_url))"
+        )
+        .eq("season_id", seasonId)
+        .order("created_at")
+        .order("id")
+        .range(from, to)
+    );
   },
   ["season-assignments"],
   opts
@@ -178,12 +201,17 @@ export const getSeasonAssignments = unstable_cache(
  */
 export const getAllMatches = unstable_cache(
   async () => {
-    const { data } = await publicClient()
-      .from("matches")
-      .select(
-        "*, tiers(id, name, short_name, tier_number, belt_image_url, divisions(name)), seasons(season_number)"
-      );
-    return data ?? [];
+    const client = publicClient();
+    return fetchAllRows((from, to) =>
+      client
+        .from("matches")
+        .select(
+          "*, tiers(id, name, short_name, tier_number, belt_image_url, divisions(name)), seasons(season_number)"
+        )
+        .order("created_at")
+        .order("id")
+        .range(from, to)
+    );
   },
   ["all-matches"],
   opts
@@ -192,12 +220,17 @@ export const getAllMatches = unstable_cache(
 /** Every tier assignment across all seasons, with tier/season info joined. */
 export const getAllAssignments = unstable_cache(
   async () => {
-    const { data } = await publicClient()
-      .from("tier_assignments")
-      .select(
-        "*, tiers(id, name, short_name, tier_number), seasons(season_number, status)"
-      );
-    return data ?? [];
+    const client = publicClient();
+    return fetchAllRows((from, to) =>
+      client
+        .from("tier_assignments")
+        .select(
+          "*, tiers(id, name, short_name, tier_number), seasons(season_number, status)"
+        )
+        .order("created_at")
+        .order("id")
+        .range(from, to)
+    );
   },
   ["all-assignments"],
   opts

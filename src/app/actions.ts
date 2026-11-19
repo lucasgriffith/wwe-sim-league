@@ -8,6 +8,7 @@ import {
   updateTag,
 } from "next/cache";
 import { LEAGUE_TAG } from "@/lib/data/cached";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import type {
   Gender,
   SeasonStatus,
@@ -214,11 +215,14 @@ export async function startSeason(seasonId: string) {
   }
 
   // Fetch fresh assignments from database (not stale props!)
-  const { data: assignments, error: assignErr } = await admin
-    .from("tier_assignments")
-    .select("tier_id, wrestler_id, tag_team_id, pool")
-    .eq("season_id", seasonId);
-  if (assignErr) throw new Error(assignErr.message);
+  const assignments = await fetchAllRows((from, to) =>
+    admin
+      .from("tier_assignments")
+      .select("tier_id, wrestler_id, tag_team_id, pool")
+      .eq("season_id", seasonId)
+      .order("id")
+      .range(from, to)
+  );
 
   // Fetch tiers
   const { data: tiers, error: tierErr } = await admin
@@ -659,14 +663,18 @@ async function detectMilestonesForMatch(
   const participantB = (isTag ? match.tag_team_b_id : match.wrestler_b_id)!;
   const loserId = winnerId === participantA ? participantB : participantA;
 
-  const [{ data: seasonMatches }, { data: tier }, { data: names }] =
+  const [seasonMatches, { data: tier }, { data: names }] =
     await Promise.all([
-      admin
-        .from("matches")
-        .select(
-          "id, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, match_time_seconds, tier_id, pool, match_phase, played_at"
-        )
-        .eq("season_id", match.season_id),
+      fetchAllRows((from, to) =>
+        admin
+          .from("matches")
+          .select(
+            "id, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, match_time_seconds, tier_id, pool, match_phase, played_at"
+          )
+          .eq("season_id", match.season_id)
+          .order("id")
+          .range(from, to)
+      ),
       admin.from("tiers").select("name, short_name").eq("id", match.tier_id).single(),
       isTag
         ? admin.from("tag_teams").select("id, name").in("id", [winnerId, loserId])
@@ -1008,17 +1016,23 @@ export async function generateAllPlayoffBrackets(seasonId: string) {
     .order("tier_number");
   if (!tiers) throw new Error("Failed to load tiers");
 
-  const { data: assignments } = await admin
-    .from("tier_assignments")
-    .select("tier_id, wrestler_id, tag_team_id, pool")
-    .eq("season_id", seasonId);
-  if (!assignments) throw new Error("Failed to load assignments");
+  const assignments = await fetchAllRows((from, to) =>
+    admin
+      .from("tier_assignments")
+      .select("tier_id, wrestler_id, tag_team_id, pool")
+      .eq("season_id", seasonId)
+      .order("id")
+      .range(from, to)
+  );
 
-  const { data: matches } = await admin
-    .from("matches")
-    .select("*")
-    .eq("season_id", seasonId);
-  if (!matches) throw new Error("Failed to load matches");
+  const matches = await fetchAllRows((from, to) =>
+    admin
+      .from("matches")
+      .select("*")
+      .eq("season_id", seasonId)
+      .order("id")
+      .range(from, to)
+  );
 
   // Skip tiers that already have playoff matches
   const tiersWithPlayoffs = new Set(
@@ -1149,17 +1163,23 @@ export async function generateRelegationPhase(seasonId: string) {
     .order("tier_number");
   if (!tiers) throw new Error("Failed to load tiers");
 
-  const { data: assignments } = await admin
-    .from("tier_assignments")
-    .select("tier_id, wrestler_id, tag_team_id")
-    .eq("season_id", seasonId);
-  if (!assignments) throw new Error("Failed to load assignments");
+  const assignments = await fetchAllRows((from, to) =>
+    admin
+      .from("tier_assignments")
+      .select("tier_id, wrestler_id, tag_team_id")
+      .eq("season_id", seasonId)
+      .order("id")
+      .range(from, to)
+  );
 
-  const { data: matches } = await admin
-    .from("matches")
-    .select("tier_id, match_phase, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, match_time_seconds, played_at")
-    .eq("season_id", seasonId);
-  if (!matches) throw new Error("Failed to load matches");
+  const matches = await fetchAllRows((from, to) =>
+    admin
+      .from("matches")
+      .select("tier_id, match_phase, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id, match_time_seconds, played_at")
+      .eq("season_id", seasonId)
+      .order("id")
+      .range(from, to)
+  );
 
   // Every tier that has a playoff bracket must have crowned a champion
   const unfinished = tiers.filter((t) => {
@@ -1484,11 +1504,15 @@ export async function addWrestlersToSeasonMidway(
 
   // Get existing assignments for the affected tiers
   const affectedTierIds = [...new Set(newAssignments.map((a) => a.tier_id))];
-  const { data: existingAssigns } = await admin
-    .from("tier_assignments")
-    .select("tier_id, wrestler_id, tag_team_id, pool")
-    .eq("season_id", seasonId)
-    .in("tier_id", affectedTierIds);
+  const existingAssigns = await fetchAllRows((from, to) =>
+    admin
+      .from("tier_assignments")
+      .select("tier_id, wrestler_id, tag_team_id, pool")
+      .eq("season_id", seasonId)
+      .in("tier_id", affectedTierIds)
+      .order("id")
+      .range(from, to)
+  );
 
   // Get tier info
   const { data: tiers } = await admin
@@ -1521,12 +1545,16 @@ export async function addWrestlersToSeasonMidway(
   }> = [];
 
   // Get max round numbers per tier/pool for numbering new rounds
-  const { data: existingMatches } = await admin
-    .from("matches")
-    .select("tier_id, pool, round_number")
-    .eq("season_id", seasonId)
-    .eq("match_phase", "pool_play")
-    .in("tier_id", affectedTierIds);
+  const existingMatches = await fetchAllRows((from, to) =>
+    admin
+      .from("matches")
+      .select("tier_id, pool, round_number")
+      .eq("season_id", seasonId)
+      .eq("match_phase", "pool_play")
+      .in("tier_id", affectedTierIds)
+      .order("id")
+      .range(from, to)
+  );
 
   for (const tierId of affectedTierIds) {
     const tier = tierMap[tierId];

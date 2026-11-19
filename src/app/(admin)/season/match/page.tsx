@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { MatchEntry } from "@/components/season/match-entry";
 import { MatchEntryTabs } from "@/components/season/match-entry-tabs";
 
@@ -30,13 +31,17 @@ export default async function MatchEntryPage() {
     .order("tier_number");
 
   // Get ALL matches for this season (both played and unplayed) for progress tracking
-  const { data: allMatches } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("season_id", season.id)
-    .order("tier_id")
-    .order("round_number")
-    .order("pool");
+  const allMatches = await fetchAllRows((from, to) =>
+    supabase
+      .from("matches")
+      .select("*")
+      .eq("season_id", season.id)
+      .order("tier_id")
+      .order("round_number")
+      .order("pool")
+      .order("id")
+      .range(from, to)
+  );
 
   const unplayedMatches = (allMatches ?? []).filter((m) => !m.played_at);
   const playedCount = (allMatches ?? []).length - unplayedMatches.length;

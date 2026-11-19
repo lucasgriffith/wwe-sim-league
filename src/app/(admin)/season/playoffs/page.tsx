@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { PlayoffsManager } from "@/components/playoffs/playoffs-manager";
 
 export default async function PlayoffsPage() {
@@ -27,10 +28,14 @@ export default async function PlayoffsPage() {
     .order("tier_number");
 
   // Get all matches for the season
-  const { data: matches } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("season_id", season.id);
+  const matches = await fetchAllRows((from, to) =>
+    supabase
+      .from("matches")
+      .select("*")
+      .eq("season_id", season.id)
+      .order("id")
+      .range(from, to)
+  );
 
   const { data: wrestlers } = await supabase
     .from("wrestlers")

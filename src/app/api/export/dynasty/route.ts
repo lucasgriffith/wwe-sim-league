@@ -1,14 +1,19 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   const supabase = createAdminClient();
 
-  const [{ data: wrestlers }, { data: allMatches }, { data: tierAssignments }, { data: tiers }] =
+  const [{ data: wrestlers }, allMatches, tierAssignments, { data: tiers }] =
     await Promise.all([
       supabase.from("wrestlers").select("id, name, gender").eq("is_active", true).order("name"),
-      supabase.from("matches").select("wrestler_a_id, wrestler_b_id, winner_wrestler_id, match_phase, tier_id, match_time_seconds").not("played_at", "is", null),
-      supabase.from("tier_assignments").select("wrestler_id, tier_id"),
+      fetchAllRows((from, to) =>
+        supabase.from("matches").select("wrestler_a_id, wrestler_b_id, winner_wrestler_id, match_phase, tier_id, match_time_seconds").not("played_at", "is", null).order("id").range(from, to)
+      ),
+      fetchAllRows((from, to) =>
+        supabase.from("tier_assignments").select("wrestler_id, tier_id").order("id").range(from, to)
+      ),
       supabase.from("tiers").select("id, tier_number"),
     ]);
 

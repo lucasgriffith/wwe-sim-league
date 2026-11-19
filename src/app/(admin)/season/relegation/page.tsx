@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { RelegationManager } from "@/components/relegation/relegation-manager";
 
 export default async function RelegationPage() {
@@ -26,10 +27,14 @@ export default async function RelegationPage() {
     .select("*, divisions(name, gender, division_type)")
     .order("tier_number");
 
-  const { data: matches } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("season_id", season.id);
+  const matches = await fetchAllRows((from, to) =>
+    supabase
+      .from("matches")
+      .select("*")
+      .eq("season_id", season.id)
+      .order("id")
+      .range(from, to)
+  );
 
   const { data: assignments } = await supabase
     .from("tier_assignments")

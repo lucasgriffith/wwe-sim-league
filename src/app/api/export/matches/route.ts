@@ -1,25 +1,30 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   const supabase = createAdminClient();
   const seasonId = request.nextUrl.searchParams.get("season");
 
-  let query = supabase
-    .from("matches")
-    .select(
-      "*, tiers(name, short_name, tier_number), seasons(season_number)"
-    )
-    .not("played_at", "is", null)
-    .order("played_at", { ascending: true });
+  const matchPage = (from: number, to: number) => {
+    let query = supabase
+      .from("matches")
+      .select(
+        "*, tiers(name, short_name, tier_number), seasons(season_number)"
+      )
+      .not("played_at", "is", null);
+    if (seasonId) {
+      query = query.eq("season_id", seasonId);
+    }
+    return query
+      .order("played_at", { ascending: true })
+      .order("id")
+      .range(from, to);
+  };
 
-  if (seasonId) {
-    query = query.eq("season_id", seasonId);
-  }
-
-  const [{ data: matches }, { data: wrestlers }, { data: tagTeams }] =
+  const [matches, { data: wrestlers }, { data: tagTeams }] =
     await Promise.all([
-      query,
+      fetchAllRows(matchPage),
       supabase.from("wrestlers").select("id, name"),
       supabase.from("tag_teams").select("id, name"),
     ]);
