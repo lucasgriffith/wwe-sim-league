@@ -675,7 +675,7 @@ export default async function DashboardPage() {
 
           {/* On Fire (own column) */}
           {onFire.length > 0 && (
-            <div className="max-h-[400px] overflow-y-auto">
+            <div className="min-w-0">
               <h3 className="rule-title mb-2 text-xl">
                 On Fire
               </h3>
@@ -701,7 +701,7 @@ export default async function DashboardPage() {
 
           {/* Ice Cold (own column) */}
           {iceCold.length > 0 && (
-            <div className="max-h-[400px] overflow-y-auto">
+            <div className="min-w-0">
               <h3 className="rule-title mb-2 text-xl">
                 Ice Cold
               </h3>
