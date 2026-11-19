@@ -427,6 +427,67 @@ function parseAdvancesTo(advancesTo: string): { key: string; slot: "A" | "B" } {
   return { key, slot: slot === "A" ? "A" : "B" };
 }
 
+/**
+ * Re-seeded semifinals for a bracket with two quarterfinals. Once both are
+ * decided, seed 1 gets the lowest seed left and seed 2 the other winner;
+ * until then (or after an undo) both open semifinal slots stay empty, because
+ * neither pairing is known from one result alone.
+ *
+ * Returns null when the tier's bracket has no second quarterfinal, in which
+ * case the plain `advances_to` link applies.
+ */
+async function loadReseedBracket(
+  admin: ReturnType<typeof createAdminClient>,
+  match: { season_id: string; tier_id: string }
+) {
+  const { data, error } = await admin
+    .from("matches")
+    .select(
+      "id, bracket_key, played_at, wrestler_a_id, wrestler_b_id, tag_team_a_id, tag_team_b_id, winner_wrestler_id, winner_tag_team_id"
+    )
+    .eq("season_id", match.season_id)
+    .eq("tier_id", match.tier_id)
+    .in("bracket_key", ["QF1", "QF2", "SF1", "SF2"]);
+  if (error) throw new Error(error.message);
+  const by = new Map((data ?? []).map((m) => [m.bracket_key as string, m]));
+  const qf1 = by.get("QF1");
+  const qf2 = by.get("QF2");
+  const sf1 = by.get("SF1");
+  const sf2 = by.get("SF2");
+  if (!qf1 || !qf2 || !sf1 || !sf2) return null;
+  return { qf1, qf2, sf1, sf2 };
+}
+
+async function applySemifinalReseed(
+  admin: ReturnType<typeof createAdminClient>,
+  match: { season_id: string; tier_id: string }
+) {
+  const bracket = await loadReseedBracket(admin, match);
+  if (!bracket) return;
+  const { reseedSemifinals } = await import("@/lib/playoffs/bracket");
+  const { qf1, qf2, sf1, sf2 } = bracket;
+  const isTag = !!qf1.tag_team_a_id;
+  const column = isTag ? "tag_team_b_id" : "wrestler_b_id";
+  const winnerOf = (m: typeof qf1) =>
+    m.played_at ? (m.winner_wrestler_id || m.winner_tag_team_id) : null;
+  const w1 = winnerOf(qf1);
+  const w2 = winnerOf(qf2);
+
+  let toSf1: string | null = null;
+  let toSf2: string | null = null;
+  if (w1 && w2) {
+    // QF1's B slot is the 6 seed (generateBracket puts 3 in A, 6 in B)
+    const sixSeedWon = w1 === (qf1.wrestler_b_id || qf1.tag_team_b_id);
+    const plan = reseedSemifinals(sixSeedWon);
+    toSf1 = plan.qf1WinnerTo === "SF1" ? w1 : w2;
+    toSf2 = plan.qf1WinnerTo === "SF1" ? w2 : w1;
+  }
+  for (const [sf, id] of [[sf1, toSf1], [sf2, toSf2]] as const) {
+    const { error } = await admin.from("matches").update({ [column]: id }).eq("id", sf.id);
+    if (error) throw new Error(error.message);
+  }
+}
+
 export async function recordMatchResult(
   matchId: string,
   data: {
@@ -475,6 +536,14 @@ export async function recordMatchResult(
     }
   }
 
+  // Quarterfinals of a re-seeded bracket can feed either semifinal, so a
+  // result can only change while neither semifinal has been played
+  const reseeded =
+    match.match_phase === "quarterfinal" ? await loadReseedBracket(admin, match) : null;
+  if (reseeded && match.played_at && (reseeded.sf1.played_at || reseeded.sf2.played_at)) {
+    throw new Error("Undo the semifinals first before changing this quarterfinal result");
+  }
+
   const { error } = await admin
     .from("matches")
     .update({
@@ -484,8 +553,11 @@ export async function recordMatchResult(
     .eq("id", matchId);
   if (error) throw new Error(error.message);
 
-  // Playoff advancement: push the winner into the next round's open slot
-  if (match.advances_to) {
+  // Playoff advancement: push the winner into the next round's open slot.
+  // Re-seeded quarterfinals are placed together once both are decided.
+  if (reseeded) {
+    await applySemifinalReseed(admin, match);
+  } else if (match.advances_to) {
     const { key, slot } = parseAdvancesTo(match.advances_to);
     const column = isTag
       ? slot === "A" ? "tag_team_a_id" : "tag_team_b_id"
@@ -661,8 +733,14 @@ export async function undoMatchResult(matchId: string) {
     .single();
   if (matchErr) throw new Error(matchErr.message);
 
+  const reseeded =
+    match.match_phase === "quarterfinal" ? await loadReseedBracket(admin, match) : null;
+  if (reseeded && match.played_at && (reseeded.sf1.played_at || reseeded.sf2.played_at)) {
+    throw new Error("Undo the semifinals first — their pairings depend on this result");
+  }
+
   // If this playoff winner already advanced, clear (or refuse to clear) the slot
-  if (match.advances_to && match.played_at) {
+  if (!reseeded && match.advances_to && match.played_at) {
     const { key, slot } = parseAdvancesTo(match.advances_to);
     const { data: target } = await admin
       .from("matches")
@@ -708,6 +786,8 @@ export async function undoMatchResult(matchId: string) {
     })
     .eq("id", matchId);
   if (error) throw new Error(error.message);
+  // With one quarterfinal reopened the semifinal pairings are unknown again
+  if (reseeded) await applySemifinalReseed(admin, match);
   revalidatePath("/season");
   revalidatePath("/season/playoffs");
   revalidatePath("/tiers");

@@ -181,6 +181,14 @@ export default async function WikiPage() {
               Seeds 1 and 2 receive first-round byes, rewarding the best
               regular season performance.
             </p>
+            <p>
+              <strong>Re-seeding:</strong> the semifinals are re-seeded after
+              the quarterfinals. Seed 1 always meets the lowest seed still
+              alive and seed 2 meets the other winner. The diagram shows the
+              usual pairing; if the 6 seed upsets the 3 seed, the 6 goes to
+              seed 1 instead and the 4 v 5 winner goes to seed 2. Semifinal
+              opponents are confirmed once both quarterfinals are finished.
+            </p>
           </SubSection>
           <SubSection title="Tag Team Tiers">
             <p>

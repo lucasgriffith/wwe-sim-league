@@ -12,7 +12,10 @@ export interface BracketMatch {
 /**
  * Generate a single-elimination bracket sized to the qualifier count:
  *
- * 6+: QF1 3v6, QF2 4v5, SF1 1 vs QF2 winner, SF2 2 vs QF1 winner, Final
+ * 6+: QF1 3v6, QF2 4v5, then the semifinals are RE-SEEDED: SF1 is seed 1 vs
+ *     the lowest seed left, SF2 is seed 2 vs the other quarterfinal winner
+ *     (see reseedSemifinals). The sourceMatch links below are the default
+ *     pairing, which holds whenever the 3 seed wins.
  * 5:  QF1 4v5, SF1 1 vs QF1 winner, SF2 2v3, Final
  * 4:  SF1 1v4, SF2 2v3, Final
  * 2-3: Final between the top 2 (tag tiers and tiny fields)
@@ -96,4 +99,24 @@ export function computeAdvancesMap(
     if (target.sourceMatchB) advances[target.sourceMatchB] = `${target.matchKey}:B`;
   }
   return advances;
+}
+
+/**
+ * Re-seeding rule for a six-entrant bracket. After both quarterfinals
+ * (QF1: 3 v 6, QF2: 4 v 5), seed 1 meets the LOWEST seed still alive and
+ * seed 2 meets the other winner. The 6 seed is the only one lower than both
+ * possible QF2 winners, so the pairing flips exactly when the 6 seed wins:
+ *
+ *   QF1 won by 3: SF1 = 1 v QF2 winner (4 or 5), SF2 = 2 v 3
+ *   QF1 won by 6: SF1 = 1 v 6,                   SF2 = 2 v QF2 winner
+ *
+ * Returns which semifinal each quarterfinal winner goes to (always slot B).
+ */
+export function reseedSemifinals(sixSeedWonQf1: boolean): {
+  qf1WinnerTo: "SF1" | "SF2";
+  qf2WinnerTo: "SF1" | "SF2";
+} {
+  return sixSeedWonQf1
+    ? { qf1WinnerTo: "SF1", qf2WinnerTo: "SF2" }
+    : { qf1WinnerTo: "SF2", qf2WinnerTo: "SF1" };
 }

@@ -67,10 +67,15 @@ export function BracketView({ matches, isTagFinal }: Props) {
   const feedSf1 = qf2 ?? (qf1 && !qf2 ? qf1 : undefined);
   const feedSf2 = qf2 ? qf1 : undefined;
   const hasQf = !!(qf1 || qf2);
-  const waiting = {
-    sf1: feedSf1 ? `Winner ${feedSf1.matchKey}` : "To be decided",
-    sf2: feedSf2 ? `Winner ${feedSf2.matchKey}` : "To be decided",
-  };
+  // With two quarterfinals the semifinals are re-seeded: seed 1 draws the
+  // lowest seed left, so either quarterfinal can feed either semifinal
+  const reseeded = !!(qf1 && qf2);
+  const waiting = reseeded
+    ? { sf1: "Lowest seed left", sf2: "Other QF winner" }
+    : {
+        sf1: feedSf1 ? `Winner ${feedSf1.matchKey}` : "To be decided",
+        sf2: feedSf2 ? `Winner ${feedSf2.matchKey}` : "To be decided",
+      };
 
   const rows = [
     { sf: sf1, feeder: feedSf1, wait: waiting.sf1 },
@@ -84,19 +89,28 @@ export function BracketView({ matches, isTagFinal }: Props) {
         <div className="flex min-w-0 flex-[2] flex-col">
           <div className="flex gap-6 pb-2">
             {hasQf && <ColumnLabel>Quarterfinals</ColumnLabel>}
-            <ColumnLabel>Semifinals</ColumnLabel>
+            <ColumnLabel>{reseeded ? "Semifinals · re-seeded" : "Semifinals"}</ColumnLabel>
           </div>
           {rows.map((row, i) => (
-            <div key={i} className="flex flex-1 items-center py-2">
+            <div key={i} className="flex flex-1 items-center">
               {hasQf && (
                 <>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 py-2">
                     {row.feeder && <MatchNode match={row.feeder} />}
                   </div>
-                  <div className={`h-px w-6 shrink-0 ${row.feeder ? "bg-gold/50" : ""}`} />
+                  <div className="relative w-6 shrink-0 self-stretch">
+                    {row.feeder && <div className="absolute inset-x-0 top-1/2 h-px bg-gold/50" />}
+                    {reseeded && (
+                      <div
+                        className={`absolute left-1/2 w-px bg-gold/50 ${
+                          i === 0 ? "bottom-0 top-1/2" : "bottom-1/2 top-0"
+                        }`}
+                      />
+                    )}
+                  </div>
                 </>
               )}
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 py-2">
                 {row.sf && <MatchNode match={row.sf} waitB={row.wait} bye={!!row.feeder} />}
               </div>
             </div>
@@ -133,7 +147,7 @@ export function BracketView({ matches, isTagFinal }: Props) {
           </div>
         )}
         <div className="space-y-2">
-          <ColumnLabel>Semifinals</ColumnLabel>
+          <ColumnLabel>{reseeded ? "Semifinals · re-seeded" : "Semifinals"}</ColumnLabel>
           {sf1 && <MatchNode match={sf1} waitB={waiting.sf1} bye={!!feedSf1} />}
           {sf2 && <MatchNode match={sf2} waitB={waiting.sf2} bye={!!feedSf2} />}
         </div>
