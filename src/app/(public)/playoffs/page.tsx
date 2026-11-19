@@ -29,8 +29,8 @@ interface BracketNode {
   id: string | null;
   matchKey: string;
   round: string;
-  participantA: { id: string; name: string; seed: number } | null;
-  participantB: { id: string; name: string; seed: number } | null;
+  participantA: { id: string; name: string; seed: number; image?: string | null } | null;
+  participantB: { id: string; name: string; seed: number; image?: string | null } | null;
   winnerId: string | null;
   stipulation: string | null;
   matchTime: number | null;
@@ -68,6 +68,8 @@ export default async function PlayoffsPage() {
   for (const w of wrestlers) names.set(w.id, w.name);
   for (const t of tagTeams) names.set(t.id, t.name);
   const nameOf = (id: string) => names.get(id) ?? "?";
+  const images = new Map(wrestlers.map((w) => [w.id, w.image_url as string | null]));
+  const imageOf = (id: string) => images.get(id) ?? null;
 
   const tierViews = tiers
     .map((tier) => {
@@ -121,8 +123,8 @@ export default async function PlayoffsPage() {
             id: m.id,
             matchKey,
             round: m.match_phase,
-            participantA: aId ? { id: aId, name: nameOf(aId), seed: seedOf.get(aId) ?? 0 } : null,
-            participantB: bId ? { id: bId, name: nameOf(bId), seed: seedOf.get(bId) ?? 0 } : null,
+            participantA: aId ? { id: aId, name: nameOf(aId), seed: seedOf.get(aId) ?? 0, image: imageOf(aId) } : null,
+            participantB: bId ? { id: bId, name: nameOf(bId), seed: seedOf.get(bId) ?? 0, image: imageOf(bId) } : null,
             winnerId,
             stipulation: m.stipulation,
             matchTime: m.match_time_seconds,
@@ -137,13 +139,13 @@ export default async function PlayoffsPage() {
           matchKey: bm.matchKey,
           round: bm.round,
           participantA: bm.seedA
-            ? { id: bm.seedA.participantId, name: bm.seedA.name, seed: bm.seedA.seed }
+            ? { id: bm.seedA.participantId, name: bm.seedA.name, seed: bm.seedA.seed, image: imageOf(bm.seedA.participantId) }
             : null,
           participantB: bm.seedB
-            ? { id: bm.seedB.participantId, name: bm.seedB.name, seed: bm.seedB.seed }
+            ? { id: bm.seedB.participantId, name: bm.seedB.name, seed: bm.seedB.seed, image: imageOf(bm.seedB.participantId) }
             : null,
           winnerId: null,
-          stipulation: null,
+          stipulation: bm.round === "final" ? tier.fixed_stipulation : null,
           matchTime: null,
           isPlayed: false,
           isBye: false,
@@ -254,7 +256,7 @@ export default async function PlayoffsPage() {
           <section key={d.name} id={slugify(d.name)} className="scroll-mt-28">
             <SectionTitle aside={`${d.views.length} ${d.views.length === 1 ? "title" : "titles"}`}>{d.name}</SectionTitle>
 
-            <div className={`grid gap-5 ${d.views[0].tier.has_pools ? "2xl:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3"}`}>
+            <div className={`grid gap-5 ${d.views[0].tier.has_pools ? "xl:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3"}`}>
               {d.views.map((v) => {
                 const c = tierColor(v.tier.slug ?? v.tier.name);
                 return (
@@ -274,7 +276,7 @@ export default async function PlayoffsPage() {
                           {v.tier.name}
                         </Link>
                         <div className="mt-0.5 flex flex-wrap gap-x-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                          {v.tier.fixed_stipulation && <span className="text-wwe-red">{v.tier.fixed_stipulation}</span>}
+                          {v.tier.fixed_stipulation && <span className="text-wwe-red">Final · {v.tier.fixed_stipulation}</span>}
                           <span>
                             {v.champion
                               ? `Champion · ${v.champion}`

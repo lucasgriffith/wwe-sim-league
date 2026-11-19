@@ -56,7 +56,18 @@ interface TagTeamRow {
 
 type MatchRows = Parameters<typeof computeElo>[0];
 
+/** What one match did to one participant's rating and pool rank */
+export interface EloMove {
+  delta: number;
+  rating: number;
+  /** Null when this was their first match, so they had no rank yet */
+  rankBefore: number | null;
+  rankAfter: number;
+}
+
 export interface EloBoard {
+  /** Rating and rank movement for both sides of every played match, by match id */
+  moves: Map<string, { a: EloMove; b: EloMove }>;
   entries: Map<string, EloEntry>;
   standings: Map<string, EloStanding>;
   /** Pool members in rank order */
@@ -140,7 +151,28 @@ export function buildEloBoard(
   const { poolOf, seeds } = poolsAndSeeds(wrestlers, tagTeams);
 
   const odds = new Map<string, MatchOdds>();
-  const entries = computeElo(matches, seeds, odds);
+  // Rank movement per match: re-rank the pool after each result and compare
+  // with how that pool stood after its previous one
+  const moves = new Map<string, { a: EloMove; b: EloMove }>();
+  const lastRanks = new Map<EloPool, Map<string, number>>();
+  const entries = computeElo(matches, seeds, odds, (m, live) => {
+    const pool = poolOf.get(m.a);
+    if (!pool || !m.id) return;
+    const before = lastRanks.get(pool);
+    const after = new Map<string, number>();
+    [...live]
+      .filter(([id, e]) => poolOf.get(id) === pool && e.matches > 0)
+      .sort((x, y) => y[1].rating - x[1].rating || y[1].wins - x[1].wins)
+      .forEach(([id], i) => after.set(id, i + 1));
+    lastRanks.set(pool, after);
+    const side = (id: string, delta: number): EloMove => ({
+      delta,
+      rating: Math.round(live.get(id)!.rating),
+      rankBefore: before?.get(id) ?? null,
+      rankAfter: after.get(id)!,
+    });
+    moves.set(m.id, { a: side(m.a, m.deltaA), b: side(m.b, m.deltaB) });
+  });
   const ranks = rankPools(entries, poolOf);
 
   // Previous ranks: the board as it stood before the latest day of results
@@ -203,5 +235,5 @@ export function buildEloBoard(
     ranked[pool].sort((a, b) => a.rank - b.rank);
   }
 
-  return { entries, standings, ranked, odds, seeds };
+  return { entries, standings, ranked, odds, seeds, moves };
 }

@@ -1,11 +1,13 @@
 import { EmptyState, PageHeader } from "@/components/ui/page-header";
 import {
   getActivePlaySeason,
+  getAllMatches,
   getSeasonMatches,
   getTagTeams,
   getTiers,
   getWrestlers,
 } from "@/lib/data/cached";
+import { buildEloBoard } from "@/lib/elo/board";
 import { tierColor } from "@/lib/tiers/colors";
 import { ScheduleBoard, type ScheduleMatch, type ScheduleTier } from "@/components/schedule/schedule-board";
 
@@ -26,12 +28,15 @@ export default async function SchedulePage() {
     );
   }
 
-  const [matches, tiers, wrestlers, tagTeams] = await Promise.all([
+  const [matches, tiers, wrestlers, tagTeams, careerMatches] = await Promise.all([
     getSeasonMatches(season.id),
     getTiers(),
     getWrestlers(),
     getTagTeams(),
+    getAllMatches(),
   ]);
+  // Same board every other page uses, so the movements match the rankings
+  const { moves } = buildEloBoard(careerMatches, wrestlers, tagTeams);
 
   const names = new Map<string, string>();
   for (const w of wrestlers) names.set(w.id, w.name);
@@ -85,6 +90,7 @@ export default async function SchedulePage() {
         seconds: m.match_time_seconds,
         stipulation: m.stipulation,
         playedAt: played ? played.getTime() : null,
+        elo: moves.get(m.id) ?? null,
         day: played ? dayKey.format(played) : null,
         dayLabel: played ? dayLabel.format(played) : null,
       };

@@ -416,7 +416,7 @@ export default async function TierDetailPage({
           </div>
           {tier.fixed_stipulation && (
             <p className="mt-2 text-sm text-muted-foreground">
-              All matches:{" "}
+              Championship final:{" "}
               <span className="text-wwe-red font-medium">
                 {tier.fixed_stipulation}
               </span>
@@ -636,7 +636,7 @@ export default async function TierDetailPage({
               <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
                 <span className="text-gold"></span> Playoffs
               </h2>
-              <div className="rounded-lg border border-gold/20 bg-gold/[0.02] p-4 overflow-x-auto">
+              <div className="rounded-lg border border-gold/20 bg-gold/[0.02] p-4 ">
                 <BracketView
                   tierName={tier.short_name || tier.name}
                   isTagFinal={!tier.has_pools}
@@ -685,7 +685,7 @@ export default async function TierDetailPage({
               <p className="mb-3 text-xs text-muted-foreground">
                 If the season ended today — updates with every result.
               </p>
-              <div className="rounded-lg border border-border/30 bg-card/30 p-4 overflow-x-auto">
+              <div className="rounded-lg border border-border/30 bg-card/30 p-4 ">
                 <BracketView
                   tierName={tier.short_name || tier.name}
                   isTagFinal={!tier.has_pools}
@@ -700,7 +700,7 @@ export default async function TierDetailPage({
                       ? { id: bm.seedB.participantId, name: bm.seedB.name, seed: bm.seedB.seed }
                       : null,
                     winnerId: null,
-                    stipulation: null,
+                    stipulation: bm.round === "final" ? tier.fixed_stipulation : null,
                     matchTime: null,
                     isPlayed: false,
                     isBye: false,

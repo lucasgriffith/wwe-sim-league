@@ -870,7 +870,7 @@ async function buildTierPlayoffInserts(
   const usedStipulations: string[] = [];
 
   return bracketMatches.map((bm) => {
-    const stip = assignStipulation(tier.fixed_stipulation, usedStipulations);
+    const stip = assignStipulation(tier.fixed_stipulation, usedStipulations, bm.round);
     usedStipulations.push(stip);
     return {
       season_id: seasonId,

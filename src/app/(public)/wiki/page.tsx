@@ -190,16 +190,18 @@ export default async function WikiPage() {
           </SubSection>
           <SubSection title="Match Stipulations">
             <p>
-              Every championship has its own signature match, and every
-              playoff match in that tier is fought under it: the
-              Intercontinental title is decided in Ladder Matches, the
+              Every championship has its own signature match, and its{" "}
+              <strong>championship final</strong> is fought under it: the
+              Intercontinental title is decided in a Ladder Match, the
               Hardcore title under Falls Count Anywhere, and so on. The full
               list is in the{" "}
               <a href="#match-stipulation-reference">stipulation reference</a>.
             </p>
             <p>
-              A tier without a signature match draws a random stipulation for
-              each playoff match instead, never repeating one within a bracket.
+              Quarterfinals and semifinals each draw a random stipulation,
+              never repeating one within a bracket. The draw leaves out the
+              tier&apos;s signature match, which is saved for the final, and
+              Steel Cage, which is saved for promotion and relegation matches.
             </p>
           </SubSection>
         </Section>
@@ -311,9 +313,9 @@ export default async function WikiPage() {
         {/* Stipulations Reference */}
         <Section id="match-stipulation-reference" title="Match Stipulation Reference">
           <p>
-            Each championship&apos;s playoffs are fought under one match type.
-            Promotion and relegation matches between tiers are always Steel
-            Cage.
+            The match type for each championship final. Earlier playoff
+            rounds draw at random; promotion and relegation matches between
+            tiers are always Steel Cage.
           </p>
           <div className="mt-4 grid gap-x-8 gap-y-6 sm:grid-cols-2">
             {stipDivisions.map((d) => (

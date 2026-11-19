@@ -85,7 +85,12 @@ export interface MatchOdds {
 export function computeElo(
   matches: EloMatchRow[],
   seeds?: Map<string, number>,
-  oddsOut?: Map<string, MatchOdds>
+  oddsOut?: Map<string, MatchOdds>,
+  /** Called after each match is applied, with the board as it then stands */
+  onMatch?: (
+    match: { id?: string; a: string; b: string; deltaA: number; deltaB: number },
+    entries: Map<string, EloEntry>
+  ) => void
 ): Map<string, EloEntry> {
   const played = matches
     .filter(
@@ -170,6 +175,10 @@ export function computeElo(
       won: scoreA === 0,
       phase: m.match_phase ?? null,
     });
+    onMatch?.(
+      { id: m.id, a, b, deltaA: Math.round(deltaA), deltaB: Math.round(deltaB) },
+      entries
+    );
   }
 
   return entries;

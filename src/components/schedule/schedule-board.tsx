@@ -13,7 +13,16 @@ export interface ScheduleTier {
   fg: string;
 }
 
+interface Move {
+  delta: number;
+  rating: number;
+  rankBefore: number | null;
+  rankAfter: number;
+}
+
 export interface ScheduleMatch {
+  /** Elo and pool-rank movement for each side, once played */
+  elo: { a: Move; b: Move } | null;
   id: string;
   tierId: string;
   phase: string;
@@ -188,12 +197,20 @@ export function ScheduleBoard({ matches, tiers }: { matches: ScheduleMatch[]; ti
                           className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-2 py-2 transition-colors hover:bg-card sm:grid-cols-[9rem_minmax(0,1fr)_8rem_3.5rem]"
                         >
                           <TierPlate tier={tier} />
-                          <span className="min-w-0 truncate text-sm">
-                            <span className="font-semibold text-foreground">{m.winner === "a" ? m.a : m.b}</span>
-                            <span className="mx-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">
-                              def.
+                          <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+                            <span className="flex min-w-0 items-baseline gap-2">
+                              <span className="truncate font-semibold text-foreground">
+                                {m.winner === "a" ? m.a : m.b}
+                              </span>
+                              <MoveChip move={m.elo ? (m.winner === "a" ? m.elo.a : m.elo.b) : null} />
                             </span>
-                            <span className="text-muted-foreground">{m.winner === "a" ? m.b : m.a}</span>
+                            <span className="flex min-w-0 items-baseline gap-2">
+                              <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                                def.
+                              </span>
+                              <span className="truncate text-muted-foreground">{m.winner === "a" ? m.b : m.a}</span>
+                              <MoveChip move={m.elo ? (m.winner === "a" ? m.elo.b : m.elo.a) : null} />
+                            </span>
                           </span>
                           <span className="hidden truncate font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground sm:block">
                             {m.stipulation ?? context(m)}
@@ -265,6 +282,36 @@ export function ScheduleBoard({ matches, tiers }: { matches: ScheduleMatch[]; ti
         </div>
       )}
     </div>
+  );
+}
+
+/** Rating change, plus the pool rank before and after when the match moved it */
+function MoveChip({ move }: { move: Move | null }) {
+  if (!move) return null;
+  const up = move.delta >= 0;
+  const moved = move.rankBefore !== null && move.rankBefore !== move.rankAfter;
+  const climbed = moved && move.rankAfter < move.rankBefore!;
+  return (
+    <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap font-mono text-[11px] tabular-nums">
+      <span className={up ? "text-emerald-400" : "text-red-400"} title={`Elo ${move.rating}`}>
+        {up ? "+" : "\u2212"}
+        {Math.abs(move.delta)}
+      </span>
+      {moved && (
+        <span
+          className={climbed ? "text-emerald-400/80" : "text-red-400/80"}
+          title={`Elo rank ${move.rankBefore} to ${move.rankAfter}`}
+        >
+          {climbed ? "\u25B2" : "\u25BC"}#{move.rankBefore}
+          <span className="text-muted-foreground/60">{"\u2192"}</span>#{move.rankAfter}
+        </span>
+      )}
+      {move.rankBefore === null && (
+        <span className="text-muted-foreground" title="First match: enters the rankings">
+          new #{move.rankAfter}
+        </span>
+      )}
+    </span>
   );
 }
 
