@@ -9,6 +9,8 @@
  * - Expected score: E = 1 / (1 + 10^((opponent - self) / 400))
  * - K-factor: 40 for a participant's first 10 matches (provisional — new
  *   entrants converge quickly), 24 after.
+ * - The K-factor never decays further, and every result moves both sides by
+ *   at least 1 point, so ratings keep moving for as long as someone wrestles.
  * - Stakes: playoff and relegation matches move ratings 25% more, and
  *   championship finals 50% more.
  *
@@ -22,6 +24,8 @@ export const BASE_RATING = 1200;
 export const PROVISIONAL_MATCHES = 10;
 const K_PROVISIONAL = 40;
 const K_ESTABLISHED = 24;
+/** Smallest rating change a result can produce, for winner and loser alike */
+const MIN_MOVE = 1;
 
 const STAKES: Record<string, number> = {
   quarterfinal: 1.25,
@@ -136,8 +140,12 @@ export function computeElo(
     const kA = (ea.matches < PROVISIONAL_MATCHES ? K_PROVISIONAL : K_ESTABLISHED) * stakes;
     const kB = (eb.matches < PROVISIONAL_MATCHES ? K_PROVISIONAL : K_ESTABLISHED) * stakes;
 
-    const deltaA = kA * (scoreA - expectedA);
-    const deltaB = kB * (1 - scoreA - (1 - expectedA));
+    // Every result moves both ratings by at least MIN_MOVE, however lopsided
+    // the matchup and however many matches either side has played
+    const floor = (raw: number, won: boolean) =>
+      won ? Math.max(MIN_MOVE, raw) : Math.min(-MIN_MOVE, raw);
+    const deltaA = floor(kA * (scoreA - expectedA), scoreA === 1);
+    const deltaB = floor(kB * (1 - scoreA - (1 - expectedA)), scoreA === 0);
     ea.rating += deltaA;
     eb.rating += deltaB;
     if (oddsOut && m.id) {

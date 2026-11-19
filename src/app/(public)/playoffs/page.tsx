@@ -42,6 +42,11 @@ interface CageMatch {
   key: string;
   defender: string;
   challenger: string;
+  defenderId: string;
+  challengerId: string;
+  /** 1 and 2 defend (1 = better record), 3 and 4 challenge; 1 meets 4 */
+  defenderSeed: number;
+  challengerSeed: number;
   defenderImage: string | null;
   challengerImage: string | null;
   winner: string | null;
@@ -192,7 +197,7 @@ export default async function PlayoffsPage() {
             const aId = (m.wrestler_a_id || m.tag_team_a_id)!;
             const bId = (m.wrestler_b_id || m.tag_team_b_id)!;
             const w = m.winner_wrestler_id || m.winner_tag_team_id;
-            return { key: m.id, defender: nameOf(aId), challenger: nameOf(bId), defenderImage: imageOf(aId), challengerImage: imageOf(bId), winner: w ? nameOf(w) : null };
+            return { key: m.id, defenderId: aId, challengerId: bId, defenderSeed: 0, challengerSeed: 0, defender: nameOf(aId), challenger: nameOf(bId), defenderImage: imageOf(aId), challengerImage: imageOf(bId), winner: w ? nameOf(w) : null };
           }),
         });
         continue;
@@ -213,6 +218,10 @@ export default async function PlayoffsPage() {
           projected: true,
           matches: pending.map((mv) => ({
             key: mv.participantId,
+            defenderId: mv.participantId,
+            challengerId: mv.opponentId!,
+            defenderSeed: 0,
+            challengerSeed: 0,
             defender: mv.name,
             challenger: mv.opponentName!,
             defenderImage: imageOf(mv.participantId),
@@ -221,6 +230,23 @@ export default async function PlayoffsPage() {
           })),
         });
       }
+    }
+    // Seed each set of cage matches from the standings: the better defender
+    // is the 1 seed and meets the lower-placed challenger (the 4 seed)
+    for (const cg of cages) {
+      const rankIn = (rows: StandingsRow[], id: string) => {
+        const i = rows.findIndex((r) => r.participantId === id);
+        return i === -1 ? 999 : i;
+      };
+      const defenders = [...cg.matches].sort(
+        (x, y) => rankIn(cg.higher.combined, x.defenderId) - rankIn(cg.higher.combined, y.defenderId)
+      );
+      const challengers = [...cg.matches].sort(
+        (x, y) => rankIn(cg.lower.combined, x.challengerId) - rankIn(cg.lower.combined, y.challengerId)
+      );
+      defenders.forEach((m, i) => (m.defenderSeed = i + 1));
+      challengers.forEach((m, i) => (m.challengerSeed = defenders.length + i + 1));
+      cg.matches = defenders;
     }
     return { name, views, cages };
   }).filter((d) => d.views.length > 0);
@@ -325,8 +351,8 @@ export default async function PlayoffsPage() {
                                 {RELEGATION_STIPULATION}
                               </div>
                               {[
-                                { name: m.defender, image: m.defenderImage, tag: `T${cage.higher.tier.tier_number} · defending` },
-                                { name: m.challenger, image: m.challengerImage, tag: `T${cage.lower.tier.tier_number} · challenging` },
+                                { name: m.defender, seed: m.defenderSeed, image: m.defenderImage, tag: `T${cage.higher.tier.tier_number} · defending` },
+                                { name: m.challenger, seed: m.challengerSeed, image: m.challengerImage, tag: `T${cage.lower.tier.tier_number} · challenging` },
                               ].map((side, i) => {
                                 const won = m.winner === side.name;
                                 const lost = !!m.winner && !won;
@@ -336,6 +362,9 @@ export default async function PlayoffsPage() {
                                     className={`relative flex h-9 items-center gap-2 px-2 ${i === 0 ? "border-b border-border" : ""} ${won ? "bg-foreground/[0.06]" : ""}`}
                                   >
                                     {won && <span className="absolute inset-y-0 left-0 w-[3px] bg-amber-400" />}
+                                    <span className={`w-5 shrink-0 text-center font-display text-base font-black leading-none ${lost ? "text-muted-foreground/40" : "text-amber-400"}`}>
+                                      {side.seed}
+                                    </span>
                                     {side.image && (
                                       // eslint-disable-next-line @next/next/no-img-element
                                       <img

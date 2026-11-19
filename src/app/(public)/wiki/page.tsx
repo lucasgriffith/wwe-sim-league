@@ -232,7 +232,7 @@ export default async function WikiPage() {
             />
             <MovementRule
               type="relegation-playoff"
-              description="3rd-from-bottom defends their spot against the tier below's 3rd place in a Steel Cage match; 4th-from-bottom defends against their 4th. Winner takes (or keeps) the higher tier spot, loser goes down."
+              description="The two wrestlers just above the drop zone defend their spots in seeded Steel Cage matches against the tier below's 3rd and 4th. The better defender (1 seed) meets the lower challenger (4 seed); the other defender (2) meets the higher challenger (3). Winner takes (or keeps) the higher tier spot, loser goes down."
               color="amber"
               arrow="×"
             />
@@ -294,6 +294,11 @@ export default async function WikiPage() {
             <li><strong>Opponent strength matters</strong> — beating someone rated above you is worth far more than beating someone below you, and losing to a lower-rated opponent costs more</li>
             <li><strong>Early matches swing harder</strong> — a wrestler&apos;s first 10 matches move their rating faster while it settles</li>
             <li><strong>Stakes count</strong> — playoff and relegation matches are worth 25% more, title matches 50% more</li>
+            <li>
+              <strong>Ratings never freeze</strong> — every result moves both
+              wrestlers by at least 1 point, no matter how many matches they
+              have had or how lopsided the matchup
+            </li>
           </ul>
           <p>
             The small gold number in front of a name is their rank within
