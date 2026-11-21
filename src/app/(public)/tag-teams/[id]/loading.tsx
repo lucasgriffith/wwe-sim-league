@@ -4,8 +4,8 @@ export default function TagTeamProfileLoading() {
       <div className="skeleton h-4 w-32" />
       <div className="mt-6 mb-8 flex items-center gap-5">
         <div className="flex -space-x-5">
-          <div className="skeleton h-20 w-20 rounded-xl" />
-          <div className="skeleton h-20 w-20 rounded-xl" />
+          <div className="skeleton h-20 w-20" />
+          <div className="skeleton h-20 w-20" />
         </div>
         <div className="space-y-2">
           <div className="skeleton h-8 w-56" />

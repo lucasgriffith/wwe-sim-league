@@ -6,10 +6,14 @@ import {
   getChampions,
   getCurrentSeason,
   getTagTeams,
+  getTiers,
   getWrestlers,
 } from "@/lib/data/cached";
 import { buildEloBoard, rankTimeline, POOL_LABEL } from "@/lib/elo/board";
-import { Badge } from "@/components/ui/badge";
+import { BASE_RATING, winProbability } from "@/lib/elo/compute-elo";
+import { buildTagSeason, ordinal } from "@/lib/tag-teams/season";
+import { tierColor } from "@/lib/tiers/colors";
+import { EloMoveChip } from "@/components/ui/elo-move";
 import { RatingSparkline } from "@/components/ui/rating-sparkline";
 import { SmartImage, displaySrc } from "@/components/ui/smart-image";
 
@@ -45,7 +49,7 @@ export default async function TagTeamProfilePage({
 }) {
   const { id } = await params;
 
-  const [teams, allMatchRows, allAssignRows, currentSeason, champions, allWrestlers] =
+  const [teams, allMatchRows, allAssignRows, currentSeason, champions, allWrestlers, tiers] =
     await Promise.all([
       getTagTeams(),
       getAllMatches(),
@@ -53,6 +57,7 @@ export default async function TagTeamProfilePage({
       getCurrentSeason(),
       getChampions(),
       getWrestlers(),
+      getTiers(),
     ]);
 
   const team = teams.find((t) => t.id === id);
@@ -122,9 +127,6 @@ export default async function TagTeamProfilePage({
   const avgTime = timed.length
     ? Math.round(timed.reduce((s, m) => s + m.match_time_seconds!, 0) / timed.length)
     : null;
-  const longestMatch = timed.length
-    ? Math.max(...timed.map((m) => m.match_time_seconds!))
-    : null;
 
   const opponentOf = (m: (typeof played)[0]) =>
     m.tag_team_a_id === id ? m.tag_team_b_id! : m.tag_team_a_id!;
@@ -149,7 +151,7 @@ export default async function TagTeamProfilePage({
   }
   const topH2H = [...h2h.entries()]
     .sort((a, b) => b[1].wins + b[1].losses - (a[1].wins + a[1].losses))
-    .slice(0, 6);
+    .slice(0, 8);
 
   // ── Tier history & upcoming ───────────────────────────────────────────────
   const tierHistory = allAssignRows
@@ -163,10 +165,56 @@ export default async function TagTeamProfilePage({
 
   const reigning = champions[id];
 
+  // ── This season ───────────────────────────────────────────────────────────
+  const tagSeason = buildTagSeason(
+    tiers,
+    currentSeason ? allAssignRows.filter((a) => a.season_id === currentSeason.id) : [],
+    currentSeason ? allMatchRows.filter((m) => m.season_id === currentSeason.id) : []
+  );
+  const place = tagSeason.places.get(id) ?? null;
+  const plate = place ? tierColor(place.tier.slug ?? place.tier.name) : null;
+  const ratingOf = (teamId: string) =>
+    eloBoard.standings.get(teamId)?.rating ??
+    Math.round(eloBoard.seeds.get(teamId) ?? BASE_RATING);
+  const myRating = ratingOf(id);
+  const chanceVs = (oppId: string) =>
+    Math.round(winProbability(myRating, ratingOf(oppId)) * 100);
+  const nextMatch = upcoming[0] ?? null;
+
+  const status = !place
+    ? null
+    : place.zone === "playoff"
+      ? { label: "In a playoff place", tone: "text-gold" }
+      : place.zone === "wildcard"
+        ? { label: "Holding a wild card", tone: "text-gold" }
+        : place.zone === "relplayoff"
+        ? { label: "Steel cage place", tone: "text-amber-500" }
+        : place.zone === "autorel"
+          ? { label: "Drop zone", tone: "text-red-400" }
+          : { label: "Outside the playoffs", tone: "text-foreground" };
+
+  // ── Members ───────────────────────────────────────────────────────────────
+  const wrestlerById = new Map(allWrestlers.map((w) => [w.id, w]));
+  const members = [team.wrestler_a_id, team.wrestler_b_id].map((wid) => {
+    const w = wrestlerById.get(wid) ?? null;
+    const standing = eloBoard.standings.get(wid) ?? null;
+    const assignment = currentSeason
+      ? allAssignRows.find((a) => a.wrestler_id === wid && a.season_id === currentSeason.id)
+      : null;
+    return { w, standing, tier: assignment?.tiers ?? null };
+  });
+
+  const imagesOf = (teamId: string) => {
+    const t = teamById.get(teamId);
+    return [t?.wrestler_a, t?.wrestler_b].map(
+      (m) => (m as unknown as Member | null)?.image_url ?? null
+    );
+  };
+
   const memberLink = (m: Member | null) =>
     m ? (
       <Link
-        href={`/roster/${m.slug ?? m.id}`}
+        href={`/roster/${wrestlerById.get(m.id)?.slug ?? m.id}`}
         className="font-medium text-foreground hover:text-gold transition-colors"
       >
         {m.name}
@@ -214,6 +262,19 @@ export default async function TagTeamProfilePage({
           )}
         </div>
         <div className="relative min-w-0 flex-[1_1_12rem] pb-2 sm:pb-6">
+          <p className="mb-2 flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            {place && plate && (
+              <Link
+                href={`/tiers/${place.tier.slug ?? place.tier.id}`}
+                className="px-1.5 py-0.5 font-bold tracking-[0.16em] hover:brightness-110"
+                style={{ background: plate.bg, color: plate.fg }}
+              >
+                T{place.tier.tierNumber} · {place.tier.shortName}
+              </Link>
+            )}
+            <span>{teamGender === "female" ? "Women's" : "Men's"} tag</span>
+            {!team.is_active && <span className="text-muted-foreground/60">· Inactive</span>}
+          </p>
           <h1 className="text-3xl [overflow-wrap:anywhere] sm:text-6xl">
             {eloRank != null && (
               <span className="mr-3 text-2xl text-gold sm:text-4xl" title={`Ranked #${eloRank} in ${POOL_LABEL[eloStanding!.pool]} by Elo`}>
@@ -222,19 +283,11 @@ export default async function TagTeamProfilePage({
             )}
             {team.name}
           </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-            <Badge variant="outline" className="text-[10px]">
-              {teamGender === "female" ? "Women's" : "Men's"} Tag
-            </Badge>
-            <span className={`inline-flex items-center gap-1 ${team.is_active ? "text-emerald-400" : "text-muted-foreground/50"}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${team.is_active ? "bg-emerald-400" : "bg-muted-foreground/40"}`} />
-              {team.is_active ? "Active" : "Inactive"}
-            </span>
-            <span className="text-muted-foreground/40">·</span>
+          <p className="mt-1 text-sm text-muted-foreground">
             {memberLink(memberA)} <span className="text-muted-foreground/40">&amp;</span> {memberLink(memberB)}
           </p>
           {reigning && (
-            <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold/10 px-2.5 py-0.5 text-xs font-semibold text-gold">
+            <p className="mt-2 inline-block bg-gold px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-black">
               Reigning {reigning.beltName} Champions
             </p>
           )}
@@ -277,6 +330,66 @@ export default async function TagTeamProfilePage({
         />
       </div>
 
+      {/* This season */}
+      {place && plate && status && (
+        <div className="mt-[2px] flex flex-col bg-card sm:flex-row">
+          <div
+            className="flex shrink-0 items-center gap-3 px-5 py-3 sm:w-56 sm:flex-col sm:items-start sm:justify-center sm:gap-1"
+            style={{ background: plate.bg, color: plate.fg }}
+          >
+            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">
+              Season {currentSeason?.season_number}
+            </span>
+            <span className="font-display text-5xl font-black leading-none">
+              {ordinal(place.poolPlace)}
+            </span>
+            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] opacity-80">
+              {place.pool ? `Pool ${place.pool} · ` : ""}of {place.poolSize}
+            </span>
+          </div>
+          <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-4 px-5 py-4 lg:grid-cols-4">
+            <SeasonFact label="Championship">
+              <Link
+                href={`/tiers/${place.tier.slug ?? place.tier.id}`}
+                className="hover:text-gold"
+              >
+                {place.tier.shortName}
+              </Link>
+            </SeasonFact>
+            <SeasonFact label="Pool record">
+              <span className="tabular-nums">
+                {place.row.wins}-{place.row.losses}
+              </span>
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                {ordinal(place.place)} of {place.size} in the tier
+              </span>
+            </SeasonFact>
+            <SeasonFact label="Standing">
+              <span className={status.tone}>{status.label}</span>
+              {place.zone !== "playoff" && place.zone !== "wildcard" && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {place.gamesBack === 0
+                    ? "level with the last place in"
+                    : `${place.gamesBack} ${place.gamesBack === 1 ? "game" : "games"} back`}
+                </span>
+              )}
+            </SeasonFact>
+            <SeasonFact label="Next match">
+              {nextMatch ? (
+                <Link href={`/match/${nextMatch.id}`} className="hover:text-gold">
+                  {teamNames[opponentOf(nextMatch)] ?? "?"}
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    {chanceVs(opponentOf(nextMatch))}% to win
+                  </span>
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">Pool play complete</span>
+              )}
+            </SeasonFact>
+          </div>
+        </div>
+      )}
+
       {/* Elo */}
       {eloEntry && eloEntry.history.length >= 2 && (
         <div className="mt-[2px] bg-card px-5 pb-5 pt-4">
@@ -286,8 +399,7 @@ export default async function TagTeamProfilePage({
               <RatingSparkline
                 height={120}
                 points={eloEntry.history.map((h, hi) => {
-                  const oppTeam = teamById.get(h.opponentId);
-                  const oppImage = (oppTeam?.wrestler_a as unknown as Member | null)?.image_url ?? null;
+                  const oppImage = imagesOf(h.opponentId)[0];
                   return {
                     rating: h.rating,
                     won: h.won,
@@ -310,7 +422,75 @@ export default async function TagTeamProfilePage({
         <MiniStat label="Best Win Streak" value={bestStreak > 0 ? `${bestStreak}` : "—"} />
         <MiniStat label="Fastest Win" value={fastestWin ? formatTime(fastestWin) : "—"} />
         <MiniStat label="Avg Match Time" value={avgTime ? formatTime(avgTime) : "—"} />
-        <MiniStat label="Longest Match" value={longestMatch ? formatTime(longestMatch) : "—"} />
+        <MiniStat label="Opponents Faced" value={uniqueOpponents > 0 ? `${uniqueOpponents}` : "—"} />
+      </div>
+
+      {/* The team */}
+      <div className="mt-8">
+        <SectionHeader>The Team</SectionHeader>
+        <div className="grid grid-cols-1 pl-px pt-px md:grid-cols-2">
+          {members.map(({ w, standing, tier }, i) =>
+            w ? (
+              <Link
+                key={w.id}
+                href={`/roster/${w.slug ?? w.id}`}
+                className="group -ml-px -mt-px flex items-stretch border border-border bg-card"
+              >
+                <div className="halftone h-28 w-28 shrink-0 overflow-hidden bg-background sm:h-32 sm:w-32">
+                  {w.image_url ? (
+                    <SmartImage
+                      src={w.image_url}
+                      alt=""
+                      width={160}
+                      height={160}
+                      className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.04]"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center font-display text-5xl font-black text-muted-foreground/15">
+                      {w.name.charAt(0)}
+                    </div>
+                  )}
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col justify-center px-4 py-3">
+                  <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+                    Singles{tier ? ` · T${tier.tier_number} ${tier.short_name || tier.name}` : " · not entered this season"}
+                  </p>
+                  <p className="mt-0.5 font-display text-2xl font-extrabold leading-tight [overflow-wrap:anywhere] group-hover:text-gold">
+                    {standing && (
+                      <span className="mr-2 text-lg text-gold" title={`Ranked #${standing.rank} in ${POOL_LABEL[standing.pool]} singles by Elo`}>
+                        {standing.rank}
+                      </span>
+                    )}
+                    {w.name}
+                  </p>
+                  <p className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 font-mono text-[11px] text-muted-foreground">
+                    {standing ? (
+                      <>
+                        <span>
+                          <span className="font-bold text-gold tabular-nums">{standing.rating}</span> Elo
+                        </span>
+                        <span className="tabular-nums">
+                          {standing.wins}-{standing.losses}
+                        </span>
+                      </>
+                    ) : (
+                      <span>No singles matches yet</span>
+                    )}
+                    {w.overall_rating != null && (
+                      <span>
+                        <span className="tabular-nums text-foreground">{w.overall_rating}</span> OVR
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </Link>
+            ) : (
+              <div key={i} className="-ml-px -mt-px border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
+                Member not found
+              </div>
+            )
+          )}
+        </div>
       </div>
 
       {/* Championships won */}
@@ -319,8 +499,8 @@ export default async function TagTeamProfilePage({
           <SectionHeader>Championships Won</SectionHeader>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
             {titlesWon.map((m) => (
-              <div key={m.id} className="flex-shrink-0 rounded-lg border border-gold/20 bg-gold/[0.03] p-3 min-w-[140px]">
-                {m.tiers?.belt_image_url ? (
+              <div key={m.id} className="min-w-[140px] flex-shrink-0 border border-gold/30 bg-gold/[0.04] p-3">
+                {m.tiers?.belt_image_url && (
                   <SmartImage
                     src={m.tiers.belt_image_url}
                     alt=""
@@ -328,8 +508,6 @@ export default async function TagTeamProfilePage({
                     height={96}
                     className="h-12 w-auto object-contain mx-auto mb-2"
                   />
-                ) : (
-                  <div className="text-2xl text-center mb-2"></div>
                 )}
                 <p className="text-xs font-bold text-center">{m.tiers?.short_name || m.tiers?.name}</p>
                 <p className="text-[10px] text-muted-foreground text-center mt-0.5">
@@ -341,64 +519,89 @@ export default async function TagTeamProfilePage({
         </div>
       )}
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        {/* Head to head */}
-        {topH2H.length > 0 && (
+      <div className="mt-8 grid gap-x-6 gap-y-8 lg:grid-cols-2">
+        {/* Upcoming */}
+        {upcoming.length > 0 && (
           <div>
-            <SectionHeader>Head-to-Head</SectionHeader>
-            <div className="rounded-lg border border-border/40 overflow-hidden">
-              {topH2H.map(([oppId, record], i) => (
-                <Link
-                  key={oppId}
-                  href={`/tag-teams/${oppId}`}
-                  className={`flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted/10 transition-colors ${i > 0 ? "border-t border-border/20" : ""}`}
-                >
-                  <span className="font-medium truncate">{teamNames[oppId] ?? "?"}</span>
-                  <span className="tabular-nums shrink-0">
-                    <span className={record.wins > 0 ? "text-emerald-400" : "text-muted-foreground/40"}>{record.wins}</span>
-                    <span className="text-muted-foreground/40 mx-1">-</span>
-                    <span className={record.losses > 0 ? "text-red-400" : "text-muted-foreground/40"}>{record.losses}</span>
-                  </span>
-                </Link>
-              ))}
+            <SectionHeader>Still To Wrestle</SectionHeader>
+            <div className="border border-border">
+              {upcoming.map((m, i) => {
+                const oppId = opponentOf(m);
+                const oppRank = eloBoard.standings.get(oppId)?.rank ?? null;
+                const chance = chanceVs(oppId);
+                return (
+                  <Link
+                    key={m.id}
+                    href={`/match/${m.id}`}
+                    className={`group flex items-center gap-3 px-3 py-2 hover:bg-foreground/[0.04] ${i > 0 ? "border-t border-border" : ""}`}
+                  >
+                    <TeamFaces images={imagesOf(oppId)} />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium group-hover:text-gold">
+                      {oppRank != null && <span className="mr-1.5 text-xs font-bold text-gold/80">{oppRank}</span>}
+                      {teamNames[oppId] ?? "?"}
+                    </span>
+                    <span className="hidden shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground sm:inline">
+                      {ratingOf(oppId)}
+                    </span>
+                    <span
+                      className={`w-14 shrink-0 text-right font-mono text-[11px] font-bold tabular-nums ${
+                        chance >= 50 ? "text-emerald-400" : "text-red-400"
+                      }`}
+                      title="Chance of winning, from the two Elo ratings"
+                    >
+                      {chance}%
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
+            <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground/70">
+              Win chance from current Elo ratings
+            </p>
           </div>
         )}
 
-        {/* Tier history + upcoming */}
-        <div className="space-y-6">
-          {tierHistory.length > 0 && (
+        <div className="space-y-8">
+          {/* Head to head */}
+          {topH2H.length > 0 && (
             <div>
-              <SectionHeader>Tier History</SectionHeader>
-              <div className="rounded-lg border border-border/40 overflow-hidden">
-                {tierHistory.map((a, i) => (
-                  <div key={a.id} className={`flex items-center justify-between px-4 py-2.5 text-sm ${i > 0 ? "border-t border-border/20" : ""}`}>
-                    <span className="text-muted-foreground">Season {a.seasons?.season_number ?? "?"}</span>
-                    <span className="font-medium">{a.tiers?.short_name || a.tiers?.name || "?"}</span>
-                  </div>
+              <SectionHeader>Head-to-Head</SectionHeader>
+              <div className="border border-border">
+                {topH2H.map(([oppId, record], i) => (
+                  <Link
+                    key={oppId}
+                    href={`/tag-teams/${oppId}`}
+                    className={`group flex items-center gap-3 px-3 py-2 hover:bg-foreground/[0.04] ${i > 0 ? "border-t border-border" : ""}`}
+                  >
+                    <TeamFaces images={imagesOf(oppId)} />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium group-hover:text-gold">
+                      {teamNames[oppId] ?? "?"}
+                    </span>
+                    <span className="shrink-0 font-display text-lg font-black tabular-nums leading-none">
+                      <span className={record.wins > 0 ? "text-emerald-400" : "text-muted-foreground/40"}>{record.wins}</span>
+                      <span className="text-muted-foreground/40 mx-1">-</span>
+                      <span className={record.losses > 0 ? "text-red-400" : "text-muted-foreground/40"}>{record.losses}</span>
+                    </span>
+                  </Link>
                 ))}
               </div>
             </div>
           )}
 
-          {upcoming.length > 0 && (
+          {/* Tier history */}
+          {tierHistory.length > 0 && (
             <div>
-              <SectionHeader>Upcoming Matches</SectionHeader>
-              <div className="rounded-lg border border-border/40 overflow-hidden">
-                {upcoming.slice(0, 5).map((m, i) => {
-                  const oppId = opponentOf(m);
-                  return (
-                    <div key={m.id} className={`flex items-center justify-between px-4 py-2.5 text-sm ${i > 0 ? "border-t border-border/20" : ""}`}>
-                      <span>
-                        <span className="text-muted-foreground/60">vs </span>
-                        <Link href={`/tag-teams/${oppId}`} className="font-medium hover:text-gold transition-colors">
-                          {teamNames[oppId] ?? "?"}
-                        </Link>
-                      </span>
-                      <span className="text-xs text-muted-foreground/60">{m.tiers?.short_name || m.tiers?.name}</span>
-                    </div>
-                  );
-                })}
+              <SectionHeader>Tier History</SectionHeader>
+              <div className="border border-border">
+                {tierHistory.map((a, i) => (
+                  <div key={a.id} className={`flex items-center justify-between gap-3 px-3 py-2 text-sm ${i > 0 ? "border-t border-border" : ""}`}>
+                    <span className="text-muted-foreground">Season {a.seasons?.season_number ?? "?"}</span>
+                    <span className="truncate font-medium">
+                      <span className="mr-1.5 font-mono text-xs text-muted-foreground">T{a.tiers?.tier_number}</span>
+                      {a.tiers?.short_name || a.tiers?.name || "?"}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -409,51 +612,91 @@ export default async function TagTeamProfilePage({
       {played.length > 0 && (
         <div className="mt-8">
           <SectionHeader>Match History</SectionHeader>
-          <div className="rounded-lg border border-border/40 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 border-b border-border/20">
-                  <th className="px-3 py-2 text-left w-14">Result</th>
-                  <th className="px-3 py-2 text-left">Opponent</th>
-                  <th className="px-3 py-2 text-left hidden sm:table-cell">Tier</th>
-                  <th className="px-3 py-2 text-left hidden sm:table-cell">Phase</th>
-                  <th className="px-3 py-2 text-left hidden md:table-cell">Stipulation</th>
-                  <th className="px-3 py-2 text-right w-16">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {played.map((m) => {
-                  const won = m.winner_tag_team_id === id;
-                  const oppId = opponentOf(m);
-                  return (
-                    <tr key={m.id} className="border-t border-border/10">
-                      <td className="px-3 py-2">
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${won ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"}`}>
-                          {won ? "WIN" : "LOSS"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">
-                        <Link href={`/tag-teams/${oppId}`} className="font-medium hover:text-gold transition-colors">
-                          {teamNames[oppId] ?? "?"}
-                        </Link>
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">
-                        {m.tiers?.short_name || m.tiers?.name} <span className="text-muted-foreground/40">· S{m.seasons?.season_number}</span>
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">{phaseLabel(m.match_phase)}</td>
-                      <td className="px-3 py-2 text-muted-foreground hidden md:table-cell">{m.stipulation ?? "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                        {m.match_time_seconds ? formatTime(m.match_time_seconds) : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="border border-border">
+            {played.map((m, i) => {
+              const won = m.winner_tag_team_id === id;
+              const oppId = opponentOf(m);
+              const both = eloBoard.moves.get(m.id);
+              const move = both ? (m.tag_team_a_id === id ? both.a : both.b) : null;
+              const stakes = m.match_phase !== "pool_play";
+              return (
+                <div
+                  key={m.id}
+                  className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 ${i > 0 ? "border-t border-border" : ""}`}
+                >
+                  <span
+                    className={`w-6 shrink-0 py-0.5 text-center font-mono text-[10px] font-bold ${
+                      won ? "bg-emerald-500 text-black" : "bg-red-500/20 text-red-400"
+                    }`}
+                  >
+                    {won ? "W" : "L"}
+                  </span>
+                  <Link
+                    href={`/tag-teams/${oppId}`}
+                    className="flex min-w-0 flex-[1_1_10rem] items-center gap-2 text-sm font-medium hover:text-gold"
+                  >
+                    <TeamFaces images={imagesOf(oppId)} />
+                    <span className="truncate">{teamNames[oppId] ?? "?"}</span>
+                  </Link>
+                  <EloMoveChip move={move} className="shrink-0" />
+                  <span className="flex shrink-0 items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground sm:w-72 sm:justify-end">
+                    {stakes && (
+                      <span className={m.match_phase === "final" ? "bg-gold px-1 font-bold text-black" : "border border-border px-1"}>
+                        {phaseLabel(m.match_phase)}
+                      </span>
+                    )}
+                    {m.stipulation && <span className="hidden truncate md:inline">{m.stipulation}</span>}
+                    <span className="truncate">
+                      {m.tiers?.short_name || m.tiers?.name} · S{m.seasons?.season_number}
+                    </span>
+                  </span>
+                  <Link
+                    href={`/match/${m.id}`}
+                    className="w-12 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground hover:text-gold"
+                    title="Open the match page"
+                  >
+                    {m.match_time_seconds ? formatTime(m.match_time_seconds) : "—"}
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function SeasonFact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 text-base font-bold leading-snug [overflow-wrap:anywhere]">{children}</p>
+    </div>
+  );
+}
+
+/** Two small member portraits for an opposing team */
+function TeamFaces({ images }: { images: Array<string | null> }) {
+  return (
+    <span className="flex shrink-0">
+      {images.map((src, i) =>
+        src ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            key={i}
+            src={displaySrc(src, 40)}
+            alt=""
+            loading="lazy"
+            className="h-7 w-7 bg-muted object-cover object-top"
+          />
+        ) : (
+          <span key={i} className="h-7 w-7 bg-muted" />
+        )
+      )}
+    </span>
   );
 }
 
